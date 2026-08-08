@@ -16,6 +16,7 @@ const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
 const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const BreakableScript := preload("res://scripts/world/breakable.gd")
 const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
+const QuestManagerScript := preload("res://scripts/quests/quest_manager.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 
 const SHOW_SIGNS := false
@@ -80,7 +81,14 @@ func _ready() -> void:
 	add_child(tm)
 	tm.time_changed.connect(hud.set_time)
 
+	var quests := QuestManagerScript.new()
+	quests.player = player
+	quests.quest_changed.connect(hud.set_quest)
+	add_child(quests)
+	player.inventory.changed.connect(quests.notify_inventory_changed)
+
 	var saver := SaveManagerScript.new()
+	saver.quest_manager = quests
 	saver.player = player
 	saver.hud = hud
 	saver.time_manager = tm

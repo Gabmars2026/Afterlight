@@ -433,6 +433,7 @@ func _die() -> void:
 	tween.tween_interval(4.0)
 	tween.tween_property(_mesh_root, "position:y", -1.2, 2.0)
 	tween.tween_callback(queue_free)
+	get_tree().call_group("quest_listeners", "on_enemy_killed")
 	died.emit()
 
 

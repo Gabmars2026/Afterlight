@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 8 — Crafting from scavenged materials.**
+**Current build: Phase 9 — First quest: The Last Signal.**
 
 ## How to play
 

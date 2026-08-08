@@ -14,6 +14,7 @@ var _flash: ColorRect
 var _death: Label
 var _toast: Label
 var _clock: Label
+var _quest: Label
 var _inv_panel: PanelContainer
 var _inv_buttons: Array = []
 var _craft_buttons: Array = []
@@ -154,11 +155,22 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 8: Crafting"
+	title.text = "AFTERLIGHT  -  Phase 9: Quests"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
 	add_child(title)
+
+	# --- Quest tracker (top right) ---
+	_quest = Label.new()
+	_quest.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_quest.position = Vector2(-470, 42)
+	_quest.custom_minimum_size = Vector2(455, 0)
+	_quest.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_quest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_quest.add_theme_font_size_override("font_size", 15)
+	_quest.modulate = Color(0.75, 0.95, 1.0)
+	add_child(_quest)
 
 	# --- Inventory panel (TAB) ---
 	_inv_panel = PanelContainer.new()
@@ -333,3 +345,7 @@ func _on_craft(i: int) -> void:
 	if player:
 		player.call("craft_recipe", i)
 	refresh_inventory()
+
+
+func set_quest(text: String) -> void:
+	_quest.text = text
