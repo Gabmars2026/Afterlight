@@ -22,6 +22,7 @@ const FactionManagerScript := preload("res://scripts/core/faction_manager.gd")
 const WorldStreamerScript := preload("res://scripts/world/world_streamer.gd")
 const CityBuilderScript := preload("res://scripts/world/city_builder.gd")
 const GraphicsManagerScript := preload("res://scripts/core/graphics_manager.gd")
+const SelfTestScript := preload("res://scripts/core/self_test.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 const WeatherManagerScript := preload("res://scripts/core/weather_manager.gd")
 
@@ -143,6 +144,11 @@ func _ready() -> void:
 	gfx.streamer = streamer
 	gfx.weather = weather
 	add_child(gfx)
+
+	if "--selftest" in OS.get_cmdline_user_args():
+		var tester := SelfTestScript.new()
+		add_child(tester)
+		tester.run(self)
 	add_child(saver)
 
 

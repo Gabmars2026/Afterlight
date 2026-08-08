@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 18 — Final polish: bloom, vignette, crickets, heartbeat.**
+**Current build: Phase 19 — 28-check automated self-test + CI on every push.**
 
 ## How to play
 
