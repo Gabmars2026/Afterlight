@@ -6,6 +6,7 @@ extends CharacterBody3D
 ## Builds its own children in code: collider, head, camera, and components.
 
 signal health_changed(current: int, maximum: int)
+signal notify(text: String)
 signal interaction_prompt(text: String)
 signal died
 
@@ -47,6 +48,7 @@ const STEP_STRIDE_CROUCH := 1.6
 const STEP_STRIDE_CRAWL := 1.1
 
 var health: int = MAX_HEALTH
+var ui_lock := false  # true while the inventory panel is open
 var stance: Stance = Stance.STAND
 var is_sliding := false
 
@@ -56,6 +58,8 @@ var stamina: StaminaController
 var footsteps: FootstepController
 var interaction: InteractionController
 var weapons: WeaponManager
+var inventory: Node
+const InventoryScript := preload("res://scripts/items/inventory.gd")
 
 var _gravity: float = 9.8
 var _collider: CollisionShape3D
@@ -75,6 +79,8 @@ var _mantle_t := 0.0
 var _vault_cd := 0.0
 var _breath: AudioStreamPlayer
 var _hurt: AudioStreamPlayer
+var _snd_pickup: AudioStreamPlayer
+var _snd_bandage: AudioStreamPlayer
 var _dead := false
 var _body: Node3D
 var _leg_l: Node3D
@@ -129,6 +135,12 @@ func _ready() -> void:
 	interaction.focus_changed.connect(func(prompt: String) -> void:
 		interaction_prompt.emit(prompt))
 
+	inventory = InventoryScript.new()
+	add_child(inventory)
+	inventory.add_item("bandage", 1)
+	inventory.add_item("ammo_pistol", 24)
+	inventory.add_item("ammo_rifle", 30)
+
 	weapons = WeaponManager.new()
 	camera.add_child(weapons)
 	weapons.setup(self)
@@ -172,7 +184,8 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed \
-			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not get_tree().paused:
+			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED \
+			and not get_tree().paused and not ui_lock:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("interact"):
 		interaction.try_interact(self)
@@ -572,34 +585,121 @@ func take_damage(amount: int) -> void:
 		died.emit()
 
 
+func heal(amount: int) -> void:
+	if _dead:
+		return
+	health = mini(MAX_HEALTH, health + amount)
+	health_changed.emit(health, MAX_HEALTH)
+
+
+## Called by loot crates and world pickups. Returns how many were stored.
+func pickup(id: String, count: int) -> int:
+	var leftover: int = inventory.add_item(id, count)
+	var got := count - leftover
+	if got > 0:
+		if _snd_pickup == null:
+			_snd_pickup = _make_snd("pickup", -6.0)
+		_snd_pickup.play()
+		var label: String = inventory.DEFS[id]["label"]
+		notify.emit("+ %d %s" % [got, label] if got > 1 else "+ %s" % label)
+	else:
+		notify.emit("INVENTORY FULL")
+	return got
+
+
+## Called by the inventory UI when a slot is clicked.
+func use_inventory_slot(slot: int) -> void:
+	var it = inventory.slots[slot]
+	if it == null or _dead:
+		return
+	var id: String = it["id"]
+	if id == "bandage":
+		if health >= MAX_HEALTH:
+			notify.emit("HEALTH ALREADY FULL")
+			return
+		heal(35)
+		if _snd_bandage == null:
+			_snd_bandage = _make_snd("bandage_use", -4.0)
+		_snd_bandage.play()
+		inventory.consume(slot, 1)
+		notify.emit("BANDAGED  +35 HP")
+	elif inventory.DEFS[id].get("melee", false):
+		weapons.equip_melee(slot)
+		notify.emit("%s EQUIPPED" % inventory.DEFS[id]["label"])
+	elif id.begins_with("ammo_"):
+		notify.emit("USED AUTOMATICALLY WHEN RELOADING")
+	else:
+		notify.emit("CRAFTING MATERIAL - COMING IN PHASE 8")
+
+
 # ---------------------------------------------------------------- body
 
 func _build_body() -> void:
-	## First-person body v1: visible lower torso + legs when looking down.
+	## First-person body v2: pelvis, torso, jointed legs with shins and
+	## boots - visible when you look down.
 	_body = Node3D.new()
 	add_child(_body)
 	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.28, 0.3, 0.34)
+	cloth.albedo_color = Color(0.3, 0.33, 0.38)
 	cloth.roughness = 1.0
+	var pants := StandardMaterial3D.new()
+	pants.albedo_color = Color(0.22, 0.24, 0.27)
+	pants.roughness = 1.0
+	var boots := StandardMaterial3D.new()
+	boots.albedo_color = Color(0.16, 0.13, 0.1)
+	boots.roughness = 0.95
 
-	var torso := MeshInstance3D.new()
-	var tmesh := BoxMesh.new()
-	tmesh.size = Vector3(0.34, 0.42, 0.22)
-	tmesh.material = cloth
-	torso.mesh = tmesh
-	torso.position = Vector3(0, 1.18, 0.05)
-	_body.add_child(torso)
+	var chest := MeshInstance3D.new()
+	var cmesh := BoxMesh.new()
+	cmesh.size = Vector3(0.4, 0.34, 0.24)
+	cmesh.material = cloth
+	chest.mesh = cmesh
+	chest.position = Vector3(0, 1.32, 0.05)
+	_body.add_child(chest)
 
-	for data in [[-0.10, true], [0.10, false]]:
+	var belly := MeshInstance3D.new()
+	var bmesh := BoxMesh.new()
+	bmesh.size = Vector3(0.34, 0.28, 0.2)
+	bmesh.material = cloth
+	belly.mesh = bmesh
+	belly.position = Vector3(0, 1.06, 0.05)
+	_body.add_child(belly)
+
+	var pelvis := MeshInstance3D.new()
+	var pmesh := BoxMesh.new()
+	pmesh.size = Vector3(0.36, 0.18, 0.21)
+	pmesh.material = pants
+	pelvis.mesh = pmesh
+	pelvis.position = Vector3(0, 0.9, 0.04)
+	_body.add_child(pelvis)
+
+	for data in [[-0.11, true], [0.11, false]]:
 		var pivot := Node3D.new()
-		pivot.position = Vector3(data[0], 0.95, 0.04)
-		var leg := MeshInstance3D.new()
-		var lmesh := BoxMesh.new()
-		lmesh.size = Vector3(0.13, 0.88, 0.15)
-		lmesh.material = cloth
-		leg.mesh = lmesh
-		leg.position = Vector3(0, -0.46, 0)
-		pivot.add_child(leg)
+		pivot.position = Vector3(data[0], 0.86, 0.04)
+		# Thigh
+		var thigh := MeshInstance3D.new()
+		var tmesh := BoxMesh.new()
+		tmesh.size = Vector3(0.15, 0.44, 0.16)
+		tmesh.material = pants
+		thigh.mesh = tmesh
+		thigh.position = Vector3(0, -0.2, 0)
+		pivot.add_child(thigh)
+		# Shin
+		var shin := MeshInstance3D.new()
+		var smesh := BoxMesh.new()
+		smesh.size = Vector3(0.13, 0.42, 0.14)
+		smesh.material = pants
+		shin.mesh = smesh
+		shin.position = Vector3(0, -0.61, 0.01)
+		pivot.add_child(shin)
+		# Boot
+		var foot := MeshInstance3D.new()
+		var fmesh := BoxMesh.new()
+		fmesh.size = Vector3(0.14, 0.1, 0.27)
+		fmesh.material = boots
+		foot.mesh = fmesh
+		foot.position = Vector3(0, -0.83, -0.05)
+		pivot.add_child(foot)
 		_body.add_child(pivot)
 		if data[1]:
 			_leg_l = pivot

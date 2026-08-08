@@ -12,6 +12,7 @@ const AIM_ZOOM := -10.0
 var player: CharacterBody3D
 var _weapons: Array[Dictionary] = []
 var _current := -1
+var _melee_slot := -1  # inventory slot of the equipped melee item (-1 = fists)
 var _cooldown := 0.0
 var _reload_left := 0.0
 var _equip_left := 0.0
@@ -30,6 +31,11 @@ var _snd_empty: AudioStream
 var _snd_reload: AudioStream
 var _snd_equip: AudioStream
 var _snd_shell: AudioStream
+var _snd_swing: AudioStream
+var _snd_melee_hit: AudioStream
+var _snd_punch: AudioStream
+var _snd_clang: AudioStream
+var _snd_break: AudioStream
 var _impact_sounds := {}
 
 
@@ -40,6 +46,11 @@ func setup(p: CharacterBody3D) -> void:
 	_snd_reload = load("res://assets/audio/reload.wav")
 	_snd_equip = load("res://assets/audio/equip.wav")
 	_snd_shell = load("res://assets/audio/shell_drop.wav")
+	_snd_swing = load("res://assets/audio/melee_swing.wav")
+	_snd_melee_hit = load("res://assets/audio/melee_hit.wav")
+	_snd_punch = load("res://assets/audio/punch_hit.wav")
+	_snd_clang = load("res://assets/audio/melee_clang.wav")
+	_snd_break = load("res://assets/audio/wood_break.wav")
 	_impact_sounds = {
 		"concrete": load("res://assets/audio/impact_concrete.wav"),
 		"metal": load("res://assets/audio/impact_metal.wav"),
@@ -71,6 +82,7 @@ func setup(p: CharacterBody3D) -> void:
 	add_child(_flash)
 	_build_pistol()
 	_build_rifle()
+	_build_melee()
 	_switch_to(0)
 
 
@@ -124,6 +136,7 @@ func _build_pistol() -> void:
 	_weapons.append({
 		"name": "PISTOL", "auto": false, "damage": 34, "mag_size": 12,
 		"mag": 12, "interval": 0.22, "recoil": 0.016, "reload_time": 1.35,
+		"ammo_id": "ammo_pistol",
 		"sound": load("res://assets/audio/pistol_fire.wav"),
 		"model": root, "muzzle": muzzle,
 	})
@@ -145,9 +158,72 @@ func _build_rifle() -> void:
 	_weapons.append({
 		"name": "RIFLE", "auto": true, "damage": 22, "mag_size": 30,
 		"mag": 30, "interval": 0.1, "recoil": 0.011, "reload_time": 1.7,
+		"ammo_id": "ammo_rifle",
 		"sound": load("res://assets/audio/rifle_fire.wav"),
 		"model": root, "muzzle": muzzle,
 	})
+
+
+func _build_melee() -> void:
+	var root := Node3D.new()
+	add_child(root)
+	var skin := _mat(Color(0.78, 0.6, 0.48))
+	var sleeve := _mat(Color(0.25, 0.28, 0.24))
+	# Fists: two raised hands
+	var fists := Node3D.new()
+	root.add_child(fists)
+	_vm_box(fists, Vector3(0.09, 0.09, 0.11), Vector3(0.06, -0.06, -0.05), skin)
+	_vm_box(fists, Vector3(0.08, 0.08, 0.2), Vector3(0.08, -0.1, 0.12), sleeve)
+	_vm_box(fists, Vector3(0.09, 0.09, 0.11), Vector3(-0.14, -0.1, 0.02), skin)
+	_vm_box(fists, Vector3(0.08, 0.08, 0.2), Vector3(-0.16, -0.14, 0.18), sleeve)
+	# Steel pipe held in the right hand
+	var pipe := Node3D.new()
+	root.add_child(pipe)
+	var steel := _mat(Color(0.45, 0.47, 0.5), 0.8)
+	_vm_box(pipe, Vector3(0.05, 0.05, 0.62), Vector3(0.02, -0.02, -0.22), steel)
+	_vm_box(pipe, Vector3(0.07, 0.07, 0.08), Vector3(0.02, -0.02, -0.5), steel)
+	_vm_box(pipe, Vector3(0.09, 0.09, 0.11), Vector3(0.02, -0.08, 0.05), skin)
+	_vm_box(pipe, Vector3(0.08, 0.08, 0.2), Vector3(0.04, -0.12, 0.22), sleeve)
+	# Baseball bat
+	var bat := Node3D.new()
+	root.add_child(bat)
+	var wood := _mat(Color(0.52, 0.36, 0.2))
+	_vm_box(bat, Vector3(0.05, 0.05, 0.3), Vector3(0.02, -0.03, 0.0), wood)
+	_vm_box(bat, Vector3(0.08, 0.08, 0.42), Vector3(0.02, 0.0, -0.33), wood)
+	_vm_box(bat, Vector3(0.09, 0.09, 0.11), Vector3(0.02, -0.09, 0.12), skin)
+	_vm_box(bat, Vector3(0.08, 0.08, 0.2), Vector3(0.04, -0.13, 0.28), sleeve)
+	_weapons.append({
+		"name": "FISTS", "melee": true, "auto": false, "damage": 12,
+		"interval": 0.45, "kind": "fists",
+		"model": root, "submodels": {"fists": fists, "pipe": pipe, "bat": bat},
+	})
+
+
+## Equip the melee item in inventory `slot` (-1 or empty slot = bare fists),
+## then switch to the melee weapon.
+func equip_melee(slot: int) -> void:
+	var w: Dictionary = _weapons[2]
+	var inv: Node = player.inventory
+	if slot < 0 or inv.slots[slot] == null \
+			or not inv.DEFS[inv.slots[slot]["id"]].get("melee", false):
+		_melee_slot = -1
+		w["name"] = "FISTS"
+		w["damage"] = 12
+		w["interval"] = 0.45
+		w["kind"] = "fists"
+	else:
+		var id: String = inv.slots[slot]["id"]
+		_melee_slot = slot
+		w["name"] = inv.DEFS[id]["label"]
+		w["damage"] = inv.DEFS[id]["damage"]
+		w["interval"] = inv.DEFS[id]["interval"]
+		w["kind"] = id
+	for k in w["submodels"]:
+		w["submodels"][k].visible = (k == w["kind"])
+	if _current != 2:
+		_switch_to(2)
+	else:
+		_emit_ammo()
 
 
 func _switch_to(idx: int) -> void:
@@ -165,7 +241,15 @@ func _switch_to(idx: int) -> void:
 
 func _emit_ammo() -> void:
 	var w := _weapons[_current]
-	ammo_changed.emit("%s   %d / %d" % [w["name"], w["mag"], w["mag_size"]])
+	if w.get("melee", false):
+		if _melee_slot >= 0 and player.inventory.slots[_melee_slot] != null:
+			ammo_changed.emit("%s   %d" % [w["name"],
+					player.inventory.slots[_melee_slot]["dur"]])
+		else:
+			ammo_changed.emit("FISTS")
+	else:
+		ammo_changed.emit("%s   %d / %d   +%d" % [w["name"], w["mag"],
+				w["mag_size"], player.inventory.count_of(w["ammo_id"])])
 
 
 func _process(delta: float) -> void:
@@ -177,7 +261,9 @@ func _process(delta: float) -> void:
 		_reload_left -= delta
 		if _reload_left <= 0.0:
 			var w := _weapons[_current]
-			w["mag"] = w["mag_size"]
+			if not w.get("melee", false):
+				var needed: int = w["mag_size"] - w["mag"]
+				w["mag"] += player.inventory.take(w["ammo_id"], needed)
 			_emit_ammo()
 	if Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		_capture_grace = 0.25
@@ -188,7 +274,8 @@ func _process(delta: float) -> void:
 	_recoil_back = lerpf(_recoil_back, 0.0, minf(1.0, delta * 12.0))
 	var target := _base_pos + Vector3(0, 0, _recoil_back)
 	var camera := get_parent() as Camera3D
-	if Input.is_action_pressed("aim") and _reload_left <= 0.0:
+	if Input.is_action_pressed("aim") and _reload_left <= 0.0 \
+			and not _weapons[_current].get("melee", false):
 		target = Vector3(0.0, -0.22, -0.42 + _recoil_back)
 		camera.set("zoom_offset", AIM_ZOOM)
 	else:
@@ -205,6 +292,20 @@ func _handle_combat_input() -> void:
 		return
 	if Input.is_action_just_pressed("weapon_2"):
 		_switch_to(1)
+		return
+	if Input.is_action_just_pressed("weapon_3"):
+		equip_melee(_melee_slot if _melee_slot >= 0 else player.inventory.best_melee())
+		return
+	if w.get("melee", false):
+		if _equip_left > 0.0 or _capture_grace > 0.0 or _cooldown > 0.0:
+			return
+		var heavy := Input.is_action_just_pressed("aim")
+		if heavy or Input.is_action_just_pressed("fire"):
+			var cost := 14.0 if heavy else 6.0
+			if player.stamina.is_exhausted or player.stamina.stamina < cost:
+				return
+			player.stamina.drain(cost)
+			_melee_attack(w, heavy)
 		return
 	if Input.is_action_just_pressed("reload") and w["mag"] < w["mag_size"] \
 			and _reload_left <= 0.0:
@@ -225,6 +326,11 @@ func _handle_combat_input() -> void:
 
 
 func _start_reload(w: Dictionary) -> void:
+	if player.inventory.count_of(w["ammo_id"]) <= 0:
+		_handling.stream = _snd_empty
+		_handling.play()
+		player.notify.emit("NO %s LEFT" % player.inventory.DEFS[w["ammo_id"]]["label"])
+		return
 	_reload_left = w["reload_time"]
 	_handling.stream = _snd_reload
 	_handling.play()
@@ -320,3 +426,68 @@ func _apply_impact(hit: Dictionary, damage: int) -> void:
 	get_tree().current_scene.add_child(p)
 	p.global_position = point + normal * 0.03
 	get_tree().create_timer(1.0).timeout.connect(p.queue_free)
+
+
+# ---------------------------------------------------------------- melee
+
+func _melee_attack(w: Dictionary, heavy: bool) -> void:
+	_cooldown = w["interval"] * (1.7 if heavy else 1.0)
+	_handling.stream = _snd_swing
+	_handling.pitch_scale = 0.8 if heavy else randf_range(0.95, 1.1)
+	_handling.play()
+	# Viewmodel swing: wind back, then chop across the screen
+	var root: Node3D = w["model"]
+	var windup := 0.22 if heavy else 0.08
+	var tw := create_tween()
+	tw.tween_property(root, "rotation", Vector3(0.35, 0.4, 0.2), windup) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(root, "rotation", Vector3(-0.5, -0.35, -0.3), 0.09) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(root, "rotation", Vector3.ZERO, 0.25) \
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	get_tree().create_timer(windup + 0.07).timeout.connect(
+			_melee_strike.bind(w, heavy))
+
+
+func _melee_strike(w: Dictionary, heavy: bool) -> void:
+	if player.health <= 0:
+		return
+	var camera := get_parent() as Camera3D
+	var from := camera.global_position
+	var to := from - camera.global_transform.basis.z * 2.1
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4)
+	query.exclude = [player.get_rid()]
+	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
+	# Melee is quiet: only very close zombies notice
+	get_tree().call_group("enemies", "hear_noise", player.global_position, 9.0)
+	if hit.is_empty():
+		return
+	var damage := int(round(w["damage"] * (2.2 if heavy else 1.0)))
+	var collider: Object = hit["collider"]
+	var flesh: bool = collider.has_method("take_hit") \
+			and collider.is_in_group("enemies")
+	# Impact sound at the point of contact
+	var ip: AudioStreamPlayer3D = _impact_players[randi() % _impact_players.size()]
+	ip.global_position = hit["position"]
+	if flesh:
+		ip.stream = _snd_punch if w["kind"] == "fists" else _snd_melee_hit
+	elif w["kind"] == "pipe":
+		ip.stream = _snd_clang
+	else:
+		ip.stream = _snd_melee_hit
+	ip.pitch_scale = randf_range(0.9, 1.1)
+	ip.play()
+	# Small camera thump on contact
+	var head: Node3D = player.get("head")
+	head.rotation.x = clampf(head.rotation.x + (0.02 if heavy else 0.01),
+			deg_to_rad(-85.0), deg_to_rad(85.0))
+	_apply_impact(hit, damage)
+	# Wear down the equipped melee item
+	if _melee_slot >= 0:
+		if player.inventory.damage_melee(_melee_slot):
+			_handling.stream = _snd_break
+			_handling.pitch_scale = 1.0
+			_handling.play()
+			player.notify.emit("YOUR WEAPON BROKE")
+			equip_melee(player.inventory.best_melee())
+	_emit_ammo()

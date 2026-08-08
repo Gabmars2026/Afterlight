@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 6 — Day/night cycle over a sun-bleached desert town.**
+**Current build: Phase 7 — Inventory, melee combat, humanoid characters.**
 
 ## How to play
 
@@ -25,7 +25,10 @@ An original open-world first-person survival/action game built in Godot 4.x.
 | Left mouse | Fire weapon |
 | Right mouse (hold) | Aim |
 | R | Reload |
-| 1 / 2 | Switch weapon (pistol / rifle) |
+| 1 / 2 / 3 | Switch weapon (pistol / rifle / melee) |
+| Left mouse (melee out) | Light swing (costs stamina) |
+| Right mouse (melee out) | Heavy swing (slow, 2.2x damage) |
+| Tab | Inventory — click an item to use or equip it |
 | E | Interact (doors, switches, crates, generator) |
 | Space (mid-air at a wall) | Wall jump |
 | A / D (while hanging) | Shimmy along ledge |

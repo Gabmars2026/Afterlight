@@ -61,6 +61,10 @@ func _ready() -> void:
 	player.weapons._emit_ammo()
 	player.health_changed.connect(hud.set_health)
 	hud.set_health(player.health, Player.MAX_HEALTH)
+	hud.player = player
+	player.notify.connect(hud.toast)
+	player.inventory.changed.connect(hud.refresh_inventory)
+	player.inventory.changed.connect(func() -> void: player.weapons._emit_ammo())
 	player.died.connect(_on_player_died)
 
 	_build_interactives()
@@ -97,6 +101,7 @@ func _setup_input() -> void:
 	_add_key("map", KEY_M)
 	_add_key("weapon_1", KEY_1)
 	_add_key("weapon_2", KEY_2)
+	_add_key("weapon_3", KEY_3)
 	_add_mouse("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse("aim", MOUSE_BUTTON_RIGHT)
 
@@ -527,9 +532,11 @@ func _build_district() -> void:
 
 	# --- Floors with stair openings (wood) ---
 	_box(Vector3(11.5, 0.3, 9.0), Vector3(bx, 3.0, bz - 1.25), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
-	_box(Vector3(6.25, 0.3, 2.5), Vector3(bx - 2.625, 3.0, bz + 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	# Shortened strip: leaves full head clearance over the ground-floor stairs
+	_box(Vector3(3.1, 0.3, 2.5), Vector3(bx - 4.2, 3.0, bz + 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
 	_box(Vector3(11.5, 0.3, 9.0), Vector3(bx, 6.0, bz + 1.25), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
-	_box(Vector3(5.25, 0.3, 2.5), Vector3(bx + 3.125, 6.0, bz - 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	# Shortened strip: leaves full head clearance over the floor-2 stairs
+	_box(Vector3(3.45, 0.3, 2.5), Vector3(bx + 4.03, 6.0, bz - 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
 	# Roof (concrete) with hatch hole in the north-east corner
 	_box(Vector3(12.5, 0.4, 9.75), Vector3(bx, 9.2, bz - 1.25), _concrete_mat)
 	_box(Vector3(9.75, 0.4, 2.75), Vector3(bx - 1.375, 9.2, bz + 4.875), _concrete_mat)
@@ -939,7 +946,7 @@ func _build_old_market() -> void:
 	_box(Vector3(4.5, 0.3, 6), Vector3(25.25, 2.55, 32), _concrete_mat, Color(0.6, 0.58, 0.55))
 	# Interior stairs along the east wall (climb south-to-... up northwards)
 	for i in 9:
-		_box(Vector3(1.4, 0.3, 0.6), Vector3(28.2, 0.15 + 0.3 * i, 34.4 - 0.6 * i),
+		_box(Vector3(1.2, 0.3, 0.6), Vector3(28.3, 0.15 + 0.3 * i, 34.4 - 0.6 * i),
 				_concrete_mat, Color(0.62, 0.6, 0.57))
 	# Roof (top at 6.0 m) + outside ladder to it
 	_box(Vector3(6.6, 0.4, 6.6), Vector3(26, 5.8, 32), _concrete_mat, Color(0.5, 0.5, 0.54))

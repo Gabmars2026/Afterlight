@@ -45,7 +45,7 @@ func save_game() -> void:
 		return
 	var mags: Array = []
 	for w in player.weapons._weapons:
-		mags.append(w["mag"])
+		mags.append(w.get("mag", -1))
 	var data := {
 		"pos": [player.global_position.x, player.global_position.y,
 				player.global_position.z],
@@ -56,6 +56,7 @@ func save_game() -> void:
 		"mags": mags,
 		"day": time_manager.day,
 		"hour": time_manager.hour,
+		"inv": player.inventory.serialize(),
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
@@ -88,7 +89,10 @@ func load_game() -> void:
 			player.stamina.MAX_STAMINA)
 	var mags: Array = data["mags"]
 	for i in mini(mags.size(), player.weapons._weapons.size()):
-		player.weapons._weapons[i]["mag"] = int(mags[i])
+		if int(mags[i]) >= 0 and player.weapons._weapons[i].has("mag"):
+			player.weapons._weapons[i]["mag"] = int(mags[i])
+	if data.has("inv"):
+		player.inventory.restore(data["inv"])
 	player.weapons._emit_ammo()
 	if data.has("day"):
 		time_manager.day = int(data["day"])

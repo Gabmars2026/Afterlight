@@ -14,6 +14,10 @@ var _flash: ColorRect
 var _death: Label
 var _toast: Label
 var _clock: Label
+var _inv_panel: PanelContainer
+var _inv_buttons: Array = []
+var _inv_open := false
+var player: Node  # set by the world after spawn
 var _fps_accum := 0.0
 var _last_health := 100
 
@@ -149,11 +153,45 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 6: Day & Night"
+	title.text = "AFTERLIGHT  -  Phase 7: Inventory & Melee"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
 	add_child(title)
+
+	# --- Inventory panel (TAB) ---
+	_inv_panel = PanelContainer.new()
+	_inv_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_inv_panel.position = Vector2(-250, -160)
+	_inv_panel.custom_minimum_size = Vector2(500, 300)
+	_inv_panel.visible = false
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 10)
+	_inv_panel.add_child(vbox)
+	var inv_title := Label.new()
+	inv_title.text = "INVENTORY"
+	inv_title.add_theme_font_size_override("font_size", 22)
+	inv_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(inv_title)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	vbox.add_child(grid)
+	for i in 12:
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(112, 58)
+		btn.text = "-"
+		btn.pressed.connect(_on_inv_slot.bind(i))
+		grid.add_child(btn)
+		_inv_buttons.append(btn)
+	var hint := Label.new()
+	hint.text = "Click an item to use or equip it  ·  TAB to close"
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.modulate = Color(1, 1, 1, 0.7)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(hint)
+	add_child(_inv_panel)
 
 
 func _process(delta: float) -> void:
@@ -211,3 +249,51 @@ func show_death() -> void:
 	_death.visible = true
 	var tw := create_tween()
 	tw.tween_property(_flash, "color:a", 0.55, 1.2)
+
+
+# ---------------------------------------------------------------- inventory
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("inventory") and not _death.visible \
+			and not get_tree().paused:
+		toggle_inventory()
+
+
+func toggle_inventory() -> void:
+	_inv_open = not _inv_open
+	_inv_panel.visible = _inv_open
+	if player:
+		player.set("ui_lock", _inv_open)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _inv_open \
+			else Input.MOUSE_MODE_CAPTURED
+	if _inv_open:
+		refresh_inventory()
+
+
+func refresh_inventory() -> void:
+	if not _inv_open or player == null:
+		return
+	var inv: Node = player.get("inventory")
+	for i in _inv_buttons.size():
+		var btn: Button = _inv_buttons[i]
+		var it = inv.slots[i]
+		if it == null:
+			btn.text = "-"
+			btn.disabled = true
+			btn.tooltip_text = ""
+		else:
+			var def: Dictionary = inv.DEFS[it["id"]]
+			var line: String = def["label"]
+			if it.has("dur"):
+				line += "\n%d durability" % it["dur"]
+			elif it["count"] > 1 or def["stack"] > 1:
+				line += "\nx%d" % it["count"]
+			btn.text = line
+			btn.disabled = false
+			btn.tooltip_text = def.get("hint", "")
+
+
+func _on_inv_slot(i: int) -> void:
+	if player:
+		player.call("use_inventory_slot", i)
+	refresh_inventory()
