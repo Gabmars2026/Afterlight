@@ -16,6 +16,7 @@ func _ready() -> void:
 	dot.size = Vector2(4, 4)
 	dot.set_anchors_preset(Control.PRESET_CENTER)
 	dot.position = Vector2(-2, -2)
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dot)
 
 	# Stamina bar (bottom left)
@@ -24,12 +25,14 @@ func _ready() -> void:
 	_stamina_bg.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_stamina_bg.position = Vector2(24, -46)
 	_stamina_bg.size = Vector2(240, 14)
+	_stamina_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_stamina_bg)
 
 	_stamina_fill = ColorRect.new()
 	_stamina_fill.color = Color(0.35, 0.85, 0.55)
 	_stamina_fill.position = Vector2(2, 2)
 	_stamina_fill.size = Vector2(236, 10)
+	_stamina_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_stamina_bg.add_child(_stamina_fill)
 
 	var stamina_label := Label.new()

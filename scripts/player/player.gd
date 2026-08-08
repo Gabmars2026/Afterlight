@@ -116,14 +116,20 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+func _input(event: InputEvent) -> void:
+	## Mouse look lives in _input (not _unhandled_input) so UI elements can
+	## never swallow mouse motion while the cursor is captured.
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and not get_tree().paused:
 		var sens := MOUSE_SENSITIVITY * GameSettings.mouse_sensitivity
 		var y_dir := 1.0 if GameSettings.invert_y else -1.0
 		rotate_y(-event.relative.x * sens)
 		head.rotate_x(event.relative.y * sens * y_dir)
 		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-85.0), deg_to_rad(85.0))
-	elif event is InputEventMouseButton and event.pressed \
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and not get_tree().paused:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event.is_action_pressed("interact"):
