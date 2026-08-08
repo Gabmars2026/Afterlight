@@ -85,6 +85,7 @@ func _ready() -> void:
 	add_child(_collider)
 
 	head = Node3D.new()
+	head.name = "Head"
 	head.position = Vector3(0, EYE_STAND, 0)
 	add_child(head)
 

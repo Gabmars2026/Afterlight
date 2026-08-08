@@ -243,7 +243,7 @@ func _fire(w: Dictionary) -> void:
 	get_tree().create_tween().tween_property(_flash, "light_energy", 0.0, 0.06)
 	# Recoil: camera kick + viewmodel pushback
 	_recoil_back = 0.06
-	var head: Node3D = player.get_node("Head")
+	var head: Node3D = player.get("head")
 	head.rotation.x = clampf(head.rotation.x + w["recoil"],
 			deg_to_rad(-85.0), deg_to_rad(85.0))
 	player.rotate_y(randf_range(-0.004, 0.004))
