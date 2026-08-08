@@ -81,6 +81,8 @@ var _breath: AudioStreamPlayer
 var _hurt: AudioStreamPlayer
 var _snd_pickup: AudioStreamPlayer
 var _snd_bandage: AudioStreamPlayer
+var _snd_heart: AudioStreamPlayer
+var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
 var _leg_l: Node3D
@@ -192,6 +194,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_update_heartbeat(delta)
 	if _dead:
 		# Dead: no control, just settle to the ground
 		if not is_on_floor():
@@ -569,6 +572,20 @@ func _on_exhausted(is_exhausted: bool) -> void:
 	else:
 		tw.tween_property(_breath, "volume_db", -80.0, 1.4)
 		tw.tween_callback(_breath.stop)
+
+
+func _update_heartbeat(delta: float) -> void:
+	## Below 30 HP your own pulse thumps - faster the closer you are to death.
+	if health >= 30 or health <= 0:
+		return
+	_heart_cd -= delta
+	if _heart_cd > 0.0:
+		return
+	_heart_cd = lerpf(0.55, 1.0, float(health) / 30.0)
+	if _snd_heart == null:
+		_snd_heart = _make_snd("heartbeat", -6.0)
+	_snd_heart.pitch_scale = 1.0
+	_snd_heart.play()
 
 
 func take_damage(amount: int) -> void:

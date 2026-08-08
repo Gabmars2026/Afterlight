@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 17 — The Afterlight campaign: 5-quest main story.**
+**Current build: Phase 18 — Final polish: bloom, vignette, crickets, heartbeat.**
 
 ## How to play
 

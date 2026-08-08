@@ -6,6 +6,7 @@ extends Node
 const PRESET_NAMES := ["LOW", "MEDIUM", "HIGH"]
 
 var sun: DirectionalLight3D
+var env: Environment
 var streamer: Node3D
 var weather: Node
 
@@ -26,12 +27,14 @@ func apply_preset(idx: int) -> void:
 	match preset:
 		0:  # LOW - integrated graphics / old laptops
 			sun.shadow_enabled = false
+			env.glow_enabled = false
 			vp.scaling_3d_scale = 0.75
 			vp.msaa_3d = Viewport.MSAA_DISABLED
 			streamer.set_view(2, 3, 1)
 			weather.rain_scale = 0.4
 		1:  # MEDIUM - default
 			sun.shadow_enabled = true
+			env.glow_enabled = true
 			sun.directional_shadow_max_distance = 45.0
 			vp.scaling_3d_scale = 1.0
 			vp.msaa_3d = Viewport.MSAA_DISABLED
@@ -39,6 +42,7 @@ func apply_preset(idx: int) -> void:
 			weather.rain_scale = 0.7
 		2:  # HIGH
 			sun.shadow_enabled = true
+			env.glow_enabled = true
 			sun.directional_shadow_max_distance = 80.0
 			vp.scaling_3d_scale = 1.0
 			vp.msaa_3d = Viewport.MSAA_2X

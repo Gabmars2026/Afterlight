@@ -38,6 +38,7 @@ var _sun: DirectionalLight3D
 var _env: Environment
 var _wind: AudioStreamPlayer
 var _birds: AudioStreamPlayer
+var _crickets: AudioStreamPlayer
 var _nav_region: NavigationRegion3D
 
 
@@ -95,6 +96,12 @@ func _ready() -> void:
 	tm.env = _env
 	add_child(tm)
 	tm.time_changed.connect(hud.set_time)
+	tm.night_changed.connect(func(night: bool) -> void:
+		var tw := create_tween()
+		tw.parallel().tween_property(_birds, "volume_db",
+				-60.0 if night else -16.0, 4.0)
+		tw.parallel().tween_property(_crickets, "volume_db",
+				-14.0 if night else -60.0, 4.0))
 
 	var weather := WeatherManagerScript.new()
 	weather.time_manager = tm
@@ -132,6 +139,7 @@ func _ready() -> void:
 
 	var gfx := GraphicsManagerScript.new()
 	gfx.sun = _sun
+	gfx.env = _env
 	gfx.streamer = streamer
 	gfx.weather = weather
 	add_child(gfx)
@@ -216,6 +224,13 @@ func _build_environment() -> void:
 	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.82
+	env.glow_enabled = true
+	env.glow_intensity = 0.45
+	env.glow_bloom = 0.06
+	env.glow_hdr_threshold = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.04
+	env.adjustment_saturation = 1.06
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -555,6 +570,17 @@ func _start_ambience() -> void:
 	_birds.autoplay = true
 	add_child(_birds)
 	_birds.play()
+
+	# Night crickets (cross-faded with birds by the day/night cycle)
+	_crickets = AudioStreamPlayer.new()
+	var cricket_stream: AudioStreamWAV = load("res://assets/audio/crickets_loop.wav")
+	cricket_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	cricket_stream.loop_end = cricket_stream.data.size() / 2
+	_crickets.stream = cricket_stream
+	_crickets.volume_db = -60.0
+	_crickets.autoplay = true
+	add_child(_crickets)
+	_crickets.play()
 
 # ------------------------------------------------------------------ district
 

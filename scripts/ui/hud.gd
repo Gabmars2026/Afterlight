@@ -160,7 +160,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 17: The Campaign"
+	title.text = "AFTERLIGHT  -  Phase 18: Polish"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -172,6 +172,27 @@ func _ready() -> void:
 	_weather_label.modulate = Color(0.75, 0.85, 1.0, 0.85)
 	_weather_label.position = Vector2(24, 34)
 	add_child(_weather_label)
+
+	var vignette := TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 0))
+	grad.set_color(1, Color(0, 0, 0, 0.32))
+	grad.add_point(0.62, Color(0, 0, 0, 0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill = GradientTexture2D.FILL_RADIAL
+	gtex.fill_from = Vector2(0.5, 0.5)
+	gtex.fill_to = Vector2(0.5, 0.0)
+	gtex.width = 512
+	gtex.height = 512
+	vignette.texture = gtex
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vignette.show_behind_parent = true
+	add_child(vignette)
+	move_child(vignette, 0)
 
 	_stats_label = Label.new()
 	_stats_label.visible = false
