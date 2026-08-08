@@ -16,6 +16,7 @@ const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
 const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const BreakableScript := preload("res://scripts/world/breakable.gd")
 const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
+const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 
 const SHOW_SIGNS := false
 
@@ -24,6 +25,10 @@ var hud: Hud
 
 var _grid_mat: StandardMaterial3D
 var _concrete_mat: StandardMaterial3D
+var _sand_mat: StandardMaterial3D
+var _cobble_mat: StandardMaterial3D
+var _sun: DirectionalLight3D
+var _env: Environment
 var _wind: AudioStreamPlayer
 var _birds: AudioStreamPlayer
 var _nav_region: NavigationRegion3D
@@ -65,9 +70,16 @@ func _ready() -> void:
 	_bake_navmesh()
 	_build_horde()
 
+	var tm := TimeManagerScript.new()
+	tm.sun = _sun
+	tm.env = _env
+	add_child(tm)
+	tm.time_changed.connect(hud.set_time)
+
 	var saver := SaveManagerScript.new()
 	saver.player = player
 	saver.hud = hud
+	saver.time_manager = tm
 	add_child(saver)
 
 
@@ -129,10 +141,10 @@ func _make_reverb_bus(bus_name: String, room: float, wet: float, damping: float)
 
 func _build_environment() -> void:
 	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.32, 0.52, 0.83)
-	sky_mat.sky_horizon_color = Color(0.74, 0.82, 0.93)
-	sky_mat.ground_bottom_color = Color(0.3, 0.34, 0.3)
-	sky_mat.ground_horizon_color = Color(0.7, 0.77, 0.87)
+	sky_mat.sky_top_color = Color(0.28, 0.5, 0.82)
+	sky_mat.sky_horizon_color = Color(0.9, 0.86, 0.72)
+	sky_mat.ground_bottom_color = Color(0.45, 0.4, 0.3)
+	sky_mat.ground_horizon_color = Color(0.88, 0.82, 0.68)
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
 
@@ -142,38 +154,64 @@ func _build_environment() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 1.25
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.76, 0.82, 0.92)
+	env.fog_light_color = Color(0.88, 0.83, 0.7)
 	env.fog_density = 0.0015
+	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 0.82
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
+	_env = env
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, 30, 0)
-	sun.light_color = Color(1.0, 0.96, 0.89)
-	sun.light_energy = 1.3
+	sun.rotation_degrees = Vector3(-44, 35, 0)
+	sun.light_color = Color(1.0, 0.93, 0.78)
+	sun.light_energy = 1.45
 	sun.shadow_enabled = true
 	add_child(sun)
+	_sun = sun
 
 	_grid_mat = StandardMaterial3D.new()
-	_grid_mat.albedo_texture = load("res://assets/textures/grid.png")
+	_grid_mat.albedo_texture = load("res://assets/textures/plaster.png")
 	_grid_mat.roughness = 0.9
 	_grid_mat.uv1_triplanar = true
 	_grid_mat.uv1_world_triplanar = true
 	_grid_mat.uv1_scale = Vector3.ONE * 0.5
 
+	# Sun-bleached plaster: the default wall/structure material
 	_concrete_mat = StandardMaterial3D.new()
-	_concrete_mat.albedo_texture = load("res://assets/textures/concrete.png")
-	_concrete_mat.roughness = 0.95
+	_concrete_mat.albedo_texture = load("res://assets/textures/plaster.png")
+	_concrete_mat.roughness = 0.97
 	_concrete_mat.uv1_triplanar = true
 	_concrete_mat.uv1_world_triplanar = true
-	_concrete_mat.uv1_scale = Vector3.ONE * 0.25
+	_concrete_mat.uv1_scale = Vector3.ONE * 0.35
+
+	# Sandy ground
+	_sand_mat = StandardMaterial3D.new()
+	_sand_mat.albedo_texture = load("res://assets/textures/sand.png")
+	_sand_mat.roughness = 1.0
+	_sand_mat.uv1_triplanar = true
+	_sand_mat.uv1_world_triplanar = true
+	_sand_mat.uv1_scale = Vector3.ONE * 0.4
+
+	# Cobblestone streets
+	_cobble_mat = StandardMaterial3D.new()
+	_cobble_mat.albedo_texture = load("res://assets/textures/cobble.png")
+	_cobble_mat.roughness = 0.92
+	_cobble_mat.uv1_triplanar = true
+	_cobble_mat.uv1_world_triplanar = true
+	_cobble_mat.uv1_scale = Vector3.ONE * 0.5
 
 
 func _build_course() -> void:
 	# Ground
-	_box(Vector3(90, 1, 90), Vector3(0, -0.5, 0), _concrete_mat)
+	_box(Vector3(90, 1, 90), Vector3(0, -0.5, 0), _sand_mat)
+	# Cobblestone streets criss-crossing the sand
+	_box(Vector3(5.0, 1.04, 90), Vector3(-2, -0.5, 0), _cobble_mat)
+	_box(Vector3(90, 1.04, 5.0), Vector3(0, -0.5, 10), _cobble_mat)
+	_box(Vector3(5.0, 1.04, 44), Vector3(31, -0.5, 23), _cobble_mat)
+	_box(Vector3(34, 1.04, 4.4), Vector3(-28, -0.5, -14), _cobble_mat)
 
 	# --- Sprint lane + auto-vault obstacle ---
 	_sign("SPRINT: hold SHIFT", Vector3(0, 2.2, 2))
@@ -409,7 +447,8 @@ func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D, tint := Color.WH
 	var use_mat := mat
 	if tint != Color.WHITE:
 		use_mat = mat.duplicate()
-		use_mat.albedo_color = tint
+		# Warm-shift every tint slightly so the whole town reads sun-bleached
+		use_mat.albedo_color = tint.lerp(Color(0.92, 0.84, 0.68), 0.22)
 	mesh_instance.material_override = use_mat
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
@@ -471,20 +510,20 @@ func _build_district() -> void:
 	_sign("APARTMENT BLOCK: 3 FLOORS + ROOF", Vector3(bx + 9, 4.2, bz + 4))
 
 	# --- Walls (west + north solid) ---
-	_box(Vector3(0.5, 9.4, 12), Vector3(bx - 5.75, 4.7, bz), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(12, 9.4, 0.5), Vector3(bx, 4.7, bz + 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 9.4, 12), Vector3(bx - 5.75, 4.7, bz), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(12, 9.4, 0.5), Vector3(bx, 4.7, bz + 5.75), _grid_mat, Color(0.83, 0.56, 0.43))
 	# East wall: full pieces + window column + door column
-	_box(Vector3(0.5, 9.4, 2.6), Vector3(bx + 5.75, 4.7, bz - 4.7), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(0.5, 3.7, 1.4), Vector3(bx + 5.75, 1.85, bz - 2.7), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(0.5, 4.3, 1.4), Vector3(bx + 5.75, 7.25, bz - 2.7), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(0.5, 9.4, 2.5), Vector3(bx + 5.75, 4.7, bz - 0.75), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(0.5, 7.0, 1.8), Vector3(bx + 5.75, 5.9, bz + 1.4), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(0.5, 9.4, 3.7), Vector3(bx + 5.75, 4.7, bz + 4.15), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 9.4, 2.6), Vector3(bx + 5.75, 4.7, bz - 4.7), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(0.5, 3.7, 1.4), Vector3(bx + 5.75, 1.85, bz - 2.7), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(0.5, 4.3, 1.4), Vector3(bx + 5.75, 7.25, bz - 2.7), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(0.5, 9.4, 2.5), Vector3(bx + 5.75, 4.7, bz - 0.75), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(0.5, 7.0, 1.8), Vector3(bx + 5.75, 5.9, bz + 1.4), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(0.5, 9.4, 3.7), Vector3(bx + 5.75, 4.7, bz + 4.15), _grid_mat, Color(0.83, 0.56, 0.43))
 	# South wall: two full pieces + balcony window column
-	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx - 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx + 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(1.4, 3.15, 0.5), Vector3(bx, 1.575, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
-	_box(Vector3(1.4, 4.15, 0.5), Vector3(bx, 7.325, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx - 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx + 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(1.4, 3.15, 0.5), Vector3(bx, 1.575, bz - 5.75), _grid_mat, Color(0.83, 0.56, 0.43))
+	_box(Vector3(1.4, 4.15, 0.5), Vector3(bx, 7.325, bz - 5.75), _grid_mat, Color(0.83, 0.56, 0.43))
 
 	# --- Floors with stair openings (wood) ---
 	_box(Vector3(11.5, 0.3, 9.0), Vector3(bx, 3.0, bz - 1.25), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
@@ -566,7 +605,7 @@ func _build_district() -> void:
 
 	# --- Rooftop gap jump to the adjacent tower ---
 	_sign("GAP JUMP", Vector3(bx - 8.5, 10.4, bz))
-	_box(Vector3(4.5, 8.7, 4.5), Vector3(bx - 9.5, 4.35, bz), _grid_mat, Color(0.68, 0.7, 0.78))
+	_box(Vector3(4.5, 8.7, 4.5), Vector3(bx - 9.5, 4.35, bz), _grid_mat, Color(0.45, 0.6, 0.75))
 
 	# --- Interior audio zone (whole building) ---
 	var interior := InteriorZoneScript.new()

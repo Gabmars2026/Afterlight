@@ -13,6 +13,7 @@ var _ammo: Label
 var _flash: ColorRect
 var _death: Label
 var _toast: Label
+var _clock: Label
 var _fps_accum := 0.0
 var _last_health := 100
 
@@ -69,6 +70,18 @@ func _ready() -> void:
 	_death.visible = false
 	_death.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_death)
+
+	# Day/time clock (top center)
+	_clock = Label.new()
+	_clock.text = "DAY 1   09:00"
+	_clock.add_theme_font_size_override("font_size", 18)
+	_clock.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_clock.position = Vector2(-90, 14)
+	_clock.size = Vector2(180, 26)
+	_clock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_clock.modulate = Color(1, 1, 1, 0.85)
+	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_clock)
 
 	# Toast message (top center, fades out)
 	_toast = Label.new()
@@ -136,7 +149,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 5: Old Market"
+	title.text = "AFTERLIGHT  -  Phase 6: Day & Night"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -177,6 +190,13 @@ func set_health(current: int, maximum: int) -> void:
 		var tw := create_tween()
 		tw.tween_property(_flash, "color:a", 0.0, 0.45)
 	_last_health = current
+
+
+func set_time(day: int, hour24: float, is_night: bool) -> void:
+	var hh := int(hour24)
+	var mm := int((hour24 - hh) * 60.0)
+	_clock.text = "DAY %d   %02d:%02d" % [day, hh, mm]
+	_clock.modulate = Color(0.62, 0.72, 1.0, 0.95) if is_night else Color(1, 1, 1, 0.85)
 
 
 func toast(text: String) -> void:

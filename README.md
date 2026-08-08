@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 5 — Old Market: enterable buildings, breakable doors & walls, save/load.**
+**Current build: Phase 6 — Day/night cycle over a sun-bleached desert town.**
 
 ## How to play
 

@@ -6,10 +6,18 @@ const EnemyScript := preload("res://scripts/ai/enemy_base.gd")
 
 var kind := "shambler"
 var respawn_delay := 18.0
+var _night := false
 
 
 func _ready() -> void:
+	add_to_group("spawners")
 	_spawn()
+
+
+func set_night(night: bool) -> void:
+	## Nights are dangerous: replacements arrive twice as fast.
+	_night = night
+	respawn_delay = 9.0 if night else 18.0
 
 
 func _spawn() -> void:
@@ -26,6 +34,7 @@ func _spawn() -> void:
 	enemy.position = Vector3.ZERO
 	enemy.died.connect(_on_died)
 	add_child(enemy)
+	enemy.set_night(_night)
 
 
 func _on_died() -> void:

@@ -7,6 +7,7 @@ const SAVE_PATH := "user://afterlight_save.json"
 
 var player: Player
 var hud: Hud
+var time_manager: Node
 
 var _snd_save: AudioStreamPlayer
 var _snd_load: AudioStreamPlayer
@@ -53,6 +54,8 @@ func save_game() -> void:
 		"health": player.health,
 		"stamina": player.stamina.stamina,
 		"mags": mags,
+		"day": time_manager.day,
+		"hour": time_manager.hour,
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
@@ -87,5 +90,8 @@ func load_game() -> void:
 	for i in mini(mags.size(), player.weapons._weapons.size()):
 		player.weapons._weapons[i]["mag"] = int(mags[i])
 	player.weapons._emit_ammo()
+	if data.has("day"):
+		time_manager.day = int(data["day"])
+		time_manager.hour = float(data["hour"])
 	_snd_load.play()
 	hud.toast("GAME LOADED")

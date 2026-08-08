@@ -13,6 +13,8 @@ var kind := "shambler"
 var max_health := 80
 var patrol_speed := 1.1
 var chase_speed := 3.3
+var _base_chase := -1.0
+var _base_vision := -1.0
 var attack_damage := 14
 var attack_interval := 1.3
 var vision_range := 22.0
@@ -408,3 +410,13 @@ func _die() -> void:
 	tween.tween_property(_mesh_root, "position:y", -1.2, 2.0)
 	tween.tween_callback(queue_free)
 	died.emit()
+
+
+func set_night(night: bool) -> void:
+	## Night buff: faster, sees further. Bases are captured on first call
+	## so repeated day/night flips never compound.
+	if _base_chase < 0.0:
+		_base_chase = chase_speed
+		_base_vision = vision_range
+	chase_speed = _base_chase * (1.35 if night else 1.0)
+	vision_range = _base_vision * (1.45 if night else 1.0)
