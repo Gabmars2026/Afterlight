@@ -24,6 +24,9 @@ const FOG_NIGHT := Color(0.03, 0.04, 0.08)
 var sun: DirectionalLight3D
 var env: Environment
 
+var weather_light := 1.0  # set by WeatherManager (dimming + lightning)
+var weather_fog := 0.0
+
 var day := 1
 var hour := 9.0
 var is_night := false
@@ -70,7 +73,7 @@ func _apply(_delta: float) -> void:
 	var elev := height * 58.0 + 2.0
 	var azim := lerpf(115.0, -45.0, t)
 	sun.rotation_degrees = Vector3(-elev, azim, 0)
-	sun.light_energy = height * 1.25
+	sun.light_energy = height * 1.25 * clampf(weather_light, 0.0, 1.2)
 	sun.light_color = SUN_LOW.lerp(SUN_DAY, clampf(height * 1.6, 0.0, 1.0))
 	sun.shadow_enabled = height > 0.02
 
@@ -82,7 +85,13 @@ func _apply(_delta: float) -> void:
 	_sky.ground_horizon_color = sky_hor
 	_sky.ground_bottom_color = Color(0.02, 0.02, 0.04).lerp(Color(0.45, 0.4, 0.3), height)
 
-	env.ambient_light_energy = lerpf(0.14, 0.95, height)
+	var gloom := clampf(1.0 - weather_light, 0.0, 0.65)
+	_sky.sky_top_color = _sky.sky_top_color.lerp(
+			Color(0.38, 0.4, 0.44) * maxf(height, 0.05), gloom)
+	_sky.sky_horizon_color = _sky.sky_horizon_color.lerp(
+			Color(0.5, 0.52, 0.55) * maxf(height, 0.05), gloom)
+	env.ambient_light_energy = lerpf(0.14, 0.95, height) * weather_light
+	env.fog_density = 0.0015 + weather_fog
 	env.fog_light_color = FOG_NIGHT.lerp(FOG_DAY, height)
 
 	_moon.visible = height < 0.05

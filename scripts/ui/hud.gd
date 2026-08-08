@@ -21,6 +21,7 @@ var _inv_panel: PanelContainer
 var _inv_buttons: Array = []
 var _craft_buttons: Array = []
 var _inv_open := false
+var _weather_label: Label
 var player: Node  # set by the world after spawn
 var _fps_accum := 0.0
 var _last_health := 100
@@ -157,11 +158,18 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 12: Open World"
+	title.text = "AFTERLIGHT  -  Phase 13: Weather"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
 	add_child(title)
+
+	_weather_label = Label.new()
+	_weather_label.text = ""
+	_weather_label.add_theme_font_size_override("font_size", 15)
+	_weather_label.modulate = Color(0.75, 0.85, 1.0, 0.85)
+	_weather_label.position = Vector2(24, 34)
+	add_child(_weather_label)
 
 	# --- Territory banner (under the clock) ---
 	_territory = Label.new()
@@ -371,3 +379,7 @@ func set_territory(text: String) -> void:
 	_territory.text = text
 	_territory_left = 3.5
 	_territory.modulate.a = 1.0
+
+
+func set_weather(label: String) -> void:
+	_weather_label.text = label

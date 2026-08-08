@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 12 — Endless streamed outskirts around the town.**
+**Current build: Phase 13 — Dynamic weather: rain, storms, fog.**
 
 ## How to play
 

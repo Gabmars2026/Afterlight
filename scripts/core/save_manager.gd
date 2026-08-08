@@ -7,6 +7,7 @@ const SAVE_PATH := "user://afterlight_save.json"
 
 var player: Player
 var hud: Hud
+var weather_manager
 var time_manager: Node
 var quest_manager: Node
 var faction_manager: Node
@@ -61,6 +62,7 @@ func save_game() -> void:
 		"inv": player.inventory.serialize(),
 		"quest": quest_manager.serialize() if quest_manager else [],
 		"rep": faction_manager.serialize() if faction_manager else {},
+		"weather": weather_manager.serialize() if weather_manager else "clear",
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
@@ -101,6 +103,8 @@ func load_game() -> void:
 		quest_manager.restore(data["quest"])
 	if data.has("rep") and faction_manager:
 		faction_manager.restore(data["rep"])
+	if data.has("weather") and weather_manager:
+		weather_manager.restore(data["weather"])
 	player.weapons._emit_ammo()
 	if data.has("day"):
 		time_manager.day = int(data["day"])

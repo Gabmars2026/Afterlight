@@ -21,6 +21,7 @@ const NpcScript := preload("res://scripts/npc/npc.gd")
 const FactionManagerScript := preload("res://scripts/core/faction_manager.gd")
 const WorldStreamerScript := preload("res://scripts/world/world_streamer.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
+const WeatherManagerScript := preload("res://scripts/core/weather_manager.gd")
 
 const SHOW_SIGNS := false
 
@@ -85,6 +86,13 @@ func _ready() -> void:
 	add_child(tm)
 	tm.time_changed.connect(hud.set_time)
 
+	var weather := WeatherManagerScript.new()
+	weather.time_manager = tm
+	weather.player = player
+	weather.wet_mats = [_sand_mat, _cobble_mat, _grid_mat]
+	weather.weather_changed.connect(hud.set_weather)
+	add_child(weather)
+
 	var streamer := WorldStreamerScript.new()
 	streamer.player = player
 	streamer.sand_mat = _sand_mat
@@ -110,6 +118,7 @@ func _ready() -> void:
 	saver.player = player
 	saver.hud = hud
 	saver.time_manager = tm
+	saver.weather_manager = weather
 	add_child(saver)
 
 

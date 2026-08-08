@@ -26,7 +26,9 @@ var health := 80
 
 var _player: Node3D
 var _agent: NavigationAgent3D
-var direct_nav := false  # streamed outskirts: no navmesh, walk straight lines
+var direct_nav := false
+var _is_night := false
+var _is_rain := false  # streamed outskirts: no navmesh, walk straight lines
 var _home := Vector3.ZERO
 var _gravity := 9.8
 var _investigate_pos := Vector3.ZERO
@@ -260,6 +262,8 @@ func _can_see_player() -> bool:
 func hear_noise(pos: Vector3, radius: float) -> void:
 	if state == State.DEAD or state == State.CHASE or state == State.ATTACK:
 		return
+	if _is_rain:
+		radius *= 0.6
 	if global_position.distance_to(pos) <= radius:
 		_investigate_pos = pos
 		state = State.INVESTIGATE
@@ -440,10 +444,21 @@ func _die() -> void:
 
 
 func set_night(night: bool) -> void:
-	## Night buff: faster, sees further. Bases are captured on first call
-	## so repeated day/night flips never compound.
+	_is_night = night
+	_apply_senses()
+
+
+func set_rain(raining: bool) -> void:
+	## Rain muffles sight a little - and hearing a lot.
+	_is_rain = raining
+	_apply_senses()
+
+
+func _apply_senses() -> void:
+	## Bases are captured on first call so repeated flips never compound.
 	if _base_chase < 0.0:
 		_base_chase = chase_speed
 		_base_vision = vision_range
-	chase_speed = _base_chase * (1.35 if night else 1.0)
-	vision_range = _base_vision * (1.45 if night else 1.0)
+	chase_speed = _base_chase * (1.35 if _is_night else 1.0)
+	vision_range = _base_vision * (1.45 if _is_night else 1.0) \
+			* (0.8 if _is_rain else 1.0)
