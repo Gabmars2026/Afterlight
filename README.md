@@ -2,7 +2,9 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 19 — 28-check automated self-test + CI on every push.**
+**Current build: v1.0.0 — ALL 20 PHASES COMPLETE.**
+
+**Download:** grab `Afterlight-windows-x86_64.zip` from the [Releases page](https://github.com/Gabmars2026/Afterlight/releases) — no Godot needed, just unzip and run `Afterlight.exe`. (Or keep playing from the editor with F5 as always.)
 
 ## How to play
 
