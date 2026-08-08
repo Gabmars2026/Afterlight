@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 3 — Infested district: zombie AI that hunts by sight and sound.**
+**Current build: Phase 4 — Parkour: ledge grabs, wall jumps, rolls & flow.**
 
 ## How to play
 
@@ -27,6 +27,11 @@ An original open-world first-person survival/action game built in Godot 4.x.
 | R | Reload |
 | 1 / 2 | Switch weapon (pistol / rifle) |
 | E | Interact (doors, switches, crates, generator) |
+| Space (mid-air at a wall) | Wall jump |
+| A / D (while hanging) | Shimmy along ledge |
+| Space / W (while hanging) | Climb up |
+| Ctrl (while hanging) | Drop |
+| Hold Ctrl before landing | Roll (no fall damage) |
 | Esc | Pause menu + settings (sensitivity, FOV, invert Y, head bob, shake) |
 
 ## The test zone

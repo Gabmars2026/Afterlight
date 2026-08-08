@@ -36,6 +36,10 @@ const EYE_SLIDE := 0.72
 const SPRINT_DRAIN_PER_SEC := 11.0
 const JUMP_COST := 8.0
 const SLIDE_COST := 6.0
+const WALL_JUMP_COST := 8.0
+const HANG_DRAIN_PER_SEC := 4.0
+const FALL_HURT_SPEED := 9.0
+const ROLL_SAFE_SPEED := 15.0
 
 const STEP_STRIDE_WALK := 2.1
 const STEP_STRIDE_SPRINT := 2.7
@@ -76,6 +80,18 @@ var _body: Node3D
 var _leg_l: Node3D
 var _leg_r: Node3D
 var _leg_phase := 0.0
+
+var is_hanging := false
+var _ledge_y := 0.0
+var _ledge_normal := Vector3.ZERO
+var _hang_regrab_cd := 0.0
+var _shimmy_dist := 0.0
+var _last_wall_normal := Vector3.ZERO
+var _flow_timer := 0.0
+var _snd_grab: AudioStreamPlayer
+var _snd_shimmy: AudioStreamPlayer
+var _snd_kick: AudioStreamPlayer
+var _snd_roll: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -124,6 +140,11 @@ func _ready() -> void:
 	_hurt.volume_db = -4.0
 	add_child(_hurt)
 
+	_snd_grab = _make_snd("hand_grab", -6.0)
+	_snd_shimmy = _make_snd("hand_shimmy", -12.0)
+	_snd_kick = _make_snd("wall_kick", -6.0)
+	_snd_roll = _make_snd("roll", -6.0)
+
 	# Heavy breathing when exhausted
 	_breath = AudioStreamPlayer.new()
 	var bs: AudioStreamWAV = load("res://assets/audio/breath_loop.wav")
@@ -169,7 +190,12 @@ func _physics_process(delta: float) -> void:
 	if _mantling:
 		_update_mantle(delta)
 		return
+	if is_hanging:
+		_update_hang(delta)
+		return
 	_vault_cd = maxf(0.0, _vault_cd - delta)
+	_hang_regrab_cd = maxf(0.0, _hang_regrab_cd - delta)
+	_flow_timer = maxf(0.0, _flow_timer - delta)
 
 	# --- Ladder climbing ---
 	if _ladders > 0:
@@ -187,7 +213,18 @@ func _physics_process(delta: float) -> void:
 		if _last_fall_speed > 3.0:
 			camera.on_landed(_last_fall_speed)
 			footsteps.play_land(_floor_surface, _last_fall_speed > 7.0)
+		if _last_fall_speed > FALL_HURT_SPEED:
+			if Input.is_action_pressed("crouch") and _last_fall_speed < ROLL_SAFE_SPEED:
+				# Landing roll: no damage, keep your momentum
+				_snd_roll.play()
+				camera.on_landed(_last_fall_speed * 0.6)
+				_flow_timer = 1.5
+			else:
+				take_damage(int((_last_fall_speed - FALL_HURT_SPEED) * 9.0))
+				velocity.x *= 0.4
+				velocity.z *= 0.4
 		_last_fall_speed = 0.0
+		_wall_jumps_reset()
 	_was_on_floor = on_floor
 
 	# --- Stance state machine (stand / crouch / crawl / slide) ---
@@ -239,6 +276,10 @@ func _physics_process(delta: float) -> void:
 					target_speed = SPRINT_SPEED
 					stamina.drain(SPRINT_DRAIN_PER_SEC * delta)
 
+		# Flow: chaining parkour moves (vault/roll/wall jump) keeps you faster
+		if _flow_timer > 0.0 and sprinting:
+			target_speed *= 1.12
+
 		var accel := ACCEL_GROUND if on_floor else ACCEL_AIR
 		var target_vel := direction * target_speed
 		velocity.x = move_toward(velocity.x, target_vel.x, accel * delta * target_speed)
@@ -250,6 +291,17 @@ func _physics_process(delta: float) -> void:
 			velocity.y = JUMP_VELOCITY
 			footsteps.play_step(_floor_surface, false, false)
 
+		# Wall jump: airborne, pressing into a wall, alternate walls to climb
+		if not on_floor and Input.is_action_just_pressed("jump") and is_on_wall() \
+				and stance == Stance.STAND:
+			var wn := get_wall_normal()
+			if wn.dot(_last_wall_normal) < 0.5 and stamina.try_spend(WALL_JUMP_COST):
+				_last_wall_normal = wn
+				velocity = wn * 4.6 + Vector3(0, 5.0, 0) \
+						+ Vector3(velocity.x, 0, velocity.z) * 0.25
+				_snd_kick.play()
+				_flow_timer = 1.5
+
 		# Auto-vault low obstacles while sprinting
 		if sprinting and on_floor:
 			_try_vault()
@@ -258,6 +310,11 @@ func _physics_process(delta: float) -> void:
 		if not on_floor and input_dir.y < -0.1 and velocity.y < 2.0 \
 				and stance == Stance.STAND:
 			_try_mantle()
+
+		# Ledge grab: catch higher edges mid-air (above mantle reach)
+		if not on_floor and input_dir.y < -0.1 and velocity.y < 1.5 \
+				and stance == Stance.STAND and not _mantling:
+			_try_ledge_grab()
 
 		# Camera motion + footsteps
 		camera.update_motion(delta, hspeed, sprinting, on_floor, input_dir.x)
@@ -384,6 +441,7 @@ func _try_vault() -> void:
 		return
 	velocity.y = VAULT_VELOCITY
 	_vault_cd = 0.7
+	_flow_timer = 1.5
 	footsteps.play_step(_floor_surface, true, false)
 
 
@@ -547,6 +605,125 @@ func _build_body() -> void:
 			_leg_l = pivot
 		else:
 			_leg_r = pivot
+
+
+func _make_snd(res: String, db: float) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.stream = load("res://assets/audio/%s.wav" % res)
+	p.volume_db = db
+	add_child(p)
+	return p
+
+
+func _wall_jumps_reset() -> void:
+	_last_wall_normal = Vector3.ZERO
+
+
+# ---------------------------------------------------------------- ledge hang
+
+func _try_ledge_grab() -> void:
+	## Catch a ledge that is too high to mantle (hands above head) and hang.
+	if _hang_regrab_cd > 0.0:
+		return
+	var fwd := -transform.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var space := get_world_3d().direct_space_state
+	var high := global_position + Vector3(0, 1.5, 0)
+	var q1 := PhysicsRayQueryParameters3D.create(high, high + fwd * 0.9)
+	q1.exclude = [get_rid()]
+	var wall := space.intersect_ray(q1)
+	if wall.is_empty() or absf(wall.normal.y) > 0.4:
+		return
+	var over: Vector3 = wall.position + fwd * 0.3 + Vector3(0, 1.15, 0)
+	var q2 := PhysicsRayQueryParameters3D.create(over, over + Vector3(0, -1.35, 0))
+	q2.exclude = [get_rid()]
+	var top := space.intersect_ray(q2)
+	if top.is_empty() or top.normal.y < 0.6:
+		return
+	var rise: float = top.position.y - global_position.y
+	if rise < 1.85 or rise > 2.6:
+		return
+	is_hanging = true
+	velocity = Vector3.ZERO
+	_ledge_y = top.position.y
+	var n: Vector3 = wall.normal
+	n.y = 0.0
+	_ledge_normal = n.normalized()
+	var wall_point: Vector3 = wall.position
+	global_position = Vector3(wall_point.x, _ledge_y - 1.85, wall_point.z) \
+			+ _ledge_normal * 0.42
+	_shimmy_dist = 0.0
+	_snd_grab.play()
+	interaction_prompt.emit("SPACE / W  climb up      A / D  shimmy      CTRL  drop")
+
+
+func _update_hang(delta: float) -> void:
+	velocity = Vector3.ZERO
+	camera.update_motion(delta, 0.0, false, false, 0.0)
+	if not stamina.drain(HANG_DRAIN_PER_SEC * delta):
+		_release_hang()
+		return
+	# Drop
+	if Input.is_action_just_pressed("crouch") \
+			or Input.is_action_just_pressed("move_back"):
+		_release_hang()
+		return
+	# Climb up
+	if Input.is_action_just_pressed("jump") \
+			or Input.is_action_just_pressed("move_forward"):
+		var stand: Vector3 = global_position - _ledge_normal * 0.6
+		stand.y = _ledge_y + 0.05
+		var q := PhysicsRayQueryParameters3D.create(
+				stand + Vector3(0, 0.25, 0), stand + Vector3(0, 1.6, 0))
+		q.exclude = [get_rid()]
+		if get_world_3d().direct_space_state.intersect_ray(q).is_empty():
+			is_hanging = false
+			_mantle_from = global_position
+			_mantle_to = stand
+			_mantle_t = 0.0
+			_mantling = true
+			interaction_prompt.emit("")
+			_snd_grab.play()
+		return
+	# Shimmy sideways along the ledge
+	var side := Input.get_axis("move_left", "move_right")
+	if absf(side) < 0.2:
+		return
+	var right := transform.basis.x
+	var tangent := (right - _ledge_normal * right.dot(_ledge_normal))
+	tangent.y = 0.0
+	if tangent.length() < 0.05:
+		return
+	tangent = tangent.normalized()
+	var next_pos := global_position + tangent * side * 1.1 * delta
+	# The wall and ledge must continue at the new spot
+	var space := get_world_3d().direct_space_state
+	var from := next_pos + Vector3(0, 1.5, 0)
+	var q1 := PhysicsRayQueryParameters3D.create(from, from - _ledge_normal * 0.9)
+	q1.exclude = [get_rid()]
+	var wall := space.intersect_ray(q1)
+	if wall.is_empty():
+		return
+	var over: Vector3 = wall.position - _ledge_normal * 0.3 + Vector3(0, 1.15, 0)
+	var q2 := PhysicsRayQueryParameters3D.create(over, over + Vector3(0, -1.35, 0))
+	q2.exclude = [get_rid()]
+	var top := space.intersect_ray(q2)
+	if top.is_empty() or absf(top.position.y - _ledge_y) > 0.3:
+		return
+	global_position = Vector3(wall.position.x, _ledge_y - 1.85, wall.position.z) \
+			+ _ledge_normal * 0.42
+	_shimmy_dist += 1.1 * delta
+	if _shimmy_dist >= 0.55:
+		_shimmy_dist = 0.0
+		_snd_shimmy.play()
+
+
+func _release_hang() -> void:
+	is_hanging = false
+	_hang_regrab_cd = 0.5
+	velocity = _ledge_normal * 1.6
+	interaction_prompt.emit("")
 
 
 func _update_body(delta: float) -> void:

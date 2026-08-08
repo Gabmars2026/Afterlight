@@ -56,6 +56,7 @@ func _ready() -> void:
 
 	_build_interactives()
 	_build_district()
+	_build_parkour_gym()
 	_bake_navmesh()
 	_build_horde()
 
@@ -760,3 +761,35 @@ func _on_player_died() -> void:
 	hud.show_death()
 	get_tree().create_timer(3.0).timeout.connect(func() -> void:
 		get_tree().reload_current_scene())
+
+
+# ---------------------------------------------------------------- phase 4
+
+func _build_parkour_gym() -> void:
+	## Practice area for Phase 4 movement: wall-jump shaft, ledge traverse,
+	## gap jump with ledge catch, and a roll-landing tower.
+	var gx := -24.0
+	var gz := 30.0
+	var wall_tint := Color(0.62, 0.66, 0.74)
+	_sign("PARKOUR GYM", Vector3(gx, 4.2, gz - 10))
+
+	# --- Wall-jump shaft: bounce between the two walls to reach the top ---
+	_sign("WALL SHAFT: JUMP BETWEEN THE WALLS", Vector3(gx - 5, 2.0, gz - 2.4))
+	_box(Vector3(0.5, 8.0, 4.0), Vector3(gx - 6.0, 4.0, gz + 2), _grid_mat, wall_tint)
+	_box(Vector3(0.5, 8.0, 4.0), Vector3(gx - 4.1, 4.0, gz + 2), _grid_mat, wall_tint)
+	# Exit platform bridging the far end of the shaft
+	_box(Vector3(2.6, 0.4, 1.8), Vector3(gx - 5.05, 7.8, gz + 4.8), _concrete_mat)
+
+	# --- Ledge traverse: jump, grab the top edge, shimmy along, climb up ---
+	_sign("JUMP + GRAB THE TOP EDGE, SHIMMY WITH A / D", Vector3(gx + 3, 2.2, gz + 5.4))
+	_box(Vector3(8.0, 3.2, 0.9), Vector3(gx + 3, 1.6, gz + 8), _grid_mat, wall_tint)
+
+	# --- Gap jump with a ledge catch on the far side ---
+	_sign("SPRINT, JUMP THE GAP, CATCH THE LEDGE", Vector3(gx + 8, 2.8, gz - 5.6))
+	_box(Vector3(3, 1.2, 3), Vector3(gx + 8, 0.6, gz - 2), _grid_mat, wall_tint)
+	_box(Vector3(3, 4.4, 3), Vector3(gx + 8, 2.2, gz + 3.9), _grid_mat, wall_tint)
+
+	# --- Roll tower: climb the ladder, jump off, hold crouch to roll ---
+	_sign("JUMP OFF - HOLD CTRL TO ROLL THE LANDING", Vector3(gx - 12, 2.2, gz + 4.4))
+	_box(Vector3(2.5, 6.0, 2.5), Vector3(gx - 12, 3.0, gz + 8), _concrete_mat)
+	_ladder(Vector3(gx - 12 + 1.45, 0, gz + 8), 6.4)

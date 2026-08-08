@@ -197,7 +197,7 @@ func _process(delta: float) -> void:
 
 
 func _handle_combat_input() -> void:
-	if player.health <= 0:
+	if player.health <= 0 or player.get("is_hanging"):
 		return
 	var w := _weapons[_current]
 	if Input.is_action_just_pressed("weapon_1"):
