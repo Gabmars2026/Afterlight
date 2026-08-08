@@ -16,6 +16,7 @@ var _toast: Label
 var _clock: Label
 var _inv_panel: PanelContainer
 var _inv_buttons: Array = []
+var _craft_buttons: Array = []
 var _inv_open := false
 var player: Node  # set by the world after spawn
 var _fps_accum := 0.0
@@ -153,7 +154,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 7: Inventory & Melee"
+	title.text = "AFTERLIGHT  -  Phase 8: Crafting"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -162,8 +163,8 @@ func _ready() -> void:
 	# --- Inventory panel (TAB) ---
 	_inv_panel = PanelContainer.new()
 	_inv_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_inv_panel.position = Vector2(-250, -160)
-	_inv_panel.custom_minimum_size = Vector2(500, 300)
+	_inv_panel.position = Vector2(-390, -170)
+	_inv_panel.custom_minimum_size = Vector2(780, 330)
 	_inv_panel.visible = false
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 10)
@@ -173,11 +174,14 @@ func _ready() -> void:
 	inv_title.add_theme_font_size_override("font_size", 22)
 	inv_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(inv_title)
+	var columns := HBoxContainer.new()
+	columns.add_theme_constant_override("separation", 18)
+	vbox.add_child(columns)
 	var grid := GridContainer.new()
 	grid.columns = 4
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
-	vbox.add_child(grid)
+	columns.add_child(grid)
 	for i in 12:
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(112, 58)
@@ -185,6 +189,21 @@ func _ready() -> void:
 		btn.pressed.connect(_on_inv_slot.bind(i))
 		grid.add_child(btn)
 		_inv_buttons.append(btn)
+	# Crafting column
+	var craft_box := VBoxContainer.new()
+	craft_box.add_theme_constant_override("separation", 6)
+	columns.add_child(craft_box)
+	var craft_title := Label.new()
+	craft_title.text = "CRAFT"
+	craft_title.add_theme_font_size_override("font_size", 18)
+	craft_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	craft_box.add_child(craft_title)
+	for i in 5:
+		var cbtn := Button.new()
+		cbtn.custom_minimum_size = Vector2(240, 40)
+		cbtn.pressed.connect(_on_craft.bind(i))
+		craft_box.add_child(cbtn)
+		_craft_buttons.append(cbtn)
 	var hint := Label.new()
 	hint.text = "Click an item to use or equip it  ·  TAB to close"
 	hint.add_theme_font_size_override("font_size", 13)
@@ -291,9 +310,26 @@ func refresh_inventory() -> void:
 			btn.text = line
 			btn.disabled = false
 			btn.tooltip_text = def.get("hint", "")
+	for i in _craft_buttons.size():
+		var cbtn: Button = _craft_buttons[i]
+		var r: Dictionary = inv.RECIPES[i]
+		var needs := []
+		for id in r["needs"]:
+			needs.append("%d %s" % [r["needs"][id], inv.DEFS[id]["label"]])
+		var result: String = inv.DEFS[r["id"]]["label"]
+		if r["count"] > 1:
+			result += " x%d" % r["count"]
+		cbtn.text = "%s  <  %s" % [result, " + ".join(needs)]
+		cbtn.disabled = not inv.can_craft(i)
 
 
 func _on_inv_slot(i: int) -> void:
 	if player:
 		player.call("use_inventory_slot", i)
+	refresh_inventory()
+
+
+func _on_craft(i: int) -> void:
+	if player:
+		player.call("craft_recipe", i)
 	refresh_inventory()

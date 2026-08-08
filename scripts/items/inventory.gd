@@ -14,7 +14,16 @@ const DEFS := {
 			"damage": 36, "interval": 0.62, "durability": 20, "hint": "Click to equip"},
 	"scrap": {"label": "SCRAP METAL", "stack": 12, "hint": "Crafting material"},
 	"planks": {"label": "WOOD PLANKS", "stack": 12, "hint": "Crafting material"},
+	"cloth": {"label": "CLOTH", "stack": 12, "hint": "Crafting material"},
 }
+
+const RECIPES := [
+	{"id": "bandage", "count": 1, "needs": {"cloth": 2}},
+	{"id": "ammo_pistol", "count": 12, "needs": {"scrap": 2}},
+	{"id": "ammo_rifle", "count": 15, "needs": {"scrap": 3}},
+	{"id": "pipe", "count": 1, "needs": {"scrap": 3}},
+	{"id": "bat", "count": 1, "needs": {"planks": 3}},
+]
 
 var slots: Array = []
 
@@ -134,3 +143,30 @@ func restore(data: Array) -> void:
 				it["dur"] = int(data[i]["dur"])
 			slots[i] = it
 	changed.emit()
+
+
+# ---------------------------------------------------------------- crafting
+
+func can_craft(recipe_idx: int) -> bool:
+	for id in RECIPES[recipe_idx]["needs"]:
+		if count_of(id) < RECIPES[recipe_idx]["needs"][id]:
+			return false
+	return true
+
+
+## Crafts a recipe. Returns "" on success, or a reason it failed.
+func craft(recipe_idx: int) -> String:
+	var r: Dictionary = RECIPES[recipe_idx]
+	if not can_craft(recipe_idx):
+		return "NOT ENOUGH MATERIALS"
+	# Make sure the result will fit before consuming anything
+	for id in r["needs"]:
+		take(id, r["needs"][id])
+	var leftover: int = add_item(r["id"], r["count"])
+	if leftover > 0:
+		# Refund what did not fit
+		for id in r["needs"]:
+			add_item(id, r["needs"][id])
+		take(r["id"], r["count"] - leftover)
+		return "INVENTORY FULL"
+	return ""

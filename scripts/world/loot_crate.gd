@@ -34,10 +34,14 @@ func interact(user: Node) -> void:
 			user.pickup("ammo_rifle", randi_range(10, 24))
 		elif roll < 0.7:
 			user.pickup("bandage", randi_range(1, 2))
-		elif roll < 0.8:
+		elif roll < 0.78:
 			user.pickup("pipe", 1)
-		elif roll < 0.87:
+		elif roll < 0.84:
 			user.pickup("bat", 1)
-		else:
+		elif roll < 0.92:
 			user.pickup("scrap", randi_range(2, 5))
+		elif roll < 0.97:
+			user.pickup("cloth", randi_range(2, 4))
+		else:
+			user.pickup("planks", randi_range(2, 4))
 	used.emit(user)

@@ -629,7 +629,20 @@ func use_inventory_slot(slot: int) -> void:
 	elif id.begins_with("ammo_"):
 		notify.emit("USED AUTOMATICALLY WHEN RELOADING")
 	else:
-		notify.emit("CRAFTING MATERIAL - COMING IN PHASE 8")
+		notify.emit("CRAFTING MATERIAL - USE THE CRAFT LIST ON THE RIGHT")
+
+
+## Called by the crafting UI.
+func craft_recipe(recipe_idx: int) -> void:
+	var fail: String = inventory.craft(recipe_idx)
+	if fail != "":
+		notify.emit(fail)
+		return
+	var r: Dictionary = inventory.RECIPES[recipe_idx]
+	if _snd_pickup == null:
+		_snd_pickup = _make_snd("pickup", -6.0)
+	_snd_pickup.play()
+	notify.emit("CRAFTED %s" % inventory.DEFS[r["id"]]["label"])
 
 
 # ---------------------------------------------------------------- body
