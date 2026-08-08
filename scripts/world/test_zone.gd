@@ -13,6 +13,7 @@ const LadderZoneScript := preload("res://scripts/world/ladder_zone.gd")
 const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
 const TargetDummyScript := preload("res://scripts/combat/target_dummy.gd")
 const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
+const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 
 var player: Player
 var hud: Hud
@@ -21,11 +22,16 @@ var _grid_mat: StandardMaterial3D
 var _concrete_mat: StandardMaterial3D
 var _wind: AudioStreamPlayer
 var _birds: AudioStreamPlayer
+var _nav_region: NavigationRegion3D
 
 
 func _ready() -> void:
 	_setup_input()
 	_setup_audio_buses()
+	# All static geometry goes inside this region so the navmesh can be
+	# baked from it at startup (zombies path across the whole map).
+	_nav_region = NavigationRegion3D.new()
+	add_child(_nav_region)
 	_build_environment()
 	_build_course()
 	_start_ambience()
@@ -44,9 +50,14 @@ func _ready() -> void:
 	player.interaction_prompt.connect(hud.set_prompt)
 	player.weapons.ammo_changed.connect(hud.set_ammo)
 	player.weapons._emit_ammo()
+	player.health_changed.connect(hud.set_health)
+	hud.set_health(player.health, Player.MAX_HEALTH)
+	player.died.connect(_on_player_died)
 
 	_build_interactives()
 	_build_district()
+	_bake_navmesh()
+	_build_horde()
 
 
 func _setup_input() -> void:
@@ -397,7 +408,7 @@ func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D, tint := Color.WH
 	body.add_child(col)
 	body.position = pos
 	body.set_meta("surface", surface)
-	add_child(body)
+	_nav_region.add_child(body)
 	return body
 
 
@@ -708,3 +719,44 @@ func _ladder(base: Vector3, height: float) -> void:
 	zone.add_child(zc)
 	zone.position = base + Vector3(0, height * 0.5 + 0.2, 0)
 	add_child(zone)
+
+
+# ---------------------------------------------------------------- phase 3
+
+func _bake_navmesh() -> void:
+	## Bake a navigation mesh from all static colliders inside _nav_region.
+	## One-time cost at startup; zombies use it to path around buildings.
+	var nav_mesh := NavigationMesh.new()
+	nav_mesh.geometry_parsed_geometry_type = NavigationMesh.PARSED_GEOMETRY_STATIC_COLLIDERS
+	# Values are exact multiples of cell size so nothing gets rounded away
+	nav_mesh.agent_radius = 0.5
+	nav_mesh.agent_height = 2.0
+	nav_mesh.agent_max_climb = 0.5
+	nav_mesh.cell_size = 0.25
+	nav_mesh.cell_height = 0.25
+	_nav_region.navigation_mesh = nav_mesh
+	_nav_region.bake_navigation_mesh(false)
+
+
+func _build_horde() -> void:
+	## Zombie spawn points. Shamblers: slow, tough, hit hard.
+	## Stalkers: fast, fragile, see further. Respawn ~18 s after dying.
+	_sign("!! INFESTED ZONE - ZOMBIES ROAM WEST !!", Vector3(-10, 3.0, -12))
+	_spawner("shambler", Vector3(-16, 0.1, -20))
+	_spawner("shambler", Vector3(-20, 0.1, 0))
+	_spawner("shambler", Vector3(-34, 0.1, -10))
+	_spawner("stalker", Vector3(-8, 0.1, -34))
+	_spawner("stalker", Vector3(14, 0.1, 24))
+
+
+func _spawner(kind: String, pos: Vector3) -> void:
+	var s := EnemySpawnerScript.new()
+	s.kind = kind
+	s.position = pos
+	add_child(s)
+
+
+func _on_player_died() -> void:
+	hud.show_death()
+	get_tree().create_timer(3.0).timeout.connect(func() -> void:
+		get_tree().reload_current_scene())

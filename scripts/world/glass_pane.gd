@@ -14,6 +14,8 @@ func break_glass() -> void:
 	if _broken:
 		return
 	_broken = true
+	# Breaking glass attracts zombies
+	get_tree().call_group("enemies", "hear_noise", global_position, 24.0)
 	var parent := get_parent()
 	# 3D positional shatter sound
 	var p := AudioStreamPlayer3D.new()

@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 2 — Combat, weapons, interactive district & audio test zone.**
+**Current build: Phase 3 — Infested district: zombie AI that hunts by sight and sound.**
 
 ## How to play
 

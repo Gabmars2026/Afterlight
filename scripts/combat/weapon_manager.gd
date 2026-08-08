@@ -197,6 +197,8 @@ func _process(delta: float) -> void:
 
 
 func _handle_combat_input() -> void:
+	if player.health <= 0:
+		return
 	var w := _weapons[_current]
 	if Input.is_action_just_pressed("weapon_1"):
 		_switch_to(0)
@@ -253,11 +255,13 @@ func _fire(w: Dictionary) -> void:
 	var camera := get_parent() as Camera3D
 	var from := camera.global_position
 	var to := from - camera.global_transform.basis.z * MAX_RANGE
-	var query := PhysicsRayQueryParameters3D.create(from, to, 1)
+	var query := PhysicsRayQueryParameters3D.create(from, to, 1 | 4)
 	query.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(query)
 	if hit:
 		_apply_impact(hit, w["damage"])
+	# Gunshots are LOUD: every zombie in a wide radius comes hunting
+	get_tree().call_group("enemies", "hear_noise", player.global_position, 45.0)
 
 
 func _play_shell() -> void:

@@ -7,6 +7,7 @@ extends CharacterBody3D
 
 signal health_changed(current: int, maximum: int)
 signal interaction_prompt(text: String)
+signal died
 
 enum Stance { STAND, CROUCH, CRAWL }
 
@@ -69,12 +70,19 @@ var _mantle_to := Vector3.ZERO
 var _mantle_t := 0.0
 var _vault_cd := 0.0
 var _breath: AudioStreamPlayer
+var _hurt: AudioStreamPlayer
+var _dead := false
+var _body: Node3D
+var _leg_l: Node3D
+var _leg_r: Node3D
+var _leg_phase := 0.0
 
 
 func _ready() -> void:
 	_gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 	collision_layer = 2
-	collision_mask = 1
+	collision_mask = 1 | 4
+	add_to_group("player")
 
 	_capsule = CapsuleShape3D.new()
 	_capsule.radius = 0.34
@@ -108,6 +116,13 @@ func _ready() -> void:
 	weapons = WeaponManager.new()
 	camera.add_child(weapons)
 	weapons.setup(self)
+
+	_build_body()
+
+	_hurt = AudioStreamPlayer.new()
+	_hurt.stream = load("res://assets/audio/player_hurt.wav")
+	_hurt.volume_db = -4.0
+	add_child(_hurt)
 
 	# Heavy breathing when exhausted
 	_breath = AudioStreamPlayer.new()
@@ -143,6 +158,14 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _dead:
+		# Dead: no control, just settle to the ground
+		if not is_on_floor():
+			velocity.y -= _gravity * delta
+		velocity.x = move_toward(velocity.x, 0.0, 12.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 12.0 * delta)
+		move_and_slide()
+		return
 	if _mantling:
 		_update_mantle(delta)
 		return
@@ -250,11 +273,15 @@ func _physics_process(delta: float) -> void:
 			if _step_distance >= stride:
 				_step_distance = 0.0
 				footsteps.play_step(_floor_surface, sprinting, stance != Stance.STAND)
+				if sprinting:
+					# Sprinting is loud: nearby zombies come to look
+					get_tree().call_group("enemies", "hear_noise", global_position, 12.0)
 	else:
 		camera.update_motion(delta, hspeed, false, on_floor, 0.0)
 
 	var pre_velocity := velocity
 	move_and_slide()
+	_update_body(delta)
 	_update_floor_surface()
 	_check_glass(pre_velocity)
 
@@ -474,5 +501,64 @@ func _on_exhausted(is_exhausted: bool) -> void:
 
 
 func take_damage(amount: int) -> void:
+	if _dead:
+		return
 	health = maxi(0, health - amount)
 	health_changed.emit(health, MAX_HEALTH)
+	_hurt.pitch_scale = randf_range(0.9, 1.1)
+	_hurt.play()
+	if health <= 0:
+		_dead = true
+		if weapons:
+			weapons.visible = false
+		died.emit()
+
+
+# ---------------------------------------------------------------- body
+
+func _build_body() -> void:
+	## First-person body v1: visible lower torso + legs when looking down.
+	_body = Node3D.new()
+	add_child(_body)
+	var cloth := StandardMaterial3D.new()
+	cloth.albedo_color = Color(0.28, 0.3, 0.34)
+	cloth.roughness = 1.0
+
+	var torso := MeshInstance3D.new()
+	var tmesh := BoxMesh.new()
+	tmesh.size = Vector3(0.34, 0.42, 0.22)
+	tmesh.material = cloth
+	torso.mesh = tmesh
+	torso.position = Vector3(0, 1.18, 0.05)
+	_body.add_child(torso)
+
+	for data in [[-0.10, true], [0.10, false]]:
+		var pivot := Node3D.new()
+		pivot.position = Vector3(data[0], 0.95, 0.04)
+		var leg := MeshInstance3D.new()
+		var lmesh := BoxMesh.new()
+		lmesh.size = Vector3(0.13, 0.88, 0.15)
+		lmesh.material = cloth
+		leg.mesh = lmesh
+		leg.position = Vector3(0, -0.46, 0)
+		pivot.add_child(leg)
+		_body.add_child(pivot)
+		if data[1]:
+			_leg_l = pivot
+		else:
+			_leg_r = pivot
+
+
+func _update_body(delta: float) -> void:
+	# Body follows crouch height; hidden while crawling (no prone rig yet)
+	_body.visible = stance != Stance.CRAWL
+	_body.position.y = head.position.y - EYE_STAND
+	var hspeed := Vector2(velocity.x, velocity.z).length()
+	if is_on_floor():
+		_leg_phase += hspeed * delta * 2.4
+		var amp := clampf(hspeed / SPRINT_SPEED, 0.0, 1.0) * 0.6
+		_leg_l.rotation.x = sin(_leg_phase) * amp
+		_leg_r.rotation.x = -sin(_leg_phase) * amp
+	else:
+		_leg_l.rotation.x = lerpf(_leg_l.rotation.x, 0.35, 6.0 * delta)
+		_leg_r.rotation.x = lerpf(_leg_r.rotation.x, 0.15, 6.0 * delta)

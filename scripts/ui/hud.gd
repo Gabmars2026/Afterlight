@@ -1,13 +1,19 @@
 class_name Hud
 extends CanvasLayer
-## Phase 1 HUD: crosshair, stamina bar, interaction prompt, FPS counter.
+## HUD: crosshair, health + stamina bars, interaction prompt, ammo, FPS,
+## damage flash and death screen.
 
 var _stamina_fill: ColorRect
 var _stamina_bg: ColorRect
+var _health_fill: ColorRect
+var _health_bg: ColorRect
 var _prompt: Label
 var _fps: Label
 var _ammo: Label
+var _flash: ColorRect
+var _death: Label
 var _fps_accum := 0.0
+var _last_health := 100
 
 
 func _ready() -> void:
@@ -19,6 +25,49 @@ func _ready() -> void:
 	dot.position = Vector2(-2, -2)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dot)
+
+	# Damage flash (full screen, under everything else)
+	_flash = ColorRect.new()
+	_flash.color = Color(0.8, 0.05, 0.05, 0.0)
+	_flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_flash)
+	move_child(_flash, 0)
+
+	# Health bar (bottom left, above stamina)
+	_health_bg = ColorRect.new()
+	_health_bg.color = Color(0, 0, 0, 0.45)
+	_health_bg.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_health_bg.position = Vector2(24, -92)
+	_health_bg.size = Vector2(240, 14)
+	_health_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_health_bg)
+
+	_health_fill = ColorRect.new()
+	_health_fill.color = Color(0.85, 0.25, 0.25)
+	_health_fill.position = Vector2(2, 2)
+	_health_fill.size = Vector2(236, 10)
+	_health_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_health_bg.add_child(_health_fill)
+
+	var health_label := Label.new()
+	health_label.text = "HEALTH"
+	health_label.add_theme_font_size_override("font_size", 12)
+	health_label.position = Vector2(0, -20)
+	_health_bg.add_child(health_label)
+
+	# Death screen text (hidden until needed)
+	_death = Label.new()
+	_death.text = "YOU DIED"
+	_death.add_theme_font_size_override("font_size", 64)
+	_death.add_theme_color_override("font_color", Color(0.85, 0.15, 0.15))
+	_death.set_anchors_preset(Control.PRESET_CENTER)
+	_death.position = Vector2(-190, -60)
+	_death.size = Vector2(380, 80)
+	_death.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_death.visible = false
+	_death.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_death)
 
 	# Stamina bar (bottom left)
 	_stamina_bg = ColorRect.new()
@@ -74,7 +123,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 2: Combat Test"
+	title.text = "AFTERLIGHT  -  Phase 3: Infested District"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -105,3 +154,19 @@ func set_prompt(text: String) -> void:
 
 func set_ammo(text: String) -> void:
 	_ammo.text = text
+
+
+func set_health(current: int, maximum: int) -> void:
+	var ratio := clampf(float(current) / float(maximum), 0.0, 1.0)
+	_health_fill.size.x = 236.0 * ratio
+	if current < _last_health:
+		_flash.color.a = 0.32
+		var tw := create_tween()
+		tw.tween_property(_flash, "color:a", 0.0, 0.45)
+	_last_health = current
+
+
+func show_death() -> void:
+	_death.visible = true
+	var tw := create_tween()
+	tw.tween_property(_flash, "color:a", 0.55, 1.2)
