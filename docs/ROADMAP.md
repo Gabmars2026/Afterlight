@@ -12,7 +12,7 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 7 — Inventory & melee** — 12-slot TAB inventory (bandages, ammo reserves, melee weapons, crafting scrap), loot crates give random supplies, reloading consumes inventory ammo, fists/pipe/bat melee with light + heavy swings, stamina cost and durability, humanoid zombie + player bodies with walking legs, stair headroom fixes (quick wheel deferred to a later polish phase)
 - [x] **PHASE 8 — Crafting** — cloth/scrap/planks materials in loot, 5 recipes (bandage, pistol + rifle ammo, steel pipe, baseball bat), crafting column in the TAB inventory panel with live material availability
 - [x] **PHASE 9 — Quest system** — QuestManager with typed objectives (reach/kill/collect/deliver), on-screen quest tracker with live counters, light-beam beacon over reach targets, quest progress in save file, first quest chain "The Last Signal" (tower -> defend -> scavenge -> deliver, with supply reward); side-quest templates + faction flags deferred to Phases 11/17
-- [ ] **PHASE 10 — NPCs** — settlement NPCs, schedules, dialogue v1
+- [x] **PHASE 10 — NPCs** — three named survivors in the Old Market (Mara the trader, Dex the guard, Ivy the scavenger) with humanoid bodies, name tags, day wander / night go-home schedules, and E-to-talk speech bubbles with rotating hint dialogue
 - [ ] **PHASE 11 — Faction system** — 4 factions, reputation, territory
 - [ ] **PHASE 12 — Open-world streaming** — cell loading, pooling, LOD
 - [ ] **PHASE 13 — Weather** — rain, storm, fog, wet surfaces

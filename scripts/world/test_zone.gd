@@ -17,6 +17,7 @@ const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const BreakableScript := preload("res://scripts/world/breakable.gd")
 const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
 const QuestManagerScript := preload("res://scripts/quests/quest_manager.gd")
+const NpcScript := preload("res://scripts/npc/npc.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 
 const SHOW_SIGNS := false
@@ -72,6 +73,7 @@ func _ready() -> void:
 	_build_district()
 	_build_parkour_gym()
 	_build_old_market()
+	_spawn_npcs()
 	_bake_navmesh()
 	_build_horde()
 
@@ -1069,3 +1071,34 @@ func _interior_zone(size: Vector3, pos: Vector3, bus: String) -> void:
 	zone.add_child(col)
 	zone.position = pos
 	add_child(zone)
+
+
+# ---------------------------------------------------------------- NPCs
+
+func _spawn_npcs() -> void:
+	_npc("MARA", Color(0.55, 0.3, 0.25), Vector3(35, 0, 15), 2.5,
+			Vector3(37, 0, 15.5), [
+		"Welcome to what's left of the market. Take what you need - crates re-stock themselves somehow.",
+		"Cloth and scrap keep this place alive. Check the crafting list when you press TAB.",
+		"Two cloth makes a bandage. Cheaper than dying.",
+	])
+	_npc("DEX", Color(0.28, 0.35, 0.45), Vector3(25, 0, 16), 5.0,
+			Vector3(25.5, 0, 33), [
+		"Stay off the streets after 20:00. They get faster in the dark. And they see farther.",
+		"Gunfire pulls every walker in half the district. A pipe to the skull is quieter.",
+		"I hold the square. You watch your own back out there.",
+	])
+	_npc("IVY", Color(0.35, 0.42, 0.3), Vector3(25, 0, 21), 6.0,
+			Vector3(27, 0, 31), [
+		"The old antenna on the blue tower still hums at night. Somebody should look at it.",
+		"I strip the cars for scrap. Three pieces makes a decent pipe.",
+		"Found a bat in a crate once. Best day of my year.",
+	])
+
+
+func _npc(nm: String, color: Color, work: Vector3, radius: float,
+		home: Vector3, dialogue: Array) -> void:
+	var n: CharacterBody3D = NpcScript.new()
+	n.setup(nm, color, work, radius, home, dialogue)
+	n.position = work + Vector3(0, 0.4, 0)
+	add_child(n)

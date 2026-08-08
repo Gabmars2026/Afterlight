@@ -54,6 +54,7 @@ func _process(delta: float) -> void:
 		night_changed.emit(is_night)
 		get_tree().call_group("enemies", "set_night", is_night)
 		get_tree().call_group("spawners", "set_night", is_night)
+		get_tree().call_group("npcs", "set_night", is_night)
 	_apply(delta)
 	time_changed.emit(day, hour, is_night)
 
