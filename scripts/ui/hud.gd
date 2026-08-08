@@ -15,6 +15,8 @@ var _death: Label
 var _toast: Label
 var _clock: Label
 var _quest: Label
+var _territory: Label
+var _territory_left := 0.0
 var _inv_panel: PanelContainer
 var _inv_buttons: Array = []
 var _craft_buttons: Array = []
@@ -155,11 +157,21 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 10: NPCs"
+	title.text = "AFTERLIGHT  -  Phase 11: Factions"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
 	add_child(title)
+
+	# --- Territory banner (under the clock) ---
+	_territory = Label.new()
+	_territory.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_territory.position = Vector2(-300, 52)
+	_territory.custom_minimum_size = Vector2(600, 0)
+	_territory.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_territory.add_theme_font_size_override("font_size", 17)
+	_territory.modulate = Color(1, 0.9, 0.6, 0)
+	add_child(_territory)
 
 	# --- Quest tracker (top right) ---
 	_quest = Label.new()
@@ -226,6 +238,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _territory_left > 0.0:
+		_territory_left -= delta
+		if _territory_left <= 1.0:
+			_territory.modulate.a = maxf(0.0, _territory_left)
 	_fps_accum -= delta
 	if _fps_accum <= 0.0:
 		_fps_accum = 0.25
@@ -349,3 +365,9 @@ func _on_craft(i: int) -> void:
 
 func set_quest(text: String) -> void:
 	_quest.text = text
+
+
+func set_territory(text: String) -> void:
+	_territory.text = text
+	_territory_left = 3.5
+	_territory.modulate.a = 1.0

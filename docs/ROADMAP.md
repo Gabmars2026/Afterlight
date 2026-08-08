@@ -13,7 +13,7 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 8 — Crafting** — cloth/scrap/planks materials in loot, 5 recipes (bandage, pistol + rifle ammo, steel pipe, baseball bat), crafting column in the TAB inventory panel with live material availability
 - [x] **PHASE 9 — Quest system** — QuestManager with typed objectives (reach/kill/collect/deliver), on-screen quest tracker with live counters, light-beam beacon over reach targets, quest progress in save file, first quest chain "The Last Signal" (tower -> defend -> scavenge -> deliver, with supply reward); side-quest templates + faction flags deferred to Phases 11/17
 - [x] **PHASE 10 — NPCs** — three named survivors in the Old Market (Mara the trader, Dex the guard, Ivy the scavenger) with humanoid bodies, name tags, day wander / night go-home schedules, and E-to-talk speech bubbles with rotating hint dialogue
-- [ ] **PHASE 11 — Faction system** — 4 factions, reputation, territory
+- [x] **PHASE 11 — Faction system** — 4 factions (Market Survivors, Wardens, Scavenger Union, the Feral), reputation -100..100 with standings (hostile/neutral/friendly/ally), rep from zombie kills (Wardens, capped) and quest completion (Survivors), named territory zones with a fading banner when you cross the border, reputation saved; deeper rep effects (prices, gated quests) land with Phase 17 story
 - [ ] **PHASE 12 — Open-world streaming** — cell loading, pooling, LOD
 - [ ] **PHASE 13 — Weather** — rain, storm, fog, wet surfaces
 - [ ] **PHASE 14 — Advanced AI** — Screamer, Brute, Climber, Night Hunter, group behavior

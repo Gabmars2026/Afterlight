@@ -9,6 +9,7 @@ var player: Player
 var hud: Hud
 var time_manager: Node
 var quest_manager: Node
+var faction_manager: Node
 
 var _snd_save: AudioStreamPlayer
 var _snd_load: AudioStreamPlayer
@@ -59,6 +60,7 @@ func save_game() -> void:
 		"hour": time_manager.hour,
 		"inv": player.inventory.serialize(),
 		"quest": quest_manager.serialize() if quest_manager else [],
+		"rep": faction_manager.serialize() if faction_manager else {},
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data))
@@ -97,6 +99,8 @@ func load_game() -> void:
 		player.inventory.restore(data["inv"])
 	if data.has("quest") and quest_manager and data["quest"].size() >= 2:
 		quest_manager.restore(data["quest"])
+	if data.has("rep") and faction_manager:
+		faction_manager.restore(data["rep"])
 	player.weapons._emit_ammo()
 	if data.has("day"):
 		time_manager.day = int(data["day"])

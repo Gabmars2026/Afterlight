@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 10 — Settlement NPCs in the Old Market.**
+**Current build: Phase 11 — Factions, reputation, territory.**
 
 ## How to play
 

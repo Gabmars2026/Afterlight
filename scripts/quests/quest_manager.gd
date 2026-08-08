@@ -5,6 +5,7 @@ extends Node
 signal quest_changed(text: String)
 
 var player: Node
+var factions: Node
 var _steps: Array = []
 var _idx := 0
 var _kills := 0
@@ -91,6 +92,8 @@ func _complete() -> void:
 		return
 	_done_notified = true
 	player.notify.emit("QUEST COMPLETE: THE LAST SIGNAL")
+	if factions:
+		factions.add_rep("survivors", 15)
 	player.pickup("bandage", 2)
 	player.pickup("ammo_rifle", 30)
 
