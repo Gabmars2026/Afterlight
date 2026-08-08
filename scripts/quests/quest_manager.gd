@@ -1,30 +1,81 @@
 extends Node
-## Quest system (Phase 9). Runs a chain of typed objectives and shows a
-## beacon of light over "reach" targets. First quest: The Last Signal.
+## Quest system (Phase 9, campaign in Phase 17). Runs a 5-quest main story
+## with typed objectives - reach / kill / collect / talk - a light beacon
+## over reach targets, per-quest rewards and faction reputation swings.
+##
+## THE AFTERLIGHT CAMPAIGN
+##  1 The Last Signal     - the radio on the blue tower still whispers
+##  2 Voices in the Static - Mara needs the warehouses checked
+##  3 The Heights          - something is nesting on the office tower
+##  4 Under the Park       - the survivors' water runs through the sewers
+##  5 Afterlight           - relight the city beacon. Bring them home.
 
 signal quest_changed(text: String)
 
 var player: Node
 var factions: Node
-var _steps: Array = []
+var _quests: Array = []
+var _qidx := 0
 var _idx := 0
 var _kills := 0
 var _beacon: MeshInstance3D
-var _done_notified := false
+var _all_done := false
 
 
 func _ready() -> void:
 	add_to_group("quest_listeners")
-	_steps = [
-		{"type": "reach", "text": "THE LAST SIGNAL: climb the BLUE TOWER and check the antenna",
-			"target": Vector3(-37.5, 9.2, -28), "radius": 3.0},
-		{"type": "kill", "text": "THE LAST SIGNAL: the noise drew them - put down %d/5 zombies",
-			"count": 5},
-		{"type": "collect", "text": "THE LAST SIGNAL: gather %d/5 SCRAP METAL to fix the radio",
-			"id": "scrap", "count": 5},
-		{"type": "reach", "text": "THE LAST SIGNAL: bring the scrap to the MARKET SHOP counter",
-			"target": Vector3(36, 1.2, 14), "radius": 3.0,
-			"deliver": {"id": "scrap", "count": 5}},
+	_quests = [
+		{"name": "THE LAST SIGNAL", "steps": [
+			{"type": "reach", "text": "climb the BLUE TOWER and check the antenna",
+				"target": Vector3(-37.5, 9.2, -28), "radius": 3.0},
+			{"type": "kill", "text": "the noise drew them - put down %d/5 zombies",
+				"count": 5},
+			{"type": "collect", "text": "gather %d/5 SCRAP METAL to fix the radio",
+				"id": "scrap", "count": 5},
+			{"type": "reach", "text": "bring the scrap to the MARKET SHOP counter",
+				"target": Vector3(36, 1.2, 14), "radius": 3.0,
+				"deliver": {"id": "scrap", "count": 5}},
+		], "reward": {"items": {"bandage": 2, "ammo_rifle": 30},
+			"rep": {"survivors": 15}}},
+		{"name": "VOICES IN THE STATIC", "steps": [
+			{"type": "talk", "text": "the radio names a trader - find MARA in the OLD MARKET",
+				"npc": "MARA"},
+			{"type": "reach", "text": "search the CANAL WAREHOUSES to the south",
+				"target": Vector3(-25, 1.0, 52), "radius": 5.0},
+			{"type": "collect", "text": "salvage %d/4 PLANKS from the docks",
+				"id": "planks", "count": 4},
+			{"type": "talk", "text": "bring word (and wood) to DEX at the market square",
+				"npc": "DEX", "deliver": {"id": "planks", "count": 4}},
+		], "reward": {"items": {"bat": 1, "ammo_pistol": 16},
+			"rep": {"survivors": 10, "scavengers": 5}}},
+		{"name": "THE HEIGHTS", "steps": [
+			{"type": "reach", "text": "something nests on the OFFICE TOWER roof - climb the fire escape",
+				"target": Vector3(-20, 15.8, -62), "radius": 5.0},
+			{"type": "kill", "text": "clear the nest - put down %d/8 zombies",
+				"count": 8},
+			{"type": "talk", "text": "report the rooftops clear to IVY",
+				"npc": "IVY"},
+		], "reward": {"items": {"ammo_pistol": 24, "bandage": 1},
+			"rep": {"wardens": 15}}},
+		{"name": "UNDER THE PARK", "steps": [
+			{"type": "reach", "text": "the water line runs under GREENROW - descend into the SEWERS",
+				"target": Vector3(58, -3.8, -38), "radius": 5.0},
+			{"type": "kill", "text": "something hunts in the dark - kill %d/6 zombies",
+				"count": 6},
+			{"type": "collect", "text": "gather %d/3 CLOTH to filter the water intake",
+				"id": "cloth", "count": 3},
+		], "reward": {"items": {"bandage": 3, "ammo_rifle": 20},
+			"rep": {"scavengers": 15, "survivors": 5}}},
+		{"name": "AFTERLIGHT", "steps": [
+			{"type": "collect", "text": "the beacon needs parts - gather %d/8 SCRAP METAL",
+				"id": "scrap", "count": 8},
+			{"type": "reach", "text": "install the beacon atop the BLUE TOWER",
+				"target": Vector3(-37.5, 9.2, -28), "radius": 3.0,
+				"deliver": {"id": "scrap", "count": 8}},
+			{"type": "kill", "text": "DEFEND THE LIGHT - put down %d/10 zombies",
+				"count": 10},
+		], "reward": {"items": {"bandage": 3, "ammo_rifle": 40, "ammo_pistol": 24},
+			"rep": {"survivors": 20, "wardens": 20, "scavengers": 20}}},
 	]
 	_build_beacon()
 	_refresh()
@@ -50,10 +101,19 @@ func _build_beacon() -> void:
 	add_child(_beacon)
 
 
+func _step() -> Dictionary:
+	if _qidx >= _quests.size():
+		return {}
+	var steps: Array = _quests[_qidx]["steps"]
+	if _idx >= steps.size():
+		return {}
+	return steps[_idx]
+
+
 func _process(_delta: float) -> void:
-	if _idx >= _steps.size() or player == null:
+	var step := _step()
+	if step.is_empty() or player == null:
 		return
-	var step: Dictionary = _steps[_idx]
 	match step["type"]:
 		"reach":
 			if player.global_position.distance_to(step["target"]) <= step["radius"]:
@@ -70,41 +130,94 @@ func _process(_delta: float) -> void:
 
 
 func on_enemy_killed() -> void:
-	if _idx < _steps.size() and _steps[_idx]["type"] == "kill":
+	var step := _step()
+	if step.get("type", "") == "kill":
 		_kills += 1
-		if _kills >= _steps[_idx]["count"]:
+		if _kills >= step["count"]:
 			_advance()
 		else:
 			_refresh()
+
+
+func on_npc_talked(nm: String) -> void:
+	var step := _step()
+	if step.get("type", "") == "talk" and step["npc"] == nm:
+		if step.has("deliver"):
+			if player.inventory.count_of(step["deliver"]["id"]) \
+					< step["deliver"]["count"]:
+				player.notify.emit("%s NEEDS %d %s" % [nm,
+						step["deliver"]["count"],
+						step["deliver"]["id"].to_upper()])
+				return
+			player.inventory.take(step["deliver"]["id"], step["deliver"]["count"])
+		_advance()
 
 
 func _advance() -> void:
 	_idx += 1
 	_kills = 0
 	player.notify.emit("OBJECTIVE COMPLETE")
-	if _idx >= _steps.size():
-		_complete()
+	if _idx >= _quests[_qidx]["steps"].size():
+		_complete_quest()
 	_refresh()
 
 
-func _complete() -> void:
-	if _done_notified:
-		return
-	_done_notified = true
-	player.notify.emit("QUEST COMPLETE: THE LAST SIGNAL")
+func _complete_quest() -> void:
+	var q: Dictionary = _quests[_qidx]
+	player.notify.emit("QUEST COMPLETE: " + q["name"])
+	var reward: Dictionary = q["reward"]
+	for id in reward["items"]:
+		player.pickup(id, reward["items"][id])
 	if factions:
-		factions.add_rep("survivors", 15)
-	player.pickup("bandage", 2)
-	player.pickup("ammo_rifle", 30)
+		for f in reward["rep"]:
+			factions.add_rep(f, reward["rep"][f])
+	_qidx += 1
+	_idx = 0
+	if _qidx >= _quests.size():
+		_finale()
+
+
+func _finale() -> void:
+	if _all_done:
+		return
+	_all_done = true
+	player.notify.emit("THE BEACON BURNS - MERIDIAN FALLS REMEMBERS")
+	# A permanent warm light column over the blue tower
+	var column := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.8
+	cyl.bottom_radius = 0.8
+	cyl.height = 120.0
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.85, 0.5, 0.3)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.8, 0.4)
+	mat.emission_energy_multiplier = 2.2
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	cyl.material = mat
+	column.mesh = cyl
+	column.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	column.position = Vector3(-37.5, 60, -28)
+	add_child(column)
+	var lamp := OmniLight3D.new()
+	lamp.light_color = Color(1.0, 0.85, 0.55)
+	lamp.light_energy = 2.0
+	lamp.omni_range = 30.0
+	lamp.position = Vector3(-37.5, 12, -28)
+	add_child(lamp)
 
 
 func _refresh() -> void:
-	if _idx >= _steps.size():
-		quest_changed.emit("THE LAST SIGNAL - COMPLETE  (more quests in Phase 17)")
+	if _qidx >= _quests.size():
+		quest_changed.emit("AFTERLIGHT RESTORED - Meridian Falls breathes again")
 		_beacon.visible = false
 		return
-	var step: Dictionary = _steps[_idx]
-	var text: String = step["text"]
+	var q: Dictionary = _quests[_qidx]
+	var step := _step()
+	var text: String = q["name"] + " (%d/%d): " % [_qidx + 1, _quests.size()] \
+			+ step["text"]
 	if step["type"] == "kill":
 		text = text % _kills
 	elif step["type"] == "collect":
@@ -120,17 +233,25 @@ func _refresh() -> void:
 
 func notify_inventory_changed() -> void:
 	# Keeps the collect counter live as the player gathers materials
-	if _idx < _steps.size() and _steps[_idx]["type"] == "collect":
+	if _step().get("type", "") == "collect":
 		_refresh()
 
 
 func serialize() -> Array:
-	return [_idx, _kills]
+	return [_qidx, _idx, _kills]
 
 
 func restore(data: Array) -> void:
-	_idx = clampi(int(data[0]), 0, _steps.size())
-	_kills = int(data[1])
-	if _idx >= _steps.size():
-		_done_notified = true
+	if data.size() >= 3:
+		_qidx = clampi(int(data[0]), 0, _quests.size())
+		_idx = int(data[1])
+		_kills = int(data[2])
+	else:
+		# old save format: [idx, kills] within quest 1
+		_qidx = 0
+		_idx = clampi(int(data[0]), 0, _quests[0]["steps"].size())
+		_kills = int(data[1])
+	if _qidx >= _quests.size():
+		_all_done = false
+		_finale()
 	_refresh()

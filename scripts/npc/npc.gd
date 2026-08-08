@@ -61,6 +61,7 @@ func get_prompt() -> String:
 
 
 func interact(user: Node) -> void:
+	get_tree().call_group("quest_listeners", "on_npc_talked", npc_name)
 	_talk_left = 4.0
 	_talk_to = user as Node3D
 	var line: String = lines[_line_idx]

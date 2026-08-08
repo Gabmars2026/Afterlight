@@ -45,6 +45,10 @@ func _process(delta: float) -> void:
 		territory_changed.emit(zone)
 
 
+func on_npc_talked(_nm: String) -> void:
+	pass
+
+
 func add_rep(faction: String, amount: int) -> void:
 	if not rep.has(faction) or faction == "feral":
 		return
