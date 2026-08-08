@@ -26,6 +26,8 @@ const ACCEL_GROUND := 11.0
 const ACCEL_AIR := 3.0
 const MOUSE_SENSITIVITY := 0.0022
 
+const STEP_HEIGHT := 0.55
+const BOOM_LEN := 3.4
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.15
 const CRAWL_HEIGHT := 0.7
@@ -82,6 +84,13 @@ var _hurt: AudioStreamPlayer
 var _snd_pickup: AudioStreamPlayer
 var _snd_bandage: AudioStreamPlayer
 var _snd_heart: AudioStreamPlayer
+var _third_person := false
+var _boom := 0.0
+var _arm_l: Node3D
+var _arm_r: Node3D
+var _tp_parts: Array[Node3D] = []
+var _last_safe := Vector3(0, 0.5, 8)
+var _safe_timer := 0.0
 var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
@@ -124,6 +133,7 @@ func _ready() -> void:
 	camera = CameraController.new()
 	head.add_child(camera)
 	camera.setup()
+	floor_snap_length = 0.6
 
 	stamina = StaminaController.new()
 	add_child(stamina)
@@ -352,8 +362,11 @@ func _physics_process(delta: float) -> void:
 	else:
 		camera.update_motion(delta, hspeed, false, on_floor, 0.0)
 
+	_step_up(delta)
 	var pre_velocity := velocity
 	move_and_slide()
+	_update_safety(delta)
+	_update_view(delta)
 	_update_body(delta)
 	_update_floor_surface()
 	_check_glass(pre_velocity)
@@ -664,77 +677,211 @@ func craft_recipe(recipe_idx: int) -> void:
 
 # ---------------------------------------------------------------- body
 
+func _step_up(delta: float) -> void:
+	## Walk straight up stairs and low ledges (no jumping needed).
+	if not is_on_floor():
+		return
+	var flat := Vector3(velocity.x, 0.0, velocity.z)
+	if flat.length_squared() < 0.04:
+		return
+	var motion := flat * delta
+	if motion.length() < 0.05:
+		motion = flat.normalized() * 0.05
+	var params := PhysicsTestMotionParameters3D.new()
+	var res := PhysicsTestMotionResult3D.new()
+	params.from = global_transform
+	params.motion = motion
+	if not PhysicsServer3D.body_test_motion(get_rid(), params, res):
+		return  # nothing ahead - normal walking
+	# Blocked: would we clear it from one step higher?
+	params.from = global_transform.translated(Vector3.UP * STEP_HEIGHT)
+	if PhysicsServer3D.body_test_motion(get_rid(), params, res):
+		return  # still blocked - a real wall
+	# Clear at step height: measure the landing and hop up exactly that much
+	params.from = global_transform.translated(Vector3.UP * STEP_HEIGHT + motion)
+	params.motion = Vector3.DOWN * STEP_HEIGHT
+	PhysicsServer3D.body_test_motion(get_rid(), params, res)
+	var rise := STEP_HEIGHT + res.get_travel().y
+	if rise > 0.04:
+		global_position.y += rise + 0.01
+
+
+func _update_safety(delta: float) -> void:
+	## Remember the last solid ground; if you ever fall out of the world,
+	## climb back instead of falling forever.
+	_safe_timer -= delta
+	if is_on_floor() and _safe_timer <= 0.0 and global_position.y > -10.0:
+		_safe_timer = 0.5
+		_last_safe = global_position
+	if global_position.y < -30.0:
+		global_position = _last_safe + Vector3(0, 0.6, 0)
+		velocity = Vector3.ZERO
+		notify.emit("YOU CRAWL BACK TO SOLID GROUND")
+
+
+func _update_view(delta: float) -> void:
+	## First/third person toggle (V) with a collision-aware camera boom.
+	if Input.is_action_just_pressed("toggle_view"):
+		_third_person = not _third_person
+		weapons.visible = not _third_person
+		for part in _tp_parts:
+			part.visible = _third_person
+	_boom = lerpf(_boom, BOOM_LEN if _third_person else 0.0, 10.0 * delta)
+	if _boom < 0.05:
+		camera.position = Vector3.ZERO
+		interaction.target_position = Vector3(0, 0, -interaction.REACH)
+		return
+	# Pull the camera in when a wall is behind the player
+	var want_local := Vector3(0.4, 0.25, _boom)
+	var want_global := head.global_transform * want_local
+	var space := get_world_3d().direct_space_state
+	var q := PhysicsRayQueryParameters3D.create(head.global_position, want_global, 1)
+	q.exclude = [get_rid()]
+	var hit := space.intersect_ray(q)
+	var f := 1.0
+	if not hit.is_empty():
+		f = maxf(head.global_position.distance_to(hit.position) - 0.25, 0.0) \
+				/ head.global_position.distance_to(want_global)
+	camera.position = want_local * f
+	interaction.target_position = Vector3(0, 0, -(interaction.REACH + _boom * f))
+	# Hide the body if the camera got pushed right up against the head
+	_body.visible = f > 0.35 and stance != Stance.CRAWL
+
+
 func _build_body() -> void:
-	## First-person body v2: pelvis, torso, jointed legs with shins and
-	## boots - visible when you look down.
+	## Humanoid body v3: smooth capsule limbs, torso, head with hair and
+	## jointed arms. Legs show in first person when you look down; the head
+	## and arms only render in third-person view (V).
 	_body = Node3D.new()
 	add_child(_body)
 	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.3, 0.33, 0.38)
+	cloth.albedo_color = Color(0.32, 0.36, 0.33)
 	cloth.roughness = 1.0
 	var pants := StandardMaterial3D.new()
-	pants.albedo_color = Color(0.22, 0.24, 0.27)
+	pants.albedo_color = Color(0.2, 0.22, 0.26)
 	pants.roughness = 1.0
 	var boots := StandardMaterial3D.new()
 	boots.albedo_color = Color(0.16, 0.13, 0.1)
 	boots.roughness = 0.95
+	var skin := StandardMaterial3D.new()
+	skin.albedo_color = Color(0.8, 0.6, 0.46)
+	skin.roughness = 0.9
+	var hair := StandardMaterial3D.new()
+	hair.albedo_color = Color(0.19, 0.13, 0.08)
+	hair.roughness = 1.0
 
+	# Torso: one smooth capsule chest + a shorter belly capsule
 	var chest := MeshInstance3D.new()
-	var cmesh := BoxMesh.new()
-	cmesh.size = Vector3(0.4, 0.34, 0.24)
+	var cmesh := CapsuleMesh.new()
+	cmesh.radius = 0.21
+	cmesh.height = 0.62
 	cmesh.material = cloth
 	chest.mesh = cmesh
-	chest.position = Vector3(0, 1.32, 0.05)
+	chest.position = Vector3(0, 1.28, 0.03)
 	_body.add_child(chest)
 
-	var belly := MeshInstance3D.new()
-	var bmesh := BoxMesh.new()
-	bmesh.size = Vector3(0.34, 0.28, 0.2)
-	bmesh.material = cloth
-	belly.mesh = bmesh
-	belly.position = Vector3(0, 1.06, 0.05)
-	_body.add_child(belly)
-
 	var pelvis := MeshInstance3D.new()
-	var pmesh := BoxMesh.new()
-	pmesh.size = Vector3(0.36, 0.18, 0.21)
+	var pmesh := CapsuleMesh.new()
+	pmesh.radius = 0.19
+	pmesh.height = 0.42
 	pmesh.material = pants
 	pelvis.mesh = pmesh
-	pelvis.position = Vector3(0, 0.9, 0.04)
+	pelvis.position = Vector3(0, 0.95, 0.03)
 	_body.add_child(pelvis)
 
+	# Head + hair (third person only - would block the camera in first)
+	var head_vis := MeshInstance3D.new()
+	var hmesh := SphereMesh.new()
+	hmesh.radius = 0.135
+	hmesh.height = 0.27
+	hmesh.material = skin
+	head_vis.mesh = hmesh
+	head_vis.position = Vector3(0, 1.66, 0.0)
+	_body.add_child(head_vis)
+	_tp_parts.append(head_vis)
+
+	var hair_vis := MeshInstance3D.new()
+	var hairm := SphereMesh.new()
+	hairm.radius = 0.14
+	hairm.height = 0.2
+	hairm.material = hair
+	hair_vis.mesh = hairm
+	hair_vis.position = Vector3(0, 1.73, -0.02)
+	_body.add_child(hair_vis)
+	_tp_parts.append(hair_vis)
+
+	var neck := MeshInstance3D.new()
+	var nmesh := CapsuleMesh.new()
+	nmesh.radius = 0.06
+	nmesh.height = 0.18
+	nmesh.material = skin
+	neck.mesh = nmesh
+	neck.position = Vector3(0, 1.54, 0.0)
+	_body.add_child(neck)
+	_tp_parts.append(neck)
+
+	# Arms: shoulder pivots with capsule arm + skin hand (third person only)
+	for adata in [[-0.28, true], [0.28, false]]:
+		var apivot := Node3D.new()
+		apivot.position = Vector3(adata[0], 1.44, 0.03)
+		var arm := MeshInstance3D.new()
+		var amesh := CapsuleMesh.new()
+		amesh.radius = 0.065
+		amesh.height = 0.56
+		amesh.material = cloth
+		arm.mesh = amesh
+		arm.position = Vector3(0, -0.26, 0)
+		apivot.add_child(arm)
+		var hand := MeshInstance3D.new()
+		var hamesh := SphereMesh.new()
+		hamesh.radius = 0.06
+		hamesh.height = 0.12
+		hamesh.material = skin
+		hand.mesh = hamesh
+		hand.position = Vector3(0, -0.56, 0)
+		apivot.add_child(hand)
+		_body.add_child(apivot)
+		_tp_parts.append(apivot)
+		if adata[1]:
+			_arm_l = apivot
+		else:
+			_arm_r = apivot
+
+	# Legs: capsule thigh + shin + boot, jointed at the hip
 	for data in [[-0.11, true], [0.11, false]]:
 		var pivot := Node3D.new()
 		pivot.position = Vector3(data[0], 0.86, 0.04)
-		# Thigh
 		var thigh := MeshInstance3D.new()
-		var tmesh := BoxMesh.new()
-		tmesh.size = Vector3(0.15, 0.44, 0.16)
+		var tmesh := CapsuleMesh.new()
+		tmesh.radius = 0.08
+		tmesh.height = 0.46
 		tmesh.material = pants
 		thigh.mesh = tmesh
 		thigh.position = Vector3(0, -0.2, 0)
 		pivot.add_child(thigh)
-		# Shin
 		var shin := MeshInstance3D.new()
-		var smesh := BoxMesh.new()
-		smesh.size = Vector3(0.13, 0.42, 0.14)
+		var smesh := CapsuleMesh.new()
+		smesh.radius = 0.07
+		smesh.height = 0.44
 		smesh.material = pants
 		shin.mesh = smesh
 		shin.position = Vector3(0, -0.61, 0.01)
 		pivot.add_child(shin)
-		# Boot
 		var foot := MeshInstance3D.new()
 		var fmesh := BoxMesh.new()
-		fmesh.size = Vector3(0.14, 0.1, 0.27)
+		fmesh.size = Vector3(0.13, 0.09, 0.25)
 		fmesh.material = boots
 		foot.mesh = fmesh
-		foot.position = Vector3(0, -0.83, -0.05)
+		foot.position = Vector3(0, -0.84, -0.04)
 		pivot.add_child(foot)
 		_body.add_child(pivot)
 		if data[1]:
 			_leg_l = pivot
 		else:
 			_leg_r = pivot
+
+	for part in _tp_parts:
+		part.visible = false
 
 
 func _make_snd(res: String, db: float) -> AudioStreamPlayer:

@@ -150,6 +150,7 @@ func _ready() -> void:
 
 
 
+
 	if "--selftest" in OS.get_cmdline_user_args():
 		var tester := SelfTestScript.new()
 		add_child(tester)
@@ -173,6 +174,7 @@ func _setup_input() -> void:
 	_add_key("weapon_2", KEY_2)
 	_add_key("weapon_3", KEY_3)
 	_add_key("debug_stats", KEY_F3)
+	_add_key("toggle_view", KEY_V)
 	_add_mouse("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse("aim", MOUSE_BUTTON_RIGHT)
 
