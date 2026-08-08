@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 15 — Full Meridian Falls: 4 new districts + the sewers.**
+**Current build: Phase 16 — Graphics presets (pause menu) + F3 performance stats.**
 
 ## How to play
 
@@ -36,6 +36,7 @@ An original open-world first-person survival/action game built in Godot 4.x.
 | Ctrl (while hanging) | Drop |
 | Hold Ctrl before landing | Roll (no fall damage) |
 | F9 | Quick save |
+| F3 | Performance stats overlay |
 | F10 | Quick load |
 | Esc | Pause menu + settings (sensitivity, FOV, invert Y, head bob, shake) |
 

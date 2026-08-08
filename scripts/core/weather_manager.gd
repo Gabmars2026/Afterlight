@@ -17,6 +17,7 @@ const STATES := {
 var time_manager: Node
 var player: Node3D
 var wet_mats: Array = []
+var rain_scale := 1.0  # set by graphics preset
 
 var state := "clear"
 var _light := 1.0
@@ -92,7 +93,7 @@ func _process(delta: float) -> void:
 		_rain_node.global_position = player.global_position + Vector3(0, 11, 0)
 	var raining: int = target["rain"]
 	_rain_node.emitting = raining > 0
-	_rain_node.amount = maxi(raining, 1)
+	_rain_node.amount = maxi(int(raining * rain_scale), 1)
 	_rain_snd.volume_db = lerpf(_rain_snd.volume_db,
 			(-8.0 if raining > 500 else -14.0) if raining > 0 else -80.0,
 			delta * 1.5)

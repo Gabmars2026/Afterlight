@@ -21,6 +21,7 @@ const NpcScript := preload("res://scripts/npc/npc.gd")
 const FactionManagerScript := preload("res://scripts/core/faction_manager.gd")
 const WorldStreamerScript := preload("res://scripts/world/world_streamer.gd")
 const CityBuilderScript := preload("res://scripts/world/city_builder.gd")
+const GraphicsManagerScript := preload("res://scripts/core/graphics_manager.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 const WeatherManagerScript := preload("res://scripts/core/weather_manager.gd")
 
@@ -128,6 +129,12 @@ func _ready() -> void:
 	saver.hud = hud
 	saver.time_manager = tm
 	saver.weather_manager = weather
+
+	var gfx := GraphicsManagerScript.new()
+	gfx.sun = _sun
+	gfx.streamer = streamer
+	gfx.weather = weather
+	add_child(gfx)
 	add_child(saver)
 
 
@@ -146,6 +153,7 @@ func _setup_input() -> void:
 	_add_key("weapon_1", KEY_1)
 	_add_key("weapon_2", KEY_2)
 	_add_key("weapon_3", KEY_3)
+	_add_key("debug_stats", KEY_F3)
 	_add_mouse("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse("aim", MOUSE_BUTTON_RIGHT)
 

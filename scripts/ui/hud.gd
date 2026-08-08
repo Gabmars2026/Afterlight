@@ -22,6 +22,8 @@ var _inv_buttons: Array = []
 var _craft_buttons: Array = []
 var _inv_open := false
 var _weather_label: Label
+var _stats_label: Label
+var _stats_accum := 0.0
 var player: Node  # set by the world after spawn
 var _fps_accum := 0.0
 var _last_health := 100
@@ -158,7 +160,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 15: Meridian Falls"
+	title.text = "AFTERLIGHT  -  Phase 16: Optimization"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -170,6 +172,13 @@ func _ready() -> void:
 	_weather_label.modulate = Color(0.75, 0.85, 1.0, 0.85)
 	_weather_label.position = Vector2(24, 34)
 	add_child(_weather_label)
+
+	_stats_label = Label.new()
+	_stats_label.visible = false
+	_stats_label.position = Vector2(24, 60)
+	_stats_label.add_theme_font_size_override("font_size", 13)
+	_stats_label.modulate = Color(0.6, 1.0, 0.6, 0.9)
+	add_child(_stats_label)
 
 	# --- Territory banner (under the clock) ---
 	_territory = Label.new()
@@ -246,6 +255,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_update_stats(delta)
 	if _territory_left > 0.0:
 		_territory_left -= delta
 		if _territory_left <= 1.0:
@@ -383,3 +393,23 @@ func set_territory(text: String) -> void:
 
 func set_weather(label: String) -> void:
 	_weather_label.text = label
+
+
+func _update_stats(delta: float) -> void:
+	if Input.is_action_just_pressed("debug_stats"):
+		_stats_label.visible = not _stats_label.visible
+	if not _stats_label.visible:
+		return
+	_stats_accum -= delta
+	if _stats_accum > 0.0:
+		return
+	_stats_accum = 0.25
+	var streamer := get_tree().get_first_node_in_group("streamer")
+	var cells: int = streamer.cell_count() if streamer else 0
+	_stats_label.text = "FPS %d   frame %.1f ms\ndraw calls %d   objects %d\nvideo mem %.0f MB   streamed cells %d" % [
+		Performance.get_monitor(Performance.TIME_FPS),
+		Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+		Performance.get_monitor(Performance.OBJECT_COUNT),
+		Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+		cells]

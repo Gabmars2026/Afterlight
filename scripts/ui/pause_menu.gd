@@ -4,6 +4,7 @@ extends CanvasLayer
 ## mouse sensitivity, invert Y, FOV, head bob, camera shake.
 
 var _panel_root: Control
+var _gfx_btn: Button
 
 
 func _ready() -> void:
@@ -23,6 +24,10 @@ func toggle() -> void:
 	var opening := not visible
 	visible = opening
 	get_tree().paused = opening
+	if opening and _gfx_btn:
+		var g := get_tree().get_first_node_in_group("graphics")
+		if g:
+			_gfx_btn.text = "Graphics: " + g.preset_name()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if opening else Input.MOUSE_MODE_CAPTURED
 
 
@@ -83,8 +88,19 @@ func _build_ui() -> void:
 	_checkbox(vbox, "Head bob", GameSettings.head_bob,
 			func(on: bool) -> void: GameSettings.head_bob = on)
 
+	var gfx := Button.new()
+	_gfx_btn = gfx
+	var gm := get_tree().get_first_node_in_group("graphics")
+	gfx.text = "Graphics: " + (gm.preset_name() if gm else "MEDIUM")
+	gfx.pressed.connect(func() -> void:
+		var g := get_tree().get_first_node_in_group("graphics")
+		if g:
+			g.apply_preset((g.preset + 1) % 3)
+			gfx.text = "Graphics: " + g.preset_name())
+	vbox.add_child(gfx)
+
 	var hint := Label.new()
-	hint.text = "Settings apply instantly."
+	hint.text = "Settings apply instantly. F3 shows performance stats."
 	hint.modulate = Color(1, 1, 1, 0.5)
 	hint.add_theme_font_size_override("font_size", 13)
 	vbox.add_child(hint)

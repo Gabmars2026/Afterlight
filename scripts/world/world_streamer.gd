@@ -6,9 +6,19 @@ extends Node3D
 ## far cells hide their small props (LOD).
 
 const CELL := 30.0
-const LOAD_R := 3      # Chebyshev ring of cells kept loaded
-const UNLOAD_R := 4    # freed beyond this ring
-const DETAIL_R := 2    # small props visible within this ring
+var LOAD_R := 3      # Chebyshev ring of cells kept loaded
+var UNLOAD_R := 4    # freed beyond this ring
+var DETAIL_R := 2    # small props visible within this ring
+
+
+func set_view(load_r: int, unload_r: int, detail_r: int) -> void:
+	LOAD_R = load_r
+	UNLOAD_R = unload_r
+	DETAIL_R = detail_r
+
+
+func cell_count() -> int:
+	return _loaded.size()
 
 const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -20,6 +30,10 @@ var plaster_mat: StandardMaterial3D
 var _loaded := {}          # Vector2i -> cell root Node3D
 var _queue: Array = []     # cells waiting to be built
 var _timer := 0.0
+
+
+func _ready() -> void:
+	add_to_group("streamer")
 
 
 func _physics_process(delta: float) -> void:
@@ -176,6 +190,7 @@ func _slab(parent: Node3D, size: Vector3, pos: Vector3,
 	elif mat != null:
 		mesh.material = mat
 	else:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var m := StandardMaterial3D.new()
 		m.albedo_color = tint.lerp(Color(0.92, 0.84, 0.68), 0.22)
 		m.roughness = 1.0
