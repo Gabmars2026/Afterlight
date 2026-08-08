@@ -17,6 +17,10 @@ const TERRITORIES := [
 	[20, 46, 8, 38, "survivors", "OLD MARKET - Market Survivors turf"],
 	[-36, -18, -36, -20, "wardens", "THE BLOCKS - Warden patrol zone"],
 	[-30, -16, 24, 38, "scavengers", "THE YARDS - Scavenger Union turf"],
+	[-45, 45, -75, -45, "wardens", "MERIDIAN HEIGHTS - Warden watch"],
+	[-75, 75, 45, 75, "scavengers", "CANAL DISTRICT - Scavenger docks"],
+	[45, 75, -45, 45, "survivors", "GREENROW - survivor gardens"],
+	[-75, -45, -45, 45, "feral", "ASHLINE - feral ground"],
 ]
 
 var player: Node

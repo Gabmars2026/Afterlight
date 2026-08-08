@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 14 — Special infected: Screamer, Brute, Climber, Night Hunter.**
+**Current build: Phase 15 — Full Meridian Falls: 4 new districts + the sewers.**
 
 ## How to play
 

@@ -59,7 +59,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _is_core(c: Vector2i) -> bool:
-	return absi(c.x) <= 1 and absi(c.y) <= 1
+	return absi(c.x) <= 2 and absi(c.y) <= 2
 
 
 func _build_cell(c: Vector2i) -> Node3D:

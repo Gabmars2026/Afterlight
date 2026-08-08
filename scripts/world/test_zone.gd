@@ -20,6 +20,7 @@ const QuestManagerScript := preload("res://scripts/quests/quest_manager.gd")
 const NpcScript := preload("res://scripts/npc/npc.gd")
 const FactionManagerScript := preload("res://scripts/core/faction_manager.gd")
 const WorldStreamerScript := preload("res://scripts/world/world_streamer.gd")
+const CityBuilderScript := preload("res://scripts/world/city_builder.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 const WeatherManagerScript := preload("res://scripts/core/weather_manager.gd")
 
@@ -77,6 +78,14 @@ func _ready() -> void:
 	_build_parkour_gym()
 	_build_old_market()
 	_spawn_npcs()
+
+	var city := CityBuilderScript.new()
+	city.nav_parent = _nav_region
+	city.sand_mat = _sand_mat
+	city.cobble_mat = _cobble_mat
+	city.plaster_mat = _grid_mat
+	add_child(city)
+	city.build()
 	_bake_navmesh()
 	_build_horde()
 
