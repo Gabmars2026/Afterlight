@@ -149,6 +149,7 @@ func _ready() -> void:
 	_build_mountains()
 
 
+
 	if "--selftest" in OS.get_cmdline_user_args():
 		var tester := SelfTestScript.new()
 		add_child(tester)
@@ -358,26 +359,26 @@ func _build_course() -> void:
 	_box(Vector3(5, 6.4, 5), Vector3(20, 3.2, -36.5), _grid_mat, Color(0.7, 0.72, 0.8))
 	_sign("ROOFTOP GAP JUMP", Vector3(20, 8.4, -34.4))
 
-	# The old quarantine wall - breached with gates out to every district
-	# North: gate to MERIDIAN HEIGHTS
-	_box(Vector3(41, 4, 1), Vector3(-24.5, 2, -45), _concrete_mat)
-	_box(Vector3(41, 4, 1), Vector3(24.5, 2, -45), _concrete_mat)
-	_gate(Vector3(0, 0, -45), false)
-	_sign("MERIDIAN HEIGHTS", Vector3(0, 5.8, -44.4))
-	# South: gates at the two CANAL bridges
+	# The old quarantine wall - breached with gates aligned to the roads
+	# North: gate on the main road (x -2) to MERIDIAN HEIGHTS
+	_box(Vector3(39, 4, 1), Vector3(-25.5, 2, -45), _concrete_mat)
+	_box(Vector3(43, 4, 1), Vector3(23.5, 2, -45), _concrete_mat)
+	_gate(Vector3(-2, 0, -45), false)
+	_sign("MERIDIAN HEIGHTS", Vector3(-2, 5.8, -44.4))
+	# South: gates on the main road (x -2) and the east canal road (x 31)
 	_box(Vector3(39, 4, 1), Vector3(-25.5, 2, 45), _concrete_mat)
-	_box(Vector3(22, 4, 1), Vector3(13, 2, 45), _concrete_mat)
-	_box(Vector3(13, 4, 1), Vector3(38.5, 2, 45), _concrete_mat)
+	_box(Vector3(25, 4, 1), Vector3(14.5, 2, 45), _concrete_mat)
+	_box(Vector3(10, 4, 1), Vector3(40, 2, 45), _concrete_mat)
 	_gate(Vector3(-2, 0, 45), false)
-	_gate(Vector3(28, 0, 45), false)
+	_gate(Vector3(31, 0, 45), false)
 	_sign("THE CANAL", Vector3(-2, 5.8, 44.4))
-	# East: gates to GREENROW (pond + gazebo)
+	# East: gates on the crosstown road (z 10) and toward the pond (z -18)
 	_box(Vector3(1, 4, 23), Vector3(45, 2, -33.5), _concrete_mat)
-	_box(Vector3(1, 4, 38), Vector3(45, 2, 5), _concrete_mat)
-	_box(Vector3(1, 4, 13), Vector3(45, 2, 38.5), _concrete_mat)
+	_box(Vector3(1, 4, 20), Vector3(45, 2, -4), _concrete_mat)
+	_box(Vector3(1, 4, 31), Vector3(45, 2, 29.5), _concrete_mat)
+	_gate(Vector3(45, 0, 10), true)
 	_gate(Vector3(45, 0, -18), true)
-	_gate(Vector3(45, 0, 28), true)
-	# West: gates into ASHLINE
+	# West: gates on the crosstown road (z 10) and to the ASHLINE camp (z 34)
 	_box(Vector3(1, 4, 51), Vector3(-45, 2, -19.5), _concrete_mat)
 	_box(Vector3(1, 4, 16), Vector3(-45, 2, 22), _concrete_mat)
 	_box(Vector3(1, 4, 7), Vector3(-45, 2, 41.5), _concrete_mat)

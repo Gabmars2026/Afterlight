@@ -27,3 +27,4 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 ## Post-release patches
 
 - [x] **v1.0.1** — the old quarantine wall around the town center is now breached with 7 gated openings (north to Meridian Heights, two south gates at the canal bridges, two east to Greenrow, two west into Ashline) with district signs; added a ring of 14 hazy mountains on the far horizon that frame the skyline in every direction
+- [x] **v1.0.2** — all quarantine-wall gates now sit exactly on the road grid: north + south main gates on the x -2 road, second south gate on the x 31 canal road, east/west main gates on the z 10 crosstown road (plus the pond and camp breaches), so every road runs dead-center through its arch
