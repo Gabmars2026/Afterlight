@@ -27,6 +27,14 @@ var health := 80
 var _player: Node3D
 var _agent: NavigationAgent3D
 var direct_nav := false
+var size_mult := 1.0          # visual scale (brutes tower, screamers hunch)
+var attack_reach := 2.2
+var is_screamer := false      # shrieks: alerts every zombie in 45 m
+var is_brute := false         # huge, slow, knocks the player back
+var is_climber := false       # leaps up ledges to reach rooftop campers
+var is_night_hunter := false  # dormant by day, terrifying by night
+var _scream_cd := 0.0
+var _climb_cd := 0.0
 var _is_night := false
 var _is_rain := false  # streamed outskirts: no navmesh, walk straight lines
 var _home := Vector3.ZERO
@@ -58,6 +66,8 @@ var _growls: Array[AudioStream] = []
 var _snd_alert: AudioStream
 var _snd_attack: AudioStream
 var _snd_hurt: AudioStream
+var _snd_scream: AudioStream
+var _snd_roar: AudioStream
 var _snd_death: AudioStream
 var _step_sounds: Array[AudioStream] = []
 
@@ -92,6 +102,7 @@ func _ready() -> void:
 
 func _build_mesh() -> void:
 	_mesh_root = Node3D.new()
+	_mesh_root.scale = Vector3.ONE * size_mult
 	add_child(_mesh_root)
 	var skin := StandardMaterial3D.new()
 	skin.albedo_color = body_color.lightened(0.12)
@@ -168,6 +179,10 @@ func _load_sounds() -> void:
 	_snd_alert = load("res://assets/audio/zombie_alert.wav")
 	_snd_attack = load("res://assets/audio/zombie_attack.wav")
 	_snd_hurt = load("res://assets/audio/zombie_hurt.wav")
+	if is_screamer:
+		_snd_scream = load("res://assets/audio/screamer_scream.wav")
+	if is_brute:
+		_snd_roar = load("res://assets/audio/brute_roar.wav")
 	_snd_death = load("res://assets/audio/zombie_death.wav")
 	for i in range(1, 5):
 		_step_sounds.append(load("res://assets/audio/step_%d.wav" % i))
@@ -188,6 +203,29 @@ func _load_sounds() -> void:
 	_steps.volume_db = -10.0
 	_steps.pitch_scale = 0.8
 	add_child(_steps)
+
+
+func _special_behaviors(delta: float) -> void:
+	_climb_cd = maxf(0.0, _climb_cd - delta)
+	if state != State.CHASE and state != State.ATTACK:
+		return
+	if is_screamer:
+		_scream_cd -= delta
+		if _scream_cd <= 0.0 and _player_alive():
+			_scream_cd = 8.0
+			_voice.stream = _snd_scream
+			_voice.pitch_scale = randf_range(0.95, 1.1)
+			_voice.play()
+			get_tree().call_group("enemies", "hear_noise",
+					_player.global_position, 45.0)
+	if is_climber and _climb_cd <= 0.0 and is_on_floor() and _player_alive():
+		var dy := _player.global_position.y - global_position.y
+		var flat := _player.global_position - global_position
+		flat.y = 0.0
+		if dy > 1.4 and flat.length() < 5.5:
+			_climb_cd = 3.0
+			velocity = flat.normalized() * chase_speed * 0.9
+			velocity.y = 9.5
 
 
 func _physics_process(delta: float) -> void:
@@ -232,6 +270,7 @@ func _physics_process(delta: float) -> void:
 			if _stagger_left <= 0.0:
 				state = State.CHASE if _aggro else State.PATROL
 
+	_special_behaviors(delta)
 	move_and_slide()
 	_animate(delta)
 
@@ -275,7 +314,9 @@ func _begin_chase() -> void:
 	state = State.CHASE
 	if not _aggro:
 		_aggro = true
-		_voice.stream = _snd_alert
+		# Pack behavior: nearby zombies come to look
+		get_tree().call_group("enemies", "hear_noise", global_position, 12.0)
+		_voice.stream = _snd_roar if is_brute else _snd_alert
 		_voice.pitch_scale = randf_range(0.9, 1.1)
 		_voice.play()
 
@@ -355,8 +396,12 @@ func _do_attack(delta: float) -> void:
 		_voice.play()
 		_arm_l.rotation.x = 0.3
 		_arm_r.rotation.x = 0.3
-		if dist < 2.2:
+		if dist < attack_reach:
 			_player.take_damage(attack_damage)
+			if is_brute:
+				var shove := _player.global_position - global_position
+				shove.y = 0.0
+				_player.velocity += shove.normalized() * 8.0 + Vector3.UP * 3.5
 
 
 func _walk_towards(delta: float, speed: float) -> void:
@@ -459,6 +504,11 @@ func _apply_senses() -> void:
 	if _base_chase < 0.0:
 		_base_chase = chase_speed
 		_base_vision = vision_range
-	chase_speed = _base_chase * (1.35 if _is_night else 1.0)
-	vision_range = _base_vision * (1.45 if _is_night else 1.0) \
-			* (0.8 if _is_rain else 1.0)
+	if is_night_hunter:
+		chase_speed = _base_chase * (1.9 if _is_night else 0.65)
+		vision_range = (_base_vision * 2.1 if _is_night else 5.0) \
+				* (0.8 if _is_rain else 1.0)
+	else:
+		chase_speed = _base_chase * (1.35 if _is_night else 1.0)
+		vision_range = _base_vision * (1.45 if _is_night else 1.0) \
+				* (0.8 if _is_rain else 1.0)

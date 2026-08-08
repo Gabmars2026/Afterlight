@@ -101,7 +101,16 @@ func _build_cell(c: Vector2i) -> Node3D:
 	# Zombie spawner (straight-line chase, no navmesh out here)
 	if rng.randf() < 0.18:
 		var sp := EnemySpawnerScript.new()
-		sp.kind = "stalker" if rng.randf() < 0.3 else "shambler"
+		var kroll := rng.randf()
+		sp.kind = "shambler"
+		if kroll < 0.06:
+			sp.kind = "brute"
+		elif kroll < 0.14:
+			sp.kind = "screamer"
+		elif kroll < 0.22:
+			sp.kind = "hunter"
+		elif kroll < 0.34:
+			sp.kind = "stalker"
 		sp.direct_nav = true
 		var spos := _spot(rng, Vector3.ONE)
 		sp.position = Vector3(spos.x, 0.1, spos.z)

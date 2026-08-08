@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 13 — Dynamic weather: rain, storms, fog.**
+**Current build: Phase 14 — Special infected: Screamer, Brute, Climber, Night Hunter.**
 
 ## How to play
 

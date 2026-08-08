@@ -842,6 +842,11 @@ func _build_horde() -> void:
 	_spawner("shambler", Vector3(-34, 0.1, -10))
 	_spawner("stalker", Vector3(-8, 0.1, -34))
 	_spawner("stalker", Vector3(14, 0.1, 24))
+	# Phase 14: special infected
+	_spawner("screamer", Vector3(-26, 0.1, -24))    # The Blocks
+	_spawner("brute", Vector3(-23, 0.1, 30))        # The Yards
+	_spawner("climber", Vector3(20, 0.1, -27))      # phase-1 building
+	_spawner("hunter", Vector3(8, 0.1, 32))         # near the tunnel
 	# Old Market is contested too
 	_spawner("shambler", Vector3(30, 0.1, 8))
 	_spawner("stalker", Vector3(36, 0.1, 26))
