@@ -26,6 +26,7 @@ var health := 80
 
 var _player: Node3D
 var _agent: NavigationAgent3D
+var direct_nav := false  # streamed outskirts: no navmesh, walk straight lines
 var _home := Vector3.ZERO
 var _gravity := 9.8
 var _investigate_pos := Vector3.ZERO
@@ -355,7 +356,8 @@ func _do_attack(delta: float) -> void:
 
 
 func _walk_towards(delta: float, speed: float) -> void:
-	var next := _agent.get_next_path_position()
+	var next := _agent.target_position if direct_nav \
+			else _agent.get_next_path_position()
 	var dir := next - global_position
 	dir.y = 0.0
 	if dir.length() < 0.05:

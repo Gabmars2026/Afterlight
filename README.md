@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 11 — Factions, reputation, territory.**
+**Current build: Phase 12 — Endless streamed outskirts around the town.**
 
 ## How to play
 

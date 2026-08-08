@@ -19,6 +19,7 @@ const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
 const QuestManagerScript := preload("res://scripts/quests/quest_manager.gd")
 const NpcScript := preload("res://scripts/npc/npc.gd")
 const FactionManagerScript := preload("res://scripts/core/faction_manager.gd")
+const WorldStreamerScript := preload("res://scripts/world/world_streamer.gd")
 const TimeManagerScript := preload("res://scripts/core/time_manager.gd")
 
 const SHOW_SIGNS := false
@@ -83,6 +84,12 @@ func _ready() -> void:
 	tm.env = _env
 	add_child(tm)
 	tm.time_changed.connect(hud.set_time)
+
+	var streamer := WorldStreamerScript.new()
+	streamer.player = player
+	streamer.sand_mat = _sand_mat
+	streamer.plaster_mat = _grid_mat
+	add_child(streamer)
 
 	var factions := FactionManagerScript.new()
 	factions.player = player
