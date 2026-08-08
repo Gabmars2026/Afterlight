@@ -50,6 +50,7 @@ var camera: CameraController
 var stamina: StaminaController
 var footsteps: FootstepController
 var interaction: InteractionController
+var weapons: WeaponManager
 
 var _gravity: float = 9.8
 var _collider: CollisionShape3D
@@ -102,6 +103,10 @@ func _ready() -> void:
 	interaction.add_exception(self)
 	interaction.focus_changed.connect(func(prompt: String) -> void:
 		interaction_prompt.emit(prompt))
+
+	weapons = WeaponManager.new()
+	camera.add_child(weapons)
+	weapons.setup(self)
 
 	# Heavy breathing when exhausted
 	_breath = AudioStreamPlayer.new()
@@ -431,8 +436,10 @@ func _ladder_move(delta: float) -> void:
 # ---------------------------------------------------------------- audio/world
 
 func set_audio_environment(bus_name: String) -> void:
-	## Called by InteriorZone: "Interior" = reverberant indoor bus.
+	## Called by InteriorZone: "Interior"/"Tunnel" = reverberant buses.
 	footsteps.set_bus(bus_name)
+	if weapons:
+		weapons.set_bus(bus_name)
 
 
 func _update_floor_surface() -> void:

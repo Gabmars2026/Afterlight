@@ -11,6 +11,8 @@ const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
 const GlassPaneScript := preload("res://scripts/world/glass_pane.gd")
 const LadderZoneScript := preload("res://scripts/world/ladder_zone.gd")
 const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
+const TargetDummyScript := preload("res://scripts/combat/target_dummy.gd")
+const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
 
 var player: Player
 var hud: Hud
@@ -18,6 +20,7 @@ var hud: Hud
 var _grid_mat: StandardMaterial3D
 var _concrete_mat: StandardMaterial3D
 var _wind: AudioStreamPlayer
+var _birds: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -39,8 +42,11 @@ func _ready() -> void:
 	player.stamina.stamina_changed.connect(hud.set_stamina)
 	player.stamina.exhausted_changed.connect(hud.set_exhausted)
 	player.interaction_prompt.connect(hud.set_prompt)
+	player.weapons.ammo_changed.connect(hud.set_ammo)
+	player.weapons._emit_ammo()
 
 	_build_interactives()
+	_build_district()
 
 
 func _setup_input() -> void:
@@ -55,6 +61,8 @@ func _setup_input() -> void:
 	_add_key("reload", KEY_R)
 	_add_key("inventory", KEY_TAB)
 	_add_key("map", KEY_M)
+	_add_key("weapon_1", KEY_1)
+	_add_key("weapon_2", KEY_2)
 	_add_mouse("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse("aim", MOUSE_BUTTON_RIGHT)
 
@@ -78,17 +86,22 @@ func _add_mouse(action: String, button: MouseButton) -> void:
 
 
 func _setup_audio_buses() -> void:
-	## "Interior" bus: reverb for indoor spaces (InteriorZone routes to it).
-	if AudioServer.get_bus_index("Interior") != -1:
+	## "Interior" bus: room reverb. "Tunnel" bus: strong underground echo.
+	_make_reverb_bus("Interior", 0.8, 0.33, 0.4)
+	_make_reverb_bus("Tunnel", 1.0, 0.55, 0.2)
+
+
+func _make_reverb_bus(bus_name: String, room: float, wet: float, damping: float) -> void:
+	if AudioServer.get_bus_index(bus_name) != -1:
 		return
 	var idx := AudioServer.bus_count
 	AudioServer.add_bus(idx)
-	AudioServer.set_bus_name(idx, "Interior")
+	AudioServer.set_bus_name(idx, bus_name)
 	AudioServer.set_bus_send(idx, "Master")
 	var reverb := AudioEffectReverb.new()
-	reverb.room_size = 0.8
-	reverb.wet = 0.33
-	reverb.damping = 0.4
+	reverb.room_size = room
+	reverb.wet = wet
+	reverb.damping = damping
 	AudioServer.add_bus_effect(idx, reverb)
 
 
@@ -354,7 +367,7 @@ func _build_interactives() -> void:
 
 	# --- Interior audio zone (reverb + ducked wind inside the building) ---
 	var interior := InteriorZoneScript.new()
-	interior.wind_player = _wind
+	interior.ambience = [_wind, _birds]
 	var iz_col := CollisionShape3D.new()
 	var iz_shape := BoxShape3D.new()
 	iz_shape.size = Vector3(9.4, 6.4, 9.4)
@@ -410,3 +423,288 @@ func _start_ambience() -> void:
 	_wind.autoplay = true
 	add_child(_wind)
 	_wind.play()
+
+	# Daytime birds (ducked automatically when indoors)
+	_birds = AudioStreamPlayer.new()
+	var bird_stream: AudioStreamWAV = load("res://assets/audio/birds_loop.wav")
+	bird_stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	bird_stream.loop_end = bird_stream.data.size() / 2
+	_birds.stream = bird_stream
+	_birds.volume_db = -16.0
+	_birds.autoplay = true
+	add_child(_birds)
+	_birds.play()
+
+# ------------------------------------------------------------------ district
+
+func _build_district() -> void:
+	## Phase 2 additions: 3-floor apartment block with interior stairs,
+	## balcony fire escape and rooftop; street cars; echo tunnel; shooting
+	## range with target dummies; generator that powers a floodlight.
+	var bx := -28.0
+	var bz := -28.0
+	_sign("APARTMENT BLOCK: 3 FLOORS + ROOF", Vector3(bx + 9, 4.2, bz + 4))
+
+	# --- Walls (west + north solid) ---
+	_box(Vector3(0.5, 9.4, 12), Vector3(bx - 5.75, 4.7, bz), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(12, 9.4, 0.5), Vector3(bx, 4.7, bz + 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	# East wall: full pieces + window column + door column
+	_box(Vector3(0.5, 9.4, 2.6), Vector3(bx + 5.75, 4.7, bz - 4.7), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 3.7, 1.4), Vector3(bx + 5.75, 1.85, bz - 2.7), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 4.3, 1.4), Vector3(bx + 5.75, 7.25, bz - 2.7), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 9.4, 2.5), Vector3(bx + 5.75, 4.7, bz - 0.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 7.0, 1.8), Vector3(bx + 5.75, 5.9, bz + 1.4), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(0.5, 9.4, 3.7), Vector3(bx + 5.75, 4.7, bz + 4.15), _grid_mat, Color(0.82, 0.78, 0.72))
+	# South wall: two full pieces + balcony window column
+	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx - 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(5.3, 9.4, 0.5), Vector3(bx + 3.35, 4.7, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(1.4, 3.15, 0.5), Vector3(bx, 1.575, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+	_box(Vector3(1.4, 4.15, 0.5), Vector3(bx, 7.325, bz - 5.75), _grid_mat, Color(0.82, 0.78, 0.72))
+
+	# --- Floors with stair openings (wood) ---
+	_box(Vector3(11.5, 0.3, 9.0), Vector3(bx, 3.0, bz - 1.25), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	_box(Vector3(6.25, 0.3, 2.5), Vector3(bx - 2.625, 3.0, bz + 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	_box(Vector3(11.5, 0.3, 9.0), Vector3(bx, 6.0, bz + 1.25), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	_box(Vector3(5.25, 0.3, 2.5), Vector3(bx + 3.125, 6.0, bz - 4.5), _grid_mat, Color(0.7, 0.55, 0.4), "wood")
+	# Roof (concrete) with hatch hole in the north-east corner
+	_box(Vector3(12.5, 0.4, 9.75), Vector3(bx, 9.2, bz - 1.25), _concrete_mat)
+	_box(Vector3(9.75, 0.4, 2.75), Vector3(bx - 1.375, 9.2, bz + 4.875), _concrete_mat)
+
+	# --- Stairs: ground -> floor 2 (along north wall, up eastward) ---
+	for i in 10:
+		_box(Vector3(0.9, 0.3 * (i + 1), 2.0),
+				Vector3(bx - 4.05 + i * 0.9, 0.15 * (i + 1), bz + 4.5), _grid_mat)
+	# --- Stairs: floor 2 -> floor 3 (along south wall, up westward) ---
+	for i in 10:
+		_box(Vector3(0.9, 0.3 * (i + 1), 2.0),
+				Vector3(bx + 4.05 - i * 0.9, 3.15 + 0.15 * (i + 1), bz - 4.5), _grid_mat)
+
+	# --- Interior lamps ---
+	for h in [2.6, 5.5, 8.5]:
+		var lamp := OmniLight3D.new()
+		lamp.light_color = Color(1.0, 0.88, 0.7)
+		lamp.light_energy = 1.6
+		lamp.omni_range = 8.0
+		lamp.position = Vector3(bx, h, bz)
+		add_child(lamp)
+
+	# --- Entrance door (slides up) ---
+	var door := SlidingDoorScript.new()
+	door.slide_offset = Vector3(0, 2.45, 0)
+	var dm := MeshInstance3D.new()
+	var dmesh := BoxMesh.new()
+	dmesh.size = Vector3(0.25, 2.3, 1.7)
+	dm.mesh = dmesh
+	var dmat := StandardMaterial3D.new()
+	dmat.albedo_color = Color(0.35, 0.4, 0.45)
+	dmat.metallic = 0.5
+	dm.material_override = dmat
+	var dc := CollisionShape3D.new()
+	var dshape := BoxShape3D.new()
+	dshape.size = Vector3(0.25, 2.3, 1.7)
+	dc.shape = dshape
+	door.add_child(dm)
+	door.add_child(dc)
+	door.position = Vector3(bx + 5.75, 1.2, bz + 1.4)
+	door.set_meta("surface", "metal")
+	add_child(door)
+
+	# --- Breakable glass window (east wall, floor 2) ---
+	var glass := GlassPaneScript.new()
+	var gm := MeshInstance3D.new()
+	var gmesh := BoxMesh.new()
+	gmesh.size = Vector3(0.12, 1.4, 1.4)
+	gm.mesh = gmesh
+	var gmat := StandardMaterial3D.new()
+	gmat.albedo_color = Color(0.7, 0.85, 1.0, 0.3)
+	gmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gmat.metallic = 0.4
+	gmat.roughness = 0.05
+	gm.material_override = gmat
+	var gc := CollisionShape3D.new()
+	var gshape := BoxShape3D.new()
+	gshape.size = Vector3(0.12, 1.4, 1.4)
+	gc.shape = gshape
+	glass.add_child(gm)
+	glass.add_child(gc)
+	glass.position = Vector3(bx + 5.75, 4.4, bz - 2.7)
+	add_child(glass)
+
+	# --- Balcony (fire escape route: ground -> balcony -> roof) ---
+	_sign("FIRE ESCAPE", Vector3(bx, 4.9, bz - 8.3))
+	_box(Vector3(3, 0.3, 1.5), Vector3(bx, 3.15, bz - 6.75), _grid_mat, Color(0.6, 0.62, 0.68), "metal")
+	_ladder(Vector3(bx - 1.7, 0, bz - 6.75), 3.9)
+	_ladder(Vector3(bx + 1.7, 3.3, bz - 6.4), 6.4)
+
+	# --- Roof hatch ladder (floor 3 -> roof, inside) ---
+	_ladder(Vector3(bx + 4.8, 6.15, bz + 4.8), 3.6)
+
+	# --- Rooftop gap jump to the adjacent tower ---
+	_sign("GAP JUMP", Vector3(bx - 8.5, 10.4, bz))
+	_box(Vector3(4.5, 8.7, 4.5), Vector3(bx - 9.5, 4.35, bz), _grid_mat, Color(0.68, 0.7, 0.78))
+
+	# --- Interior audio zone (whole building) ---
+	var interior := InteriorZoneScript.new()
+	interior.ambience = [_wind, _birds]
+	var iz_col := CollisionShape3D.new()
+	var iz_shape := BoxShape3D.new()
+	iz_shape.size = Vector3(11.4, 9.0, 11.4)
+	iz_col.shape = iz_shape
+	interior.add_child(iz_col)
+	interior.position = Vector3(bx, 4.7, bz)
+	add_child(interior)
+
+	# --- Generator powering a floodlight over the entrance ---
+	var flood := OmniLight3D.new()
+	flood.light_color = Color(1.0, 0.95, 0.8)
+	flood.light_energy = 3.0
+	flood.omni_range = 12.0
+	flood.position = Vector3(bx + 7.2, 3.8, bz + 1.4)
+	add_child(flood)
+	var gen := GeneratorPropScript.new()
+	gen.powered_light = flood
+	var genm := MeshInstance3D.new()
+	var genmesh := BoxMesh.new()
+	genmesh.size = Vector3(1.2, 0.9, 0.7)
+	genm.mesh = genmesh
+	genm.position.y = 0.45
+	var genmat := StandardMaterial3D.new()
+	genmat.albedo_color = Color(0.75, 0.25, 0.2)
+	genmat.metallic = 0.5
+	genmat.roughness = 0.5
+	genm.material_override = genmat
+	var genc := CollisionShape3D.new()
+	var genshape := BoxShape3D.new()
+	genshape.size = Vector3(1.2, 0.9, 0.7)
+	genc.shape = genshape
+	genc.position.y = 0.45
+	gen.add_child(genm)
+	gen.add_child(genc)
+	gen.position = Vector3(bx + 8.0, 0, bz - 3.0)
+	add_child(gen)
+	_sign("START THE GENERATOR (E)", Vector3(bx + 8.0, 1.9, bz - 3.0))
+
+	# --- Street cars (climbable) ---
+	_car(Vector3(-12, 0, -14), 0.35, Color(0.55, 0.6, 0.68))
+	_car(Vector3(-17, 0, -18), -0.2, Color(0.62, 0.4, 0.3))
+	_sign("CLIMB THE CARS", Vector3(-14.5, 2.6, -16))
+
+	# --- Echo tunnel (strong reverb) ---
+	_sign("ECHO TUNNEL", Vector3(-3.5, 2.6, 32))
+	_box(Vector3(18, 3, 0.4), Vector3(7, 1.5, 30.7), _concrete_mat)
+	_box(Vector3(18, 3, 0.4), Vector3(7, 1.5, 33.3), _concrete_mat)
+	_box(Vector3(18, 0.4, 3.0), Vector3(7, 3.2, 32), _concrete_mat)
+	for lx in [2.0, 12.0]:
+		var tl := OmniLight3D.new()
+		tl.light_color = Color(1.0, 0.8, 0.55)
+		tl.light_energy = 1.4
+		tl.omni_range = 6.0
+		tl.position = Vector3(lx, 2.6, 32)
+		add_child(tl)
+	var tunnel := InteriorZoneScript.new()
+	tunnel.bus_name = "Tunnel"
+	tunnel.ambience = [_wind, _birds]
+	var tz_col := CollisionShape3D.new()
+	var tz_shape := BoxShape3D.new()
+	tz_shape.size = Vector3(17.5, 2.9, 2.4)
+	tz_col.shape = tz_shape
+	tunnel.add_child(tz_col)
+	tunnel.position = Vector3(7, 1.45, 32)
+	add_child(tunnel)
+
+	# --- Shooting range ---
+	_sign("SHOOTING RANGE: 1/2 weapons, LMB fire, R reload", Vector3(34, 3.0, 12))
+	for dpos in [Vector3(32, 0, 4), Vector3(35, 0, 0), Vector3(38, 0, -3)]:
+		var dummy := TargetDummyScript.new()
+		dummy.position = dpos
+		add_child(dummy)
+	# Impact-test boards: metal pings, wood knocks
+	_box(Vector3(0.2, 1.4, 1.4), Vector3(41, 1.7, 4), _grid_mat, Color(0.6, 0.63, 0.7), "metal")
+	_box(Vector3(0.2, 1.4, 1.4), Vector3(41, 1.7, 0), _grid_mat, Color(0.55, 0.4, 0.26), "wood")
+
+
+func _car(pos: Vector3, yrot: float, color: Color) -> void:
+	var car := StaticBody3D.new()
+	car.set_meta("surface", "metal")
+	var paint := StandardMaterial3D.new()
+	paint.albedo_color = color
+	paint.metallic = 0.6
+	paint.roughness = 0.4
+	var body := MeshInstance3D.new()
+	var bmesh := BoxMesh.new()
+	bmesh.size = Vector3(4.2, 0.6, 1.9)
+	bmesh.material = paint
+	body.mesh = bmesh
+	body.position.y = 0.55
+	car.add_child(body)
+	var cabin := MeshInstance3D.new()
+	var cmesh := BoxMesh.new()
+	cmesh.size = Vector3(2.0, 0.55, 1.7)
+	cmesh.material = paint
+	cabin.mesh = cmesh
+	cabin.position = Vector3(-0.2, 1.125, 0)
+	car.add_child(cabin)
+	var wheel_mat := StandardMaterial3D.new()
+	wheel_mat.albedo_color = Color(0.12, 0.12, 0.12)
+	for wx in [-1.45, 1.45]:
+		for wz in [-0.95, 0.95]:
+			var wheel := MeshInstance3D.new()
+			var wmesh := CylinderMesh.new()
+			wmesh.top_radius = 0.32
+			wmesh.bottom_radius = 0.32
+			wmesh.height = 0.25
+			wmesh.material = wheel_mat
+			wheel.mesh = wmesh
+			wheel.rotation.x = PI / 2.0
+			wheel.position = Vector3(wx, 0.32, wz)
+			car.add_child(wheel)
+	var col1 := CollisionShape3D.new()
+	var shape1 := BoxShape3D.new()
+	shape1.size = Vector3(4.2, 0.6, 1.9)
+	col1.shape = shape1
+	col1.position.y = 0.55
+	car.add_child(col1)
+	var col2 := CollisionShape3D.new()
+	var shape2 := BoxShape3D.new()
+	shape2.size = Vector3(2.0, 0.55, 1.7)
+	col2.shape = shape2
+	col2.position = Vector3(-0.2, 1.125, 0)
+	car.add_child(col2)
+	car.position = pos
+	car.rotation.y = yrot
+	add_child(car)
+
+
+func _ladder(base: Vector3, height: float) -> void:
+	## Ladder visual (rails + rungs) plus a LadderZone the player climbs with W.
+	var rail_mat := StandardMaterial3D.new()
+	rail_mat.albedo_color = Color(0.75, 0.3, 0.2)
+	rail_mat.metallic = 0.5
+	rail_mat.roughness = 0.5
+	var visual := Node3D.new()
+	visual.position = base
+	for side in [-0.35, 0.35]:
+		var rail := MeshInstance3D.new()
+		var rail_box := BoxMesh.new()
+		rail_box.size = Vector3(0.07, height, 0.07)
+		rail.mesh = rail_box
+		rail.material_override = rail_mat
+		rail.position = Vector3(0, height * 0.5, side)
+		visual.add_child(rail)
+	for i in int(height / 0.36):
+		var rung := MeshInstance3D.new()
+		var rung_box := BoxMesh.new()
+		rung_box.size = Vector3(0.06, 0.06, 0.7)
+		rung.mesh = rung_box
+		rung.material_override = rail_mat
+		rung.position = Vector3(0, 0.3 + i * 0.36, 0)
+		visual.add_child(rung)
+	add_child(visual)
+	var zone := LadderZoneScript.new()
+	var zc := CollisionShape3D.new()
+	var zshape := BoxShape3D.new()
+	zshape.size = Vector3(1.0, height + 0.6, 1.0)
+	zc.shape = zshape
+	zone.add_child(zc)
+	zone.position = base + Vector3(0, height * 0.5 + 0.2, 0)
+	add_child(zone)

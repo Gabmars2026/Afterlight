@@ -1,10 +1,13 @@
 class_name InteriorZone
 extends Area3D
-## Switches the player's audio to the reverberant Interior bus while inside,
-## and duck outdoor ambience. Cheap, per-zone audio occlusion/reverb.
+## Switches the player's audio to a reverberant bus while inside
+## (e.g. "Interior" for rooms, "Tunnel" for underground echo), and ducks
+## outdoor ambience. Cheap, per-zone audio occlusion/reverb.
 
-var wind_player: AudioStreamPlayer = null
-var _outside_wind_db := -18.0
+var bus_name := "Interior"
+var ambience: Array[AudioStreamPlayer] = []
+
+var _outside_db: Array[float] = []
 
 
 func _init() -> void:
@@ -20,16 +23,18 @@ func _ready() -> void:
 
 func _on_body(body: Node3D) -> void:
 	if body is Player:
-		body.set_audio_environment("Interior")
-		if wind_player:
-			_outside_wind_db = wind_player.volume_db
+		body.set_audio_environment(bus_name)
+		_outside_db.clear()
+		for amb in ambience:
+			_outside_db.append(amb.volume_db)
 			var tw := create_tween()
-			tw.tween_property(wind_player, "volume_db", _outside_wind_db - 10.0, 0.5)
+			tw.tween_property(amb, "volume_db", amb.volume_db - 10.0, 0.5)
 
 
 func _off_body(body: Node3D) -> void:
 	if body is Player:
 		body.set_audio_environment("Master")
-		if wind_player:
-			var tw := create_tween()
-			tw.tween_property(wind_player, "volume_db", _outside_wind_db, 0.5)
+		for i in ambience.size():
+			if i < _outside_db.size():
+				var tw := create_tween()
+				tw.tween_property(ambience[i], "volume_db", _outside_db[i], 0.5)

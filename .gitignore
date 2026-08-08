@@ -2,3 +2,4 @@
 *.tmp
 gen_assets.py
 gen_audio2.py
+gen_audio3.py

@@ -9,6 +9,7 @@ const BOB_AMPLITUDE := 0.028
 const TILT_MAX := 0.02
 
 var bob_phase := 0.0
+var zoom_offset := 0.0  # set by WeaponManager while aiming
 
 var _land_dip := 0.0
 var _target_tilt := 0.0
@@ -40,8 +41,9 @@ func update_motion(delta: float, hspeed: float, sprinting: bool, on_floor: bool,
 	rotation.z = lerpf(rotation.z, _target_tilt, 8.0 * delta)
 
 	# FOV: settings value + sprint kick, always smooth
-	var target_fov := GameSettings.fov + (SPRINT_FOV_KICK if (sprinting and hspeed > 5.5) else 0.0)
-	fov = lerpf(fov, target_fov, 6.0 * delta)
+	var target_fov := GameSettings.fov + zoom_offset \
+			+ (SPRINT_FOV_KICK if (sprinting and hspeed > 5.5) else 0.0)
+	fov = lerpf(fov, target_fov, 6.0 * delta if zoom_offset == 0.0 else 12.0 * delta)
 
 
 func on_landed(fall_speed: float) -> void:

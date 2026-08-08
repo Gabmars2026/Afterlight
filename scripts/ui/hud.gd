@@ -6,6 +6,7 @@ var _stamina_fill: ColorRect
 var _stamina_bg: ColorRect
 var _prompt: Label
 var _fps: Label
+var _ammo: Label
 var _fps_accum := 0.0
 
 
@@ -51,6 +52,17 @@ func _ready() -> void:
 	_prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_prompt)
 
+	# Ammo (bottom right)
+	_ammo = Label.new()
+	_ammo.text = ""
+	_ammo.add_theme_font_size_override("font_size", 22)
+	_ammo.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_ammo.position = Vector2(-260, -52)
+	_ammo.size = Vector2(236, 30)
+	_ammo.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_ammo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_ammo)
+
 	# FPS (top right)
 	_fps = Label.new()
 	_fps.add_theme_font_size_override("font_size", 14)
@@ -62,7 +74,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 1: Movement Test"
+	title.text = "AFTERLIGHT  -  Phase 2: Combat Test"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -89,3 +101,7 @@ func set_exhausted(is_exhausted: bool) -> void:
 
 func set_prompt(text: String) -> void:
 	_prompt.text = text
+
+
+func set_ammo(text: String) -> void:
+	_ammo.text = text
