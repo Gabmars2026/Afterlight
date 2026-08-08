@@ -40,6 +40,7 @@ var _env: Environment
 var _wind: AudioStreamPlayer
 var _birds: AudioStreamPlayer
 var _crickets: AudioStreamPlayer
+var _mountains: Node3D
 var _nav_region: NavigationRegion3D
 
 
@@ -144,6 +145,9 @@ func _ready() -> void:
 	gfx.streamer = streamer
 	gfx.weather = weather
 	add_child(gfx)
+
+	_build_mountains()
+
 
 	if "--selftest" in OS.get_cmdline_user_args():
 		var tester := SelfTestScript.new()
@@ -354,11 +358,31 @@ func _build_course() -> void:
 	_box(Vector3(5, 6.4, 5), Vector3(20, 3.2, -36.5), _grid_mat, Color(0.7, 0.72, 0.8))
 	_sign("ROOFTOP GAP JUMP", Vector3(20, 8.4, -34.4))
 
-	# Boundary walls
-	_box(Vector3(90, 4, 1), Vector3(0, 2, 45), _concrete_mat)
-	_box(Vector3(90, 4, 1), Vector3(0, 2, -45), _concrete_mat)
-	_box(Vector3(1, 4, 90), Vector3(45, 2, 0), _concrete_mat)
-	_box(Vector3(1, 4, 90), Vector3(-45, 2, 0), _concrete_mat)
+	# The old quarantine wall - breached with gates out to every district
+	# North: gate to MERIDIAN HEIGHTS
+	_box(Vector3(41, 4, 1), Vector3(-24.5, 2, -45), _concrete_mat)
+	_box(Vector3(41, 4, 1), Vector3(24.5, 2, -45), _concrete_mat)
+	_gate(Vector3(0, 0, -45), false)
+	_sign("MERIDIAN HEIGHTS", Vector3(0, 5.8, -44.4))
+	# South: gates at the two CANAL bridges
+	_box(Vector3(39, 4, 1), Vector3(-25.5, 2, 45), _concrete_mat)
+	_box(Vector3(22, 4, 1), Vector3(13, 2, 45), _concrete_mat)
+	_box(Vector3(13, 4, 1), Vector3(38.5, 2, 45), _concrete_mat)
+	_gate(Vector3(-2, 0, 45), false)
+	_gate(Vector3(28, 0, 45), false)
+	_sign("THE CANAL", Vector3(-2, 5.8, 44.4))
+	# East: gates to GREENROW (pond + gazebo)
+	_box(Vector3(1, 4, 23), Vector3(45, 2, -33.5), _concrete_mat)
+	_box(Vector3(1, 4, 38), Vector3(45, 2, 5), _concrete_mat)
+	_box(Vector3(1, 4, 13), Vector3(45, 2, 38.5), _concrete_mat)
+	_gate(Vector3(45, 0, -18), true)
+	_gate(Vector3(45, 0, 28), true)
+	# West: gates into ASHLINE
+	_box(Vector3(1, 4, 51), Vector3(-45, 2, -19.5), _concrete_mat)
+	_box(Vector3(1, 4, 16), Vector3(-45, 2, 22), _concrete_mat)
+	_box(Vector3(1, 4, 7), Vector3(-45, 2, 41.5), _concrete_mat)
+	_gate(Vector3(-45, 0, 10), true)
+	_gate(Vector3(-45, 0, 34), true)
 
 
 func _build_interactives() -> void:
@@ -538,6 +562,51 @@ func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D, tint := Color.WH
 	body.set_meta("surface", surface)
 	_nav_region.add_child(body)
 	return body
+
+
+func _build_mountains() -> void:
+	## A ring of hazy mountains on the horizon. Purely visual - it follows
+	## the player, so the range never gets closer no matter how far you walk.
+	_mountains = Node3D.new()
+	add_child(_mountains)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.45, 0.5, 0.6)
+	mat.roughness = 1.0
+	for i in 14:
+		var ang := TAU * i / 14.0 + rng.randf_range(-0.14, 0.14)
+		var dist := rng.randf_range(620.0, 820.0)
+		var m := MeshInstance3D.new()
+		var cone := CylinderMesh.new()
+		cone.top_radius = rng.randf_range(4.0, 26.0)
+		cone.bottom_radius = rng.randf_range(130.0, 230.0)
+		cone.height = rng.randf_range(80.0, 170.0)
+		cone.radial_segments = 7
+		cone.material = mat
+		m.mesh = cone
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.position = Vector3(cos(ang) * dist, cone.height * 0.5 - 12.0,
+				sin(ang) * dist)
+		m.rotation.y = rng.randf_range(0.0, TAU)
+		_mountains.add_child(m)
+
+
+func _process(_delta: float) -> void:
+	# Keep the horizon mountains centered on the player (never reachable)
+	if _mountains and player:
+		_mountains.position = Vector3(player.global_position.x, 0.0,
+				player.global_position.z)
+
+
+func _gate(pos: Vector3, ew: bool) -> void:
+	## A breach in the quarantine wall: two posts + an overhead beam
+	var side := Vector3(0, 0, 1) if ew else Vector3(1, 0, 0)
+	var post := Vector3(0.9, 5.4, 1.6) if ew else Vector3(1.6, 5.4, 0.9)
+	_box(post, pos + side * 4.5 + Vector3(0, 2.7, 0), _concrete_mat)
+	_box(post, pos - side * 4.5 + Vector3(0, 2.7, 0), _concrete_mat)
+	var lintel := Vector3(0.9, 0.8, 10.0) if ew else Vector3(10.0, 0.8, 0.9)
+	_box(lintel, pos + Vector3(0, 5.0, 0), _concrete_mat)
 
 
 func _sign(text: String, pos: Vector3) -> void:

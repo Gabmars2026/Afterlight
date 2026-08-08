@@ -23,3 +23,7 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 18 — Graphics/audio final pass** — bloom/glow so the quest beacon, sewer fungus and muzzle flashes bleed light (off on LOW preset), gentle contrast/saturation grade, soft screen-edge vignette; night soundscape: crickets cross-fade in as the birds go quiet at dusk (4 s fade), and below 30 HP your own heartbeat thumps faster the closer you are to death
 - [x] **PHASE 19 — Testing** — built-in self-test (`--headless -- --selftest`) with 28 checks across inventory, crafting, player damage/heal, factions, all 5 weather states, campaign quest restore (incl. old save formats), full save/load round-trip and world streaming; GitHub Actions workflow runs the suite on every push
 - [x] **PHASE 20 — Release build** — Windows Desktop export preset (single self-contained x86_64 .exe with embedded game data, v1.0.0 metadata); GitHub Actions release pipeline: pushing a version tag builds the .exe with official export templates and attaches `Afterlight-windows-x86_64.zip` to a GitHub Release automatically
+
+## Post-release patches
+
+- [x] **v1.0.1** — the old quarantine wall around the town center is now breached with 7 gated openings (north to Meridian Heights, two south gates at the canal bridges, two east to Greenrow, two west into Ashline) with district signs; added a ring of 14 hazy mountains on the far horizon that frame the skyline in every direction
