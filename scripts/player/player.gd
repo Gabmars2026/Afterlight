@@ -27,6 +27,7 @@ const ACCEL_AIR := 3.0
 const MOUSE_SENSITIVITY := 0.0022
 
 const STEP_HEIGHT := 0.55
+const STEP_RAISE := 0.75
 const BOOM_LEN := 3.4
 const STAND_HEIGHT := 1.8
 const CROUCH_HEIGHT := 1.15
@@ -679,31 +680,50 @@ func craft_recipe(recipe_idx: int) -> void:
 
 func _step_up(delta: float) -> void:
 	## Walk straight up stairs and low ledges (no jumping needed).
+	## Method: raise a ghost copy of the body, slide it forward as far as
+	## physics allows, then drop it onto whatever is below. If that landing
+	## is a step-sized rise onto a walkable surface, teleport there.
 	if not is_on_floor():
 		return
 	var flat := Vector3(velocity.x, 0.0, velocity.z)
 	if flat.length_squared() < 0.04:
 		return
-	var motion := flat * delta
-	if motion.length() < 0.05:
-		motion = flat.normalized() * 0.05
+	var fwd := flat.normalized()
+	var probe := 0.45 + maxf(flat.length() * delta, 0.1)
 	var params := PhysicsTestMotionParameters3D.new()
 	var res := PhysicsTestMotionResult3D.new()
+	# 1) Is something actually blocking us at ground level?
 	params.from = global_transform
-	params.motion = motion
+	params.motion = fwd * probe
 	if not PhysicsServer3D.body_test_motion(get_rid(), params, res):
-		return  # nothing ahead - normal walking
-	# Blocked: would we clear it from one step higher?
-	params.from = global_transform.translated(Vector3.UP * STEP_HEIGHT)
-	if PhysicsServer3D.body_test_motion(get_rid(), params, res):
-		return  # still blocked - a real wall
-	# Clear at step height: measure the landing and hop up exactly that much
-	params.from = global_transform.translated(Vector3.UP * STEP_HEIGHT + motion)
-	params.motion = Vector3.DOWN * STEP_HEIGHT
-	PhysicsServer3D.body_test_motion(get_rid(), params, res)
-	var rise := STEP_HEIGHT + res.get_travel().y
-	if rise > 0.04:
-		global_position.y += rise + 0.01
+		return
+	# 2) From raised height, how far forward can we travel?
+	params.from = global_transform.translated(Vector3.UP * STEP_RAISE)
+	var blocked := PhysicsServer3D.body_test_motion(get_rid(), params, res)
+	var fwd_travel: Vector3 = res.get_travel() if blocked else params.motion
+	fwd_travel.y = 0.0
+	if fwd_travel.length() < 0.08:
+		return  # a real wall
+	# 3) Drop down onto the step surface. The full forward travel can leave
+	# the capsule clipping the corner of the NEXT step, so try a few
+	# distances and take the first clean landing.
+	var max_fwd := fwd_travel.length()
+	for frac in [1.0, 0.85, 0.7, 0.55, 0.4]:
+		var dist: float = max_fwd * frac
+		if dist < 0.08:
+			continue
+		var step_fwd := fwd * dist
+		params.from = global_transform.translated(Vector3.UP * STEP_RAISE + step_fwd)
+		params.motion = Vector3.DOWN * STEP_RAISE
+		if not PhysicsServer3D.body_test_motion(get_rid(), params, res):
+			continue  # nothing to land on at this distance
+		var rise := STEP_RAISE + res.get_travel().y
+		if rise < 0.04 or rise > STEP_HEIGHT:
+			continue
+		if res.get_collision_normal().y < 0.7:
+			continue  # corner or steep slope - try a shorter hop
+		global_position += step_fwd + Vector3.UP * (rise + 0.02)
+		return
 
 
 func _update_safety(delta: float) -> void:
