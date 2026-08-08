@@ -1,3 +1,4 @@
 .godot/
 *.tmp
 gen_assets.py
+gen_audio2.py
