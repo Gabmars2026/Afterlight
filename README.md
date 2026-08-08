@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: Phase 4 — Parkour: ledge grabs, wall jumps, rolls & flow.**
+**Current build: Phase 5 — Old Market: enterable buildings, breakable doors & walls, save/load.**
 
 ## How to play
 
@@ -32,11 +32,16 @@ An original open-world first-person survival/action game built in Godot 4.x.
 | Space / W (while hanging) | Climb up |
 | Ctrl (while hanging) | Drop |
 | Hold Ctrl before landing | Roll (no fall damage) |
+| F9 | Quick save |
+| F10 | Quick load |
 | Esc | Pause menu + settings (sensitivity, FOV, invert Y, head bob, shake) |
 
-## The test zone
+## The world
 
-Follow the floating signs: sprint lane with a vault obstacle, grass patch,
+The floating helper signs are gone — the world is clean now (flip
+`SHOW_SIGNS` in `test_zone.gd` to bring them back).
+
+Around spawn: sprint lane with a vault obstacle, grass patch,
 crawl vent, crouch tunnel, slide bar, metal scaffold to mantle, jump gaps,
 stairs to a two-story building — sliding door, light switch, loot crate,
 breakable glass window, ladder to the roof, and a rooftop gap jump.
@@ -51,6 +56,15 @@ Listen: footsteps change on concrete, metal, wood, and grass; sound gets
 reverberant indoors and echoes hard in the tunnel; each weapon sounds
 different, bullets hit each surface with its own sound, gunshots get
 indoor reverb; your breathing gets heavy when stamina runs out.
+
+New in Phase 5 — the **OLD MARKET** (north-east): a market square with
+stalls and loot crates, a **shop** with a breakable wooden front door —
+and a cracked **weak wall** inside hiding a pitch-dark storage room with
+extra loot (shoot through it), plus a **two-storey house** with interior
+stairs, an upstairs window, and a ladder to the roof. Wooden doors and
+barricades splinter apart under gunfire, and breaking them makes noise
+zombies will investigate. **F9/F10** quick save/load (position, health,
+stamina, ammo).
 
 ## Documentation
 

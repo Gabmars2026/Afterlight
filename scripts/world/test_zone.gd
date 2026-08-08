@@ -14,6 +14,10 @@ const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
 const TargetDummyScript := preload("res://scripts/combat/target_dummy.gd")
 const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
 const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
+const BreakableScript := preload("res://scripts/world/breakable.gd")
+const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
+
+const SHOW_SIGNS := false
 
 var player: Player
 var hud: Hud
@@ -57,8 +61,14 @@ func _ready() -> void:
 	_build_interactives()
 	_build_district()
 	_build_parkour_gym()
+	_build_old_market()
 	_bake_navmesh()
 	_build_horde()
+
+	var saver := SaveManagerScript.new()
+	saver.player = player
+	saver.hud = hud
+	add_child(saver)
 
 
 func _setup_input() -> void:
@@ -414,6 +424,9 @@ func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D, tint := Color.WH
 
 
 func _sign(text: String, pos: Vector3) -> void:
+	## Floating helper text, disabled for a clean world (flip to re-enable).
+	if not SHOW_SIGNS:
+		return
 	var label := Label3D.new()
 	label.text = text
 	label.font_size = 64
@@ -748,6 +761,9 @@ func _build_horde() -> void:
 	_spawner("shambler", Vector3(-34, 0.1, -10))
 	_spawner("stalker", Vector3(-8, 0.1, -34))
 	_spawner("stalker", Vector3(14, 0.1, 24))
+	# Old Market is contested too
+	_spawner("shambler", Vector3(30, 0.1, 8))
+	_spawner("stalker", Vector3(36, 0.1, 26))
 
 
 func _spawner(kind: String, pos: Vector3) -> void:
@@ -793,3 +809,209 @@ func _build_parkour_gym() -> void:
 	_sign("JUMP OFF - HOLD CTRL TO ROLL THE LANDING", Vector3(gx - 12, 2.2, gz + 4.4))
 	_box(Vector3(2.5, 6.0, 2.5), Vector3(gx - 12, 3.0, gz + 8), _concrete_mat)
 	_ladder(Vector3(gx - 12 + 1.45, 0, gz + 8), 6.4)
+
+
+# ------------------------------------------------------------------
+# PHASE 5 - OLD MARKET (north-east district)
+# ------------------------------------------------------------------
+
+func _build_old_market() -> void:
+	## Market square with stalls, an enterable shop with a hidden storage
+	## room behind a weak wall, and a two-storey house. Wooden doors and
+	## the weak wall are breakable - shoot them apart.
+	var wood := Color(0.5, 0.36, 0.22)
+	var plaster := Color(0.82, 0.76, 0.66)
+	var plaster2 := Color(0.74, 0.7, 0.64)
+
+	# ---------- Market square: 3 stalls + crates + rubble ----------
+	_stall(Vector3(23, 0, 13.5), Color(0.75, 0.25, 0.2))
+	_stall(Vector3(23, 0, 18.5), Color(0.2, 0.55, 0.3))
+	_stall(Vector3(27, 0, 22.5), Color(0.25, 0.35, 0.7))
+	_loot_crate(Vector3(23.9, 0, 16.2))
+	_loot_crate(Vector3(38.5, 0, 15.8))
+	_box(Vector3(1.4, 0.7, 1.1), Vector3(29, 0.35, 17), _concrete_mat, Color(0.6, 0.6, 0.62))
+	_box(Vector3(0.9, 0.45, 0.8), Vector3(29.6, 0.22, 18.1), _concrete_mat, Color(0.55, 0.55, 0.58))
+	# Breakable barricade across the alley between market and shop
+	_breakable(Vector3(2.2, 1.15, 0.22), Vector3(30.6, 0.58, 14.0), wood, 50)
+
+	# ---------- SHOP (x 32..40, z 11..17), flat grabbable roof ----------
+	# North wall (solid)
+	_box(Vector3(8, 3.2, 0.3), Vector3(36, 1.6, 17), _concrete_mat, plaster)
+	# South wall with window
+	_box(Vector3(3.1, 3.2, 0.3), Vector3(33.55, 1.6, 11), _concrete_mat, plaster)
+	_box(Vector3(3.1, 3.2, 0.3), Vector3(38.45, 1.6, 11), _concrete_mat, plaster)
+	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 0.45, 11), _concrete_mat, plaster)
+	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 2.75, 11), _concrete_mat, plaster)
+	_glass_pane(Vector3(1.8, 1.4, 0.12), Vector3(36, 1.6, 11))
+	# West wall with door opening (faces the market)
+	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 12.2), _concrete_mat, plaster)
+	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 15.8), _concrete_mat, plaster)
+	_box(Vector3(0.3, 0.9, 1.2), Vector3(32, 2.75, 14), _concrete_mat, plaster)
+	_breakable(Vector3(0.14, 2.3, 1.14), Vector3(32, 1.15, 14), wood, 70)
+	# East wall, shared with the storage room: cracked WEAK WALL in the middle
+	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 11.95), _concrete_mat, plaster)
+	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 16.05), _concrete_mat, plaster)
+	_box(Vector3(0.3, 0.8, 2.2), Vector3(40, 2.8, 14), _concrete_mat, plaster)
+	_breakable(Vector3(0.28, 2.4, 2.2), Vector3(40, 1.2, 14), Color(0.45, 0.42, 0.36), 140)
+	# Shop counter + shelf
+	_box(Vector3(3.2, 0.95, 0.7), Vector3(35.5, 0.48, 15.6), _grid_mat, wood, "wood")
+	_box(Vector3(0.5, 1.9, 3.4), Vector3(39.5, 0.95, 12.9), _grid_mat, wood, "wood")
+
+	# ---------- UNDERCROFT storage (x 40..44, z 11..17), pitch dark ----------
+	_box(Vector3(0.3, 3.2, 6.3), Vector3(44, 1.6, 14), _concrete_mat, plaster2)
+	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 17), _concrete_mat, plaster2)
+	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 11), _concrete_mat, plaster2)
+	# One roof slab across shop + storage; top at 3.6 m = ledge-grabbable
+	_box(Vector3(12.6, 0.4, 6.6), Vector3(38, 3.4, 14), _concrete_mat, Color(0.5, 0.5, 0.54))
+	_loot_crate(Vector3(42.2, 0, 15.4))
+	_loot_crate(Vector3(41.3, 0, 12.6))
+	var ucl := OmniLight3D.new()
+	ucl.light_color = Color(1.0, 0.25, 0.18)
+	ucl.light_energy = 0.55
+	ucl.omni_range = 5.0
+	ucl.position = Vector3(42, 2.6, 14)
+	add_child(ucl)
+
+	# Shop lamp + switch by the door
+	var shop_lamp := OmniLight3D.new()
+	shop_lamp.light_color = Color(1.0, 0.85, 0.6)
+	shop_lamp.light_energy = 2.2
+	shop_lamp.omni_range = 7.0
+	shop_lamp.position = Vector3(36, 2.7, 14)
+	add_child(shop_lamp)
+	_lamp_switch(shop_lamp, Vector3(32.6, 1.4, 15.7))
+
+	# ---------- HOUSE (x 23..29, z 29..35), two storeys + roof ladder ----------
+	_box(Vector3(0.3, 5.6, 6), Vector3(23, 2.8, 32), _concrete_mat, plaster2)
+	_box(Vector3(0.3, 5.6, 6), Vector3(29, 2.8, 32), _concrete_mat, plaster2)
+	# North wall with upstairs window
+	_box(Vector3(6, 3.4, 0.3), Vector3(26, 1.7, 35), _concrete_mat, plaster2)
+	_box(Vector3(1.6, 2.2, 0.3), Vector3(23.8, 4.5, 35), _concrete_mat, plaster2)
+	_box(Vector3(1.6, 2.2, 0.3), Vector3(28.2, 4.5, 35), _concrete_mat, plaster2)
+	_box(Vector3(2.8, 0.5, 0.3), Vector3(26, 3.65, 35), _concrete_mat, plaster2)
+	_box(Vector3(2.8, 0.3, 0.3), Vector3(26, 5.45, 35), _concrete_mat, plaster2)
+	_glass_pane(Vector3(2.8, 1.4, 0.12), Vector3(26, 4.6, 35))
+	# South wall with breakable front door
+	_box(Vector3(2.4, 5.6, 0.3), Vector3(24.2, 2.8, 29), _concrete_mat, plaster2)
+	_box(Vector3(2.4, 5.6, 0.3), Vector3(27.8, 2.8, 29), _concrete_mat, plaster2)
+	_box(Vector3(1.2, 3.3, 0.3), Vector3(26, 3.95, 29), _concrete_mat, plaster2)
+	_breakable(Vector3(1.14, 2.3, 0.14), Vector3(26, 1.15, 29), wood, 70)
+	# Upstairs floor (stair opening along the east side)
+	_box(Vector3(4.5, 0.3, 6), Vector3(25.25, 2.55, 32), _concrete_mat, Color(0.6, 0.58, 0.55))
+	# Interior stairs along the east wall (climb south-to-... up northwards)
+	for i in 9:
+		_box(Vector3(1.4, 0.3, 0.6), Vector3(28.2, 0.15 + 0.3 * i, 34.4 - 0.6 * i),
+				_concrete_mat, Color(0.62, 0.6, 0.57))
+	# Roof (top at 6.0 m) + outside ladder to it
+	_box(Vector3(6.6, 0.4, 6.6), Vector3(26, 5.8, 32), _concrete_mat, Color(0.5, 0.5, 0.54))
+	_ladder(Vector3(22.5, 0, 32), 6.6)
+	_loot_crate(Vector3(24.2, 2.7, 34))
+	var house_lamp := OmniLight3D.new()
+	house_lamp.light_color = Color(1.0, 0.85, 0.6)
+	house_lamp.light_energy = 2.0
+	house_lamp.omni_range = 6.5
+	house_lamp.position = Vector3(26, 2.3, 32)
+	add_child(house_lamp)
+	_lamp_switch(house_lamp, Vector3(26.9, 1.4, 29.6))
+
+	# ---------- Interior audio zones ----------
+	_interior_zone(Vector3(8.4, 6.2, 6.4), Vector3(36, 3.2, 14), "Interior")
+	_interior_zone(Vector3(4.2, 6.2, 6.4), Vector3(42, 3.2, 14), "Tunnel")
+	_interior_zone(Vector3(6.4, 6.4, 6.4), Vector3(26, 3.2, 32), "Interior")
+
+
+func _stall(pos: Vector3, canopy_tint: Color) -> void:
+	## Wooden market stall: 4 posts, canopy, counter.
+	var wood := Color(0.5, 0.36, 0.22)
+	for dx in [-1.05, 1.05]:
+		for dz in [-0.75, 0.75]:
+			_box(Vector3(0.12, 2.2, 0.12), pos + Vector3(dx, 1.1, dz), _grid_mat, wood, "wood")
+	_box(Vector3(2.5, 0.12, 1.9), pos + Vector3(0, 2.26, 0), _grid_mat, canopy_tint, "wood")
+	_box(Vector3(2.0, 0.9, 0.85), pos + Vector3(0, 0.45, 0), _grid_mat, wood.lightened(0.12), "wood")
+
+
+func _breakable(size: Vector3, pos: Vector3, tint: Color, hp: int) -> void:
+	var b := BreakableScript.new()
+	b.setup(size, tint, hp)
+	b.position = pos
+	add_child(b)
+
+
+func _loot_crate(pos: Vector3) -> void:
+	var crate := LootCrateScript.new()
+	var crate_mesh := MeshInstance3D.new()
+	var crate_box := BoxMesh.new()
+	crate_box.size = Vector3(0.9, 0.8, 0.9)
+	crate_mesh.mesh = crate_box
+	crate_mesh.position.y = 0.4
+	var crate_mat := StandardMaterial3D.new()
+	crate_mat.albedo_color = Color(0.55, 0.4, 0.22)
+	crate_mat.roughness = 0.9
+	crate_mesh.material_override = crate_mat
+	var crate_col := CollisionShape3D.new()
+	var crate_shape := BoxShape3D.new()
+	crate_shape.size = Vector3(0.9, 0.8, 0.9)
+	crate_col.shape = crate_shape
+	crate_col.position.y = 0.4
+	crate.add_child(crate_mesh)
+	crate.add_child(crate_col)
+	crate.position = pos
+	crate.set_meta("surface", "wood")
+	add_child(crate)
+
+
+func _glass_pane(size: Vector3, pos: Vector3) -> void:
+	var glass := GlassPaneScript.new()
+	var glass_mesh := MeshInstance3D.new()
+	var glass_box := BoxMesh.new()
+	glass_box.size = size
+	glass_mesh.mesh = glass_box
+	var glass_mat := StandardMaterial3D.new()
+	glass_mat.albedo_color = Color(0.7, 0.85, 1.0, 0.3)
+	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass_mat.roughness = 0.1
+	glass_mesh.material_override = glass_mat
+	var glass_col := CollisionShape3D.new()
+	var glass_shape := BoxShape3D.new()
+	glass_shape.size = size
+	glass_col.shape = glass_shape
+	glass.add_child(glass_mesh)
+	glass.add_child(glass_col)
+	glass.position = pos
+	add_child(glass)
+
+
+func _lamp_switch(lamp: OmniLight3D, pos: Vector3) -> void:
+	var switch := ToggleLampScript.new()
+	switch.lamp = lamp
+	var sw_mesh := MeshInstance3D.new()
+	var sw_box := BoxMesh.new()
+	sw_box.size = Vector3(0.25, 0.4, 0.12)
+	sw_mesh.mesh = sw_box
+	var sw_mat := StandardMaterial3D.new()
+	sw_mat.albedo_color = Color(0.9, 0.2, 0.15)
+	sw_mat.emission_enabled = true
+	sw_mat.emission = Color(0.9, 0.2, 0.15)
+	sw_mat.emission_energy_multiplier = 0.6
+	sw_mesh.material_override = sw_mat
+	var sw_col := CollisionShape3D.new()
+	var sw_shape := BoxShape3D.new()
+	sw_shape.size = Vector3(0.3, 0.45, 0.2)
+	sw_col.shape = sw_shape
+	switch.add_child(sw_mesh)
+	switch.add_child(sw_col)
+	switch.position = pos
+	add_child(switch)
+
+
+func _interior_zone(size: Vector3, pos: Vector3, bus: String) -> void:
+	var zone := InteriorZoneScript.new()
+	zone.bus_name = bus
+	zone.ambience = [_wind, _birds]
+	var col := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	col.shape = shape
+	zone.add_child(col)
+	zone.position = pos
+	add_child(zone)

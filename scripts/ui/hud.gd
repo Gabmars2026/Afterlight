@@ -12,6 +12,7 @@ var _fps: Label
 var _ammo: Label
 var _flash: ColorRect
 var _death: Label
+var _toast: Label
 var _fps_accum := 0.0
 var _last_health := 100
 
@@ -69,6 +70,18 @@ func _ready() -> void:
 	_death.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_death)
 
+	# Toast message (top center, fades out)
+	_toast = Label.new()
+	_toast.text = ""
+	_toast.add_theme_font_size_override("font_size", 20)
+	_toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_toast.position = Vector2(-180, 48)
+	_toast.size = Vector2(360, 30)
+	_toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast.modulate = Color(1, 1, 1, 0)
+	_toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_toast)
+
 	# Stamina bar (bottom left)
 	_stamina_bg = ColorRect.new()
 	_stamina_bg.color = Color(0, 0, 0, 0.45)
@@ -123,7 +136,7 @@ func _ready() -> void:
 
 	# Title tag (top left)
 	var title := Label.new()
-	title.text = "AFTERLIGHT  -  Phase 3: Infested District"
+	title.text = "AFTERLIGHT  -  Phase 5: Old Market"
 	title.add_theme_font_size_override("font_size", 13)
 	title.modulate = Color(1, 1, 1, 0.55)
 	title.position = Vector2(24, 12)
@@ -164,6 +177,14 @@ func set_health(current: int, maximum: int) -> void:
 		var tw := create_tween()
 		tw.tween_property(_flash, "color:a", 0.0, 0.45)
 	_last_health = current
+
+
+func toast(text: String) -> void:
+	_toast.text = text
+	_toast.modulate = Color(1, 1, 1, 1)
+	var tw := create_tween()
+	tw.tween_interval(1.2)
+	tw.tween_property(_toast, "modulate:a", 0.0, 0.6)
 
 
 func show_death() -> void:
