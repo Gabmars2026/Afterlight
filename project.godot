@@ -1,0 +1,20 @@
+; Engine configuration file.
+; AFTERLIGHT - open-world survival/action game (Phase 1: player controller)
+
+config_version=5
+
+[application]
+
+config/name="Afterlight"
+run/main_scene="res://scenes/world/test_zone.tscn"
+config/features=PackedStringArray("4.7")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+anti_aliasing/quality/msaa_3d=2
