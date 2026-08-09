@@ -25,6 +25,15 @@ var _weather_label: Label
 var _stats_label: Label
 var _stats_accum := 0.0
 var player: Node  # set by the world after spawn
+var quests: Node  # set by the world (for the map objective marker)
+var _map_panel: Control
+var _map_vp: SubViewport
+var _map_cam: Camera3D
+var _map_marker: Polygon2D
+var _map_quest_dot: Polygon2D
+var _map_open := false
+const MAP_PX := 560.0
+const MAP_METERS := 130.0
 var _fps_accum := 0.0
 var _last_health := 100
 
@@ -275,7 +284,116 @@ func _ready() -> void:
 	add_child(_inv_panel)
 
 
+func _build_map() -> void:
+	_map_panel = Control.new()
+	_map_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_map_panel.visible = false
+	_map_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_map_panel)
+
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0, 0, 0, 0.7)
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_panel.add_child(backdrop)
+
+	var frame := Panel.new()
+	frame.set_anchors_preset(Control.PRESET_CENTER)
+	frame.position = Vector2(-MAP_PX * 0.5 - 8, -MAP_PX * 0.5 - 8)
+	frame.size = Vector2(MAP_PX + 16, MAP_PX + 16)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_panel.add_child(frame)
+
+	var vpc := SubViewportContainer.new()
+	vpc.stretch = true
+	vpc.set_anchors_preset(Control.PRESET_CENTER)
+	vpc.position = Vector2(-MAP_PX * 0.5, -MAP_PX * 0.5)
+	vpc.size = Vector2(MAP_PX, MAP_PX)
+	vpc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_map_panel.add_child(vpc)
+
+	_map_vp = SubViewport.new()
+	_map_vp.size = Vector2i(int(MAP_PX), int(MAP_PX))
+	_map_vp.own_world_3d = false
+	_map_vp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	vpc.add_child(_map_vp)
+
+	_map_cam = Camera3D.new()
+	_map_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	_map_cam.size = MAP_METERS
+	_map_cam.rotation_degrees = Vector3(-90, 0, 0)
+	_map_cam.far = 300.0
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.09, 0.10, 0.12)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(1, 1, 1)
+	env.ambient_light_energy = 0.9
+	_map_cam.environment = env
+	_map_vp.add_child(_map_cam)
+
+	# Player arrow (screen-space, centered)
+	_map_marker = Polygon2D.new()
+	_map_marker.polygon = PackedVector2Array([Vector2(0, -11), Vector2(8, 9), Vector2(0, 4), Vector2(-8, 9)])
+	_map_marker.color = Color(1, 1, 1)
+	_map_marker.position = Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	vpc.add_child(_map_marker)
+
+	# Objective diamond
+	_map_quest_dot = Polygon2D.new()
+	_map_quest_dot.polygon = PackedVector2Array([Vector2(0, -9), Vector2(9, 0), Vector2(0, 9), Vector2(-9, 0)])
+	_map_quest_dot.color = Color(1.0, 0.85, 0.2)
+	vpc.add_child(_map_quest_dot)
+
+	var title := Label.new()
+	title.text = "MAP    [M] CLOSE"
+	title.set_anchors_preset(Control.PRESET_CENTER)
+	title.position = Vector2(-MAP_PX * 0.5, -MAP_PX * 0.5 - 40)
+	title.add_theme_font_size_override("font_size", 20)
+	_map_panel.add_child(title)
+
+	for d in [["N", Vector2(-8, -MAP_PX * 0.5 - 40)], ["S", Vector2(-8, MAP_PX * 0.5 + 14)],
+			["W", Vector2(-MAP_PX * 0.5 - 34, -14)], ["E", Vector2(MAP_PX * 0.5 + 14, -14)]]:
+		var lb := Label.new()
+		lb.text = d[0]
+		lb.set_anchors_preset(Control.PRESET_CENTER)
+		lb.position = d[1]
+		lb.add_theme_font_size_override("font_size", 22)
+		lb.modulate = Color(1, 1, 1, 0.8)
+		_map_panel.add_child(lb)
+
+
+func toggle_map() -> void:
+	if _inv_open or player == null:
+		return
+	if _map_panel == null:
+		_build_map()
+	_map_open = not _map_open
+	_map_panel.visible = _map_open
+	player.set("ui_lock", _map_open)
+	if _map_open:
+		_update_map()
+
+
+func _update_map() -> void:
+	var p: Vector3 = player.global_position
+	_map_cam.global_position = Vector3(p.x, p.y + 60.0, p.z)
+	var fwd: Vector3 = -player.global_transform.basis.z
+	_map_marker.rotation = atan2(fwd.x, -fwd.z)
+	var target = quests.current_reach_target() if quests else null
+	if target != null:
+		var scale := MAP_PX / MAP_METERS
+		var px: float = MAP_PX * 0.5 + (target.x - p.x) * scale
+		var py: float = MAP_PX * 0.5 + (target.z - p.z) * scale
+		_map_quest_dot.position = Vector2(clampf(px, 12, MAP_PX - 12), clampf(py, 12, MAP_PX - 12))
+		_map_quest_dot.visible = true
+	else:
+		_map_quest_dot.visible = false
+
+
 func _process(delta: float) -> void:
+	if _map_open:
+		_update_map()
 	_update_stats(delta)
 	if _territory_left > 0.0:
 		_territory_left -= delta
@@ -341,8 +459,11 @@ func show_death() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("inventory") and not _death.visible \
-			and not get_tree().paused:
+			and not get_tree().paused and not _map_open:
 		toggle_inventory()
+	elif event.is_action_pressed("map") and not _death.visible \
+			and not get_tree().paused:
+		toggle_map()
 
 
 func toggle_inventory() -> void:

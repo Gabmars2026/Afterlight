@@ -237,6 +237,19 @@ func notify_inventory_changed() -> void:
 		_refresh()
 
 
+func current_reach_target() -> Variant:
+	## Where the active objective is, or null (used by the map screen).
+	if _qidx >= _quests.size():
+		return null
+	var steps: Array = _quests[_qidx]["steps"]
+	if _idx >= steps.size():
+		return null
+	var step: Dictionary = steps[_idx]
+	if step["type"] == "reach":
+		return step["target"]
+	return null
+
+
 func serialize() -> Array:
 	return [_qidx, _idx, _kills]
 

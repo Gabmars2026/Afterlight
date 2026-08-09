@@ -26,6 +26,8 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.0.5** — live top-down map screen on M (player arrow, objective marker, compass); game now starts in third-person view (V still toggles).
+
 - **v1.0.4** — rewrote auto stair-stepping: raise-slide-drop method with multi-distance landing search; fixes players getting stuck at the base of stairs.
 
 - [x] **v1.0.1** — the old quarantine wall around the town center is now breached with 7 gated openings (north to Meridian Heights, two south gates at the canal bridges, two east to Greenrow, two west into Ashline) with district signs; added a ring of 14 hazy mountains on the far horizon that frame the skyline in every direction

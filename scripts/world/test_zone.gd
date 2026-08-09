@@ -128,6 +128,7 @@ func _ready() -> void:
 	quests.player = player
 	quests.factions = factions
 	quests.quest_changed.connect(hud.set_quest)
+	hud.quests = quests
 	add_child(quests)
 	player.inventory.changed.connect(quests.notify_inventory_changed)
 
@@ -147,6 +148,7 @@ func _ready() -> void:
 	add_child(gfx)
 
 	_build_mountains()
+
 
 
 

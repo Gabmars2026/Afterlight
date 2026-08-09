@@ -85,7 +85,7 @@ var _hurt: AudioStreamPlayer
 var _snd_pickup: AudioStreamPlayer
 var _snd_bandage: AudioStreamPlayer
 var _snd_heart: AudioStreamPlayer
-var _third_person := false
+var _third_person := true
 var _boom := 0.0
 var _arm_l: Node3D
 var _arm_r: Node3D
@@ -139,6 +139,9 @@ func _ready() -> void:
 	stamina = StaminaController.new()
 	add_child(stamina)
 
+	# Start in third-person view (V still switches to first-person)
+	_boom = BOOM_LEN
+
 	footsteps = FootstepController.new()
 	add_child(footsteps)
 
@@ -159,6 +162,10 @@ func _ready() -> void:
 	weapons.setup(self)
 
 	_build_body()
+	if _third_person:
+		weapons.visible = false
+		for part in _tp_parts:
+			part.visible = true
 
 	_hurt = AudioStreamPlayer.new()
 	_hurt.stream = load("res://assets/audio/player_hurt.wav")
