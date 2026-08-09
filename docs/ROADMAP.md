@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.3.0** — Animated zombies. All five kinds now use the CC0 mannequin
+  rig: Walk/Jog locomotion scaled to speed, Punch_Jab/Cross attacks,
+  Hit_Chest/Hit_Head reactions (headshots read differently), Death01 on
+  kill, glowing eyes bone-attached to the head. Brutes still tower via
+  scale; per-kind body tint kept.
+
 - **v1.2.0** — Real terrain. Terrain3D plugin drives 1 km² of baked desert
   heightmap: dunes rise beyond the town walls, the town slab stays flat, and
   the world streamer drops its flat ground tiles and snaps every ruin, rock,

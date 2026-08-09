@@ -152,6 +152,15 @@ func _test_streaming() -> void:
 	# let the streamer queue and build cells (1 per physics frame)
 	for i in 60:
 		await _zone.get_tree().physics_frame
+	var eb := load("res://scripts/ai/enemy_base.gd")
+	var zt: CharacterBody3D = eb.new()
+	zt.direct_nav = true
+	zt.position = Vector3(5, 0.5, 5)
+	_zone.add_child(zt)
+	await _zone.get_tree().physics_frame
+	_check(zt._anim != null, "zombie rig has AnimationPlayer")
+	_check(zt._anim != null and zt._anim.is_playing(), "zombie animation playing")
+	zt.queue_free()
 	var terrain := _zone.get_node_or_null("Terrain")
 	_check(terrain != null, "Terrain3D node exists")
 	if terrain:
