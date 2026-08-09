@@ -8,6 +8,7 @@ const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 const WeatherScript := preload("res://scripts/world/weather.gd")
 const CarScript := preload("res://scripts/vehicles/car.gd")
+const CastleBuilder := preload("res://scripts/world/castle_builder.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -86,6 +87,7 @@ func _ready() -> void:
 	_build_old_market()
 	_decorate_interiors()
 	_build_weather()
+	_build_castle()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1070,6 +1072,14 @@ func _build_weather() -> void:
 	weather.player = player
 	weather.environment = _env
 	add_child(weather)
+
+
+func _build_castle() -> void:
+	## Phase 19: the medieval castle in the dunes north of town.
+	var castle: Node3D = CastleBuilder.new()
+	castle.name = "Castle"
+	castle.position = Vector3(0, 0, -170)
+	add_child(castle)
 
 
 func _decorate_interiors() -> void:

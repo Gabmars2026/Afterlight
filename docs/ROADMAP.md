@@ -26,6 +26,15 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.8.0** — The castle. A medieval stone castle now towers over the
+  dunes north of town (leave through the north gate, or drive). Grand
+  steps lead up to a walled courtyard; inside the keep a great hall
+  with a feast table starts a 30-floor climb past 50+ rooms, loot
+  crates and a throne room, ending on the battlements. In the
+  courtyard's north-east corner, stairs descend to a torchlit dungeon
+  with prison cells - and two fire-breathing dragons guarding the
+  loot. Shoot them; their fire hurts.
+
 - **v1.7.0** — Drivable car. A running car (marked with a street sign)
   sits on the main street. Press E to get in, W/S to drive and reverse,
   A/D to steer, Space or E to hop out. It has headlights, an engine
