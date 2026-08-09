@@ -152,6 +152,8 @@ func _test_streaming() -> void:
 	# let the streamer queue and build cells (1 per physics frame)
 	for i in 60:
 		await _zone.get_tree().physics_frame
+	var props := _zone.get_tree().get_nodes_in_group("prop")
+	_check(props.size() >= 30, "interior props placed (%d)" % props.size())
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true

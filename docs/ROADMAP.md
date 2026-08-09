@@ -26,6 +26,15 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.4.0** — Furnished interiors. The Medieval Village pack props now
+  decorate the world: apartment block gets a living room, floor-2 den
+  and a floor-3 trophy wall (sword, axes, shield) with a squatter
+  corner; the shop gets counter clutter, a corner table and a hanging
+  lantern; the undercroft storage gets supplies; both canal warehouses
+  get barrel rows, a squatter table and hanging lanterns with warm
+  light; a standing sign now marks the market square. Solid props have
+  auto-fitted collision.
+
 - **v1.3.0** — Animated zombies. All five kinds now use the CC0 mannequin
   rig: Walk/Jog locomotion scaled to speed, Punch_Jab/Cross attacks,
   Hit_Chest/Hit_Head reactions (headshots read differently), Death01 on

@@ -10,6 +10,7 @@ extends Node3D
 
 const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
+const PropLib := preload("res://scripts/world/prop_lib.gd")
 const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
 
 var nav_parent: Node3D            # static geometry -> baked into navmesh
@@ -175,6 +176,21 @@ func _canal_district() -> void:
 		zone.add_child(shape)
 		zone.position = Vector3(wx, 2.4, wz)
 		add_child(zone)
+		# Phase 16: warehouse clutter from the Medieval Village pack
+		PropLib.place(self, "Barril", Vector3(wx + 5.8, 0, wz - 2.5))
+		PropLib.place(self, "Barril", Vector3(wx + 5.7, 0, wz - 1.2), 1.1)
+		PropLib.place(self, "Barril", Vector3(wx + 5.9, 0, wz + 0.1), 2.4, 0.92)
+		PropLib.place(self, "Wood_Trunk", Vector3(wx - 5.5, 0, wz - 3.0), 0.3)
+		PropLib.place(self, "Table", Vector3(wx + 2.0, 0, wz - 2.2), 0.15, 0.8)
+		PropLib.place(self, "Seat", Vector3(wx + 0.6, 0, wz - 2.2), PI / 2, 0.8)
+		PropLib.place(self, "Chope_B", Vector3(wx + 2.1, 1.12, wz - 2.4), 0.8, 0.55, false)
+		PropLib.place(self, "Lamp", Vector3(wx, 5.0, wz), 0.0, 1.0, false)
+		var wlight := OmniLight3D.new()
+		wlight.light_color = Color(1.0, 0.82, 0.6)
+		wlight.light_energy = 0.9
+		wlight.omni_range = 7.0
+		wlight.position = Vector3(wx, 4.1, wz)
+		add_child(wlight)
 	_crate(Vector3(-2, 0.5, 60))
 	_spawn("brute", Vector3(-25, 0.1, 52))
 	_spawn("shambler", Vector3(18, 0.1, 60))

@@ -5,6 +5,7 @@ extends Node3D
 const PlayerScene := preload("res://scripts/player/player.gd")
 const HudScene := preload("res://scripts/ui/hud.gd")
 const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
+const PropLib := preload("res://scripts/world/prop_lib.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -81,6 +82,7 @@ func _ready() -> void:
 	_build_district()
 	_build_parkour_gym()
 	_build_old_market()
+	_decorate_interiors()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1050,6 +1052,53 @@ func _build_parkour_gym() -> void:
 # ------------------------------------------------------------------
 # PHASE 5 - OLD MARKET (north-east district)
 # ------------------------------------------------------------------
+
+func _decorate_interiors() -> void:
+	## Phase 16: furniture and clutter from the Medieval Village pack.
+	var bx := -28.0
+	var bz := -28.0
+	# --- Apartment ground floor: living room ---
+	PropLib.place(self, "Table", Vector3(bx - 2.5, 0, bz - 2.5), 0.0, 0.75)
+	PropLib.place(self, "Chair", Vector3(bx - 4.3, 0, bz - 2.5), PI / 2, 0.75)
+	PropLib.place(self, "Seat", Vector3(bx - 0.7, 0, bz - 2.5), -PI / 2, 0.75)
+	PropLib.place(self, "Chope_A", Vector3(bx - 2.9, 1.05, bz - 2.9), 0.6, 0.5, false)
+	PropLib.place(self, "Cup", Vector3(bx - 2.1, 1.05, bz - 2.2), 0.0, 1.0, false)
+	PropLib.place(self, "Barril", Vector3(bx + 4.6, 0, bz - 4.5))
+	PropLib.place(self, "Barril", Vector3(bx + 4.6, 0, bz - 3.2), 0.9)
+	PropLib.place(self, "Wood_Trunk", Vector3(bx - 4.6, 0, bz - 4.6), 0.5, 0.8)
+	# --- Apartment floor 2 ---
+	PropLib.place(self, "Barril", Vector3(bx - 4.7, 3.15, bz + 2.2))
+	PropLib.place(self, "Barril", Vector3(bx - 3.5, 3.15, bz + 2.6), 1.7)
+	PropLib.place(self, "Table", Vector3(bx + 2.0, 3.15, bz - 0.5), 0.0, 0.7)
+	PropLib.place(self, "Seat", Vector3(bx + 2.0, 3.15, bz + 1.5), PI, 0.7)
+	PropLib.place(self, "Chope_B", Vector3(bx + 2.2, 4.13, bz - 0.7), 2.1, 0.5, false)
+	PropLib.place(self, "Panel", Vector3(bx - 5.4, 4.3, bz - 1.0), PI / 2, 1.0, false)
+	# --- Apartment floor 3: trophy wall + squatter corner ---
+	PropLib.place(self, "Sword", Vector3(bx - 1.5, 7.6, bz + 5.35), 0.0, 1.0, false)
+	PropLib.place(self, "Battle_Axe", Vector3(bx + 0.5, 7.7, bz + 5.35), 0.0, 0.9, false)
+	PropLib.place(self, "Wood_Axe", Vector3(bx + 2.3, 7.5, bz + 5.35), 0.0, 1.0, false)
+	PropLib.place(self, "Shield", Vector3(bx - 3.5, 7.6, bz + 5.3), 0.0, 1.0, false, PI / 2)
+	PropLib.place(self, "Wood_Plank_A", Vector3(bx - 2.0, 6.16, bz + 2.0), 0.4, 0.6, false)
+	PropLib.place(self, "Barril", Vector3(bx + 4.5, 6.15, bz + 4.6))
+	PropLib.place(self, "Chair", Vector3(bx + 3.8, 6.15, bz + 2.5), -2.0, 0.75)
+	# --- Shop: counter clutter, corner table, hanging lamp ---
+	PropLib.place(self, "Chope_A", Vector3(35.0, 0.95, 15.6), 0.3, 0.55, false)
+	PropLib.place(self, "Chope_B", Vector3(36.2, 0.95, 15.7), 1.2, 0.55, false)
+	PropLib.place(self, "Cup", Vector3(35.6, 0.95, 15.4), 0.0, 1.0, false)
+	PropLib.place(self, "Barril", Vector3(38.7, 0, 16.2))
+	PropLib.place(self, "Barril", Vector3(37.5, 0, 16.4), 2.3, 0.9)
+	PropLib.place(self, "Table", Vector3(34.2, 0, 12.6), 0.2, 0.6)
+	PropLib.place(self, "Seat", Vector3(32.9, 0, 12.6), PI / 2, 0.7)
+	PropLib.place(self, "Cup", Vector3(34.2, 0.84, 12.6), 0.0, 1.0, false)
+	PropLib.place(self, "Lamp", Vector3(36, 3.2, 14), 0.0, 1.0, false)
+	PropLib.place(self, "Panel", Vector3(38.0, 2.2, 16.8), PI, 1.0, false)
+	# --- Undercroft storage: supplies in the dark ---
+	PropLib.place(self, "Barril", Vector3(43.0, 0, 16.0), 0.7)
+	PropLib.place(self, "Wood_Trunk", Vector3(42.8, 0, 11.9), -0.4, 0.8)
+	PropLib.place(self, "Wood_Plank_B", Vector3(42.0, 0.06, 13.8), 0.5, 0.6, false)
+	# --- Market square: standing sign ---
+	PropLib.place(self, "Signal", Vector3(26.0, 0, 15.8), 0.9)
+
 
 func _build_old_market() -> void:
 	## Market square with stalls, an enterable shop with a hidden storage
