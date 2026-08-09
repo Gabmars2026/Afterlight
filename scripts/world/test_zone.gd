@@ -322,7 +322,7 @@ func _build_course() -> void:
 	# Cobblestone streets criss-crossing the sand
 	_box(Vector3(5.0, 1.04, 90), Vector3(-2, -0.5, 0), _cobble_mat)
 	_box(Vector3(90, 1.04, 5.0), Vector3(0, -0.5, 10), _cobble_mat)
-	_box(Vector3(5.0, 1.04, 44), Vector3(31, -0.5, 23), _cobble_mat)
+	_box(Vector3(4.4, 1.04, 35), Vector3(29, -0.5, 27.5), _cobble_mat)
 	_box(Vector3(34, 1.04, 4.4), Vector3(-28, -0.5, -14), _cobble_mat)
 
 	# --- Sprint lane + auto-vault obstacle ---
@@ -362,7 +362,7 @@ func _build_course() -> void:
 	_sign("JUMP THE GAPS", Vector3(0, 3.0, -18))
 	var heights := [0.6, 1.1, 1.7, 2.2]
 	for i in 4:
-		_box(Vector3(3, heights[i] * 2.0, 3), Vector3(-4.5 + i * 3.9, heights[i], -22), _grid_mat,
+		_box(Vector3(3, heights[i] * 2.0, 3), Vector3(2.0 + i * 3.6, heights[i], -22), _grid_mat,
 				Color(0.75 + i * 0.05, 0.8, 0.9))
 
 	# --- Stairs up to the two-story building ---
@@ -891,7 +891,7 @@ func _build_district() -> void:
 	runner.rotation.y = 0.35
 	add_child(runner)
 	_sign("THIS ONE STILL RUNS - PRESS E", Vector3(-7.5, 2.6, -11.0))
-	_car(Vector3(-12, 0, -14), 0.35, Color(0.55, 0.6, 0.68))
+	_car(Vector3(-12, 0, -18.5), 0.35, Color(0.55, 0.6, 0.68))
 	_car(Vector3(-17, 0, -18), -0.2, Color(0.62, 0.4, 0.3))
 	_sign("CLIMB THE CARS", Vector3(-14.5, 2.6, -16))
 
@@ -1234,22 +1234,22 @@ func _decorate_interiors() -> void:
 	PropLib.place(self, "Barril", Vector3(bx + 4.5, 6.15, bz + 4.6))
 	PropLib.place(self, "Chair", Vector3(bx + 3.8, 6.15, bz + 2.5), -2.0, 0.75)
 	# --- Shop: counter clutter, corner table, hanging lamp ---
-	PropLib.place(self, "Chope_A", Vector3(35.0, 0.95, 15.6), 0.3, 0.55, false)
-	PropLib.place(self, "Chope_B", Vector3(36.2, 0.95, 15.7), 1.2, 0.55, false)
-	PropLib.place(self, "Cup", Vector3(35.6, 0.95, 15.4), 0.0, 1.0, false)
-	PropLib.place(self, "Barril", Vector3(38.7, 0, 16.2))
-	PropLib.place(self, "Barril", Vector3(37.5, 0, 16.4), 2.3, 0.9)
-	PropLib.place(self, "Table", Vector3(34.2, 0, 12.6), 0.2, 0.6)
-	PropLib.place(self, "Seat", Vector3(32.9, 0, 12.6), PI / 2, 0.7)
-	PropLib.place(self, "Cup", Vector3(34.2, 0.84, 12.6), 0.0, 1.0, false)
-	PropLib.place(self, "Lamp", Vector3(36, 3.2, 14), 0.0, 1.0, false)
-	PropLib.place(self, "Panel", Vector3(38.0, 2.2, 16.8), PI, 1.0, false)
+	PropLib.place(self, "Chope_A", Vector3(35.0, 0.95, 17.6), 0.3, 0.55, false)
+	PropLib.place(self, "Chope_B", Vector3(36.2, 0.95, 17.7), 1.2, 0.55, false)
+	PropLib.place(self, "Cup", Vector3(35.6, 0.95, 17.4), 0.0, 1.0, false)
+	PropLib.place(self, "Barril", Vector3(38.7, 0, 18.2))
+	PropLib.place(self, "Barril", Vector3(37.5, 0, 18.4), 2.3, 0.9)
+	PropLib.place(self, "Table", Vector3(34.2, 0, 15.9), 0.2, 0.6)
+	PropLib.place(self, "Seat", Vector3(32.9, 0, 15.9), PI / 2, 0.7)
+	PropLib.place(self, "Cup", Vector3(34.2, 0.84, 15.9), 0.0, 1.0, false)
+	PropLib.place(self, "Lamp", Vector3(36, 3.2, 16), 0.0, 1.0, false)
+	PropLib.place(self, "Panel", Vector3(38.0, 2.2, 18.8), PI, 1.0, false)
 	# --- Undercroft storage: supplies in the dark ---
-	PropLib.place(self, "Barril", Vector3(43.0, 0, 16.0), 0.7)
-	PropLib.place(self, "Wood_Trunk", Vector3(42.8, 0, 11.9), -0.4, 0.8)
-	PropLib.place(self, "Wood_Plank_B", Vector3(42.0, 0.06, 13.8), 0.5, 0.6, false)
+	PropLib.place(self, "Barril", Vector3(43.0, 0, 18.0), 0.7)
+	PropLib.place(self, "Wood_Trunk", Vector3(42.8, 0, 15.4), -0.4, 0.8)
+	PropLib.place(self, "Wood_Plank_B", Vector3(42.0, 0.06, 15.8), 0.5, 0.6, false)
 	# --- Market square: standing sign ---
-	PropLib.place(self, "Signal", Vector3(26.0, 0, 15.8), 0.9)
+	PropLib.place(self, "Signal", Vector3(24.6, 0, 15.8), 0.9)
 
 
 
@@ -1265,50 +1265,48 @@ func _build_old_market() -> void:
 	# ---------- Market square: 3 stalls + crates + rubble ----------
 	_stall(Vector3(23, 0, 13.5), Color(0.75, 0.25, 0.2))
 	_stall(Vector3(23, 0, 18.5), Color(0.2, 0.55, 0.3))
-	_stall(Vector3(27, 0, 22.5), Color(0.25, 0.35, 0.7))
+	_stall(Vector3(23, 0, 23.5), Color(0.25, 0.35, 0.7))
 	_loot_crate(Vector3(23.9, 0, 16.2))
-	_loot_crate(Vector3(38.5, 0, 15.8))
-	_box(Vector3(1.4, 0.7, 1.1), Vector3(29, 0.35, 17), _concrete_mat, Color(0.6, 0.6, 0.62))
-	_box(Vector3(0.9, 0.45, 0.8), Vector3(29.6, 0.22, 18.1), _concrete_mat, Color(0.55, 0.55, 0.58))
-	# Breakable barricade across the alley between market and shop
-	_breakable(Vector3(2.2, 1.15, 0.22), Vector3(30.6, 0.58, 14.0), wood, 50)
+	_loot_crate(Vector3(38.5, 0, 17.8))
+	_box(Vector3(1.4, 0.7, 1.1), Vector3(34, 0.35, 21.0), _concrete_mat, Color(0.6, 0.6, 0.62))
+	_box(Vector3(0.9, 0.45, 0.8), Vector3(34.6, 0.22, 21.9), _concrete_mat, Color(0.55, 0.55, 0.58))
 
 	# ---------- SHOP (x 32..40, z 11..17), flat grabbable roof ----------
 	# North wall (solid)
-	_box(Vector3(8, 3.2, 0.3), Vector3(36, 1.6, 17), _concrete_mat, plaster)
+	_box(Vector3(8, 3.2, 0.3), Vector3(36, 1.6, 19), _concrete_mat, plaster)
 	# South wall with window
-	_box(Vector3(3.1, 3.2, 0.3), Vector3(33.55, 1.6, 11), _concrete_mat, plaster)
-	_box(Vector3(3.1, 3.2, 0.3), Vector3(38.45, 1.6, 11), _concrete_mat, plaster)
-	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 0.45, 11), _concrete_mat, plaster)
-	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 2.75, 11), _concrete_mat, plaster)
-	_glass_pane(Vector3(1.8, 1.4, 0.12), Vector3(36, 1.6, 11))
+	_box(Vector3(3.1, 3.2, 0.3), Vector3(33.55, 1.6, 13), _concrete_mat, plaster)
+	_box(Vector3(3.1, 3.2, 0.3), Vector3(38.45, 1.6, 13), _concrete_mat, plaster)
+	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 0.45, 13), _concrete_mat, plaster)
+	_box(Vector3(1.8, 0.9, 0.3), Vector3(36, 2.75, 13), _concrete_mat, plaster)
+	_glass_pane(Vector3(1.8, 1.4, 0.12), Vector3(36, 1.6, 13))
 	# West wall with door opening (faces the market)
-	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 12.2), _concrete_mat, plaster)
-	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 15.8), _concrete_mat, plaster)
-	_box(Vector3(0.3, 0.9, 1.2), Vector3(32, 2.75, 14), _concrete_mat, plaster)
-	_breakable(Vector3(0.14, 2.3, 1.14), Vector3(32, 1.15, 14), wood, 70)
+	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 14.2), _concrete_mat, plaster)
+	_box(Vector3(0.3, 3.2, 2.4), Vector3(32, 1.6, 17.8), _concrete_mat, plaster)
+	_box(Vector3(0.3, 0.9, 1.2), Vector3(32, 2.75, 16), _concrete_mat, plaster)
+	_breakable(Vector3(0.14, 2.3, 1.14), Vector3(32, 1.15, 16), wood, 70)
 	# East wall, shared with the storage room: cracked WEAK WALL in the middle
-	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 11.95), _concrete_mat, plaster)
-	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 16.05), _concrete_mat, plaster)
-	_box(Vector3(0.3, 0.8, 2.2), Vector3(40, 2.8, 14), _concrete_mat, plaster)
-	_breakable(Vector3(0.28, 2.4, 2.2), Vector3(40, 1.2, 14), Color(0.45, 0.42, 0.36), 140)
+	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 13.95), _concrete_mat, plaster)
+	_box(Vector3(0.3, 3.2, 1.9), Vector3(40, 1.6, 18.05), _concrete_mat, plaster)
+	_box(Vector3(0.3, 0.8, 2.2), Vector3(40, 2.8, 16), _concrete_mat, plaster)
+	_breakable(Vector3(0.28, 2.4, 2.2), Vector3(40, 1.2, 16), Color(0.45, 0.42, 0.36), 140)
 	# Shop counter + shelf
-	_box(Vector3(3.2, 0.95, 0.7), Vector3(35.5, 0.48, 15.6), _grid_mat, wood, "wood")
-	_box(Vector3(0.5, 1.9, 3.4), Vector3(39.5, 0.95, 12.9), _grid_mat, wood, "wood")
+	_box(Vector3(3.2, 0.95, 0.7), Vector3(35.5, 0.48, 17.6), _grid_mat, wood, "wood")
+	_box(Vector3(0.5, 1.9, 3.4), Vector3(39.5, 0.95, 14.9), _grid_mat, wood, "wood")
 
 	# ---------- UNDERCROFT storage (x 40..44, z 11..17), pitch dark ----------
-	_box(Vector3(0.3, 3.2, 6.3), Vector3(44, 1.6, 14), _concrete_mat, plaster2)
-	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 17), _concrete_mat, plaster2)
-	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 11), _concrete_mat, plaster2)
+	_box(Vector3(0.3, 3.2, 6.3), Vector3(44, 1.6, 16), _concrete_mat, plaster2)
+	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 19), _concrete_mat, plaster2)
+	_box(Vector3(4, 3.2, 0.3), Vector3(42, 1.6, 13), _concrete_mat, plaster2)
 	# One roof slab across shop + storage; top at 3.6 m = ledge-grabbable
-	_box(Vector3(12.6, 0.4, 6.6), Vector3(38, 3.4, 14), _concrete_mat, Color(0.5, 0.5, 0.54))
-	_loot_crate(Vector3(42.2, 0, 15.4))
-	_loot_crate(Vector3(41.3, 0, 12.6))
+	_box(Vector3(12.6, 0.4, 6.6), Vector3(38, 3.4, 16), _concrete_mat, Color(0.5, 0.5, 0.54))
+	_loot_crate(Vector3(42.2, 0, 17.4))
+	_loot_crate(Vector3(41.3, 0, 14.6))
 	var ucl := OmniLight3D.new()
 	ucl.light_color = Color(1.0, 0.25, 0.18)
 	ucl.light_energy = 0.55
 	ucl.omni_range = 5.0
-	ucl.position = Vector3(42, 2.6, 14)
+	ucl.position = Vector3(42, 2.6, 16)
 	add_child(ucl)
 
 	# Shop lamp + switch by the door
@@ -1316,9 +1314,9 @@ func _build_old_market() -> void:
 	shop_lamp.light_color = Color(1.0, 0.85, 0.6)
 	shop_lamp.light_energy = 2.2
 	shop_lamp.omni_range = 7.0
-	shop_lamp.position = Vector3(36, 2.7, 14)
+	shop_lamp.position = Vector3(36, 2.7, 16)
 	add_child(shop_lamp)
-	_lamp_switch(shop_lamp, Vector3(32.6, 1.4, 15.7))
+	_lamp_switch(shop_lamp, Vector3(32.6, 1.4, 17.7))
 
 	# ---------- HOUSE (x 23..29, z 29..35), two storeys + roof ladder ----------
 	_box(Vector3(0.3, 5.6, 6), Vector3(23, 2.8, 32), _concrete_mat, plaster2)

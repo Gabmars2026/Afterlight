@@ -140,7 +140,7 @@ func _meridian_heights() -> void:
 
 	# Plaza between the towers: dry fountain + benches
 	_box(Vector3(24, 1.06, 18), Vector3(0, -0.5, -62), cobble_mat)
-	_box(Vector3(5, 0.8, 5), Vector3(0, 0.4, -62), plaster_mat, Color(0.6, 0.6, 0.58))
+	_box(Vector3(5, 0.8, 5), Vector3(7, 0.4, -62), plaster_mat, Color(0.6, 0.6, 0.58))
 	_box(Vector3(3.4, 0.5, 3.4), Vector3(0, 1.05, -62), plaster_mat, Color(0.45, 0.5, 0.52))
 	for bpos in [Vector3(-7, 0.35, -55), Vector3(7, 0.35, -55)]:
 		_box(Vector3(3, 0.7, 0.9), bpos, plaster_mat, Color(0.4, 0.32, 0.26), "wood")
@@ -246,7 +246,7 @@ func _ashline() -> void:
 	for p in [Vector3(-58, 0.25, 0), Vector3(-64, 0.2, -18), Vector3(-50, 0.3, 22)]:
 		_box(Vector3(3, 0.5, 3), p, plaster_mat, Color(0.22, 0.2, 0.19))
 	# Road barricade
-	_box(Vector3(2, 1.6, 6), Vector3(-47, 0.8, 10), _burn_mat, Color.WHITE, "metal")
+	_box(Vector3(2, 1.6, 6), Vector3(-47, 0.8, 20), _burn_mat, Color.WHITE, "metal")
 	# Abandoned survivor camp: tent + cold fire + supplies
 	var camp := Vector3(-66, 0, 36)
 	_box(Vector3(3.4, 0.3, 3), camp + Vector3(0, 0.15, 0), plaster_mat, Color(0.35, 0.38, 0.3), "wood")
