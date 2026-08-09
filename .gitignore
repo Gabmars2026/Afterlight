@@ -11,3 +11,8 @@ gen_audio7.py
 gen_audio9.py
 gen_audio10.py
 gen_audio11.py
+
+# Guard: never commit downloaded asset packs / oversized textures (GitHub rejects files >100 MB)
+8k/
+4k/
+*_Normal.1001.png
