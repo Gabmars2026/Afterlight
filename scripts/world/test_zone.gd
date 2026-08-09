@@ -1141,6 +1141,7 @@ func _build_traffic() -> void:
 	for i in 7:
 		var car: CharacterBody3D = TrafficScript.new()
 		car.paint = paints[i]
+		car.kind = i
 		var loop: Array = loop_a if i < 4 else loop_b
 		car.waypoints = loop
 		var leg := i % 2

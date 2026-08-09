@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.13.0** — Real wheels. The box-built cars are gone: your drivable
+  ride is now the M.A.V.S Muscle Car, and street traffic mixes four
+  real models (NightSky, Cleo V8, GT30, TRG) with proper bodies, rims
+  and glass. Visuals extracted mesh-only so the game keeps its own
+  driving physics; models turned to match the game's forward axis.
+
 - **v1.12.0** — The frontier. SALT COAST: a sand shelf over the west
   dune ridge stepping down to a living ocean (drifting current, gentle
   swell) with a walkable seabed. GRAYSPINE PEAKS: four climbable

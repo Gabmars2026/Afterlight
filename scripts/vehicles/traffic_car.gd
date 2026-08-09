@@ -3,12 +3,22 @@ extends CharacterBody3D
 ## main streets, brake for anything on the road ahead (you included),
 ## and floor it in a panic if you shoot them.
 
+const CarVisual := preload("res://scripts/vehicles/car_visual.gd")
+
+const KINDS := [
+	"res://addons/M.A.V.S/Vehicle/NightSky/NightSky_Body.tscn",
+	"res://addons/M.A.V.S/Vehicle/Cleo V8/CleoV8.tscn",
+	"res://addons/M.A.V.S/Vehicle/GT30/GT30.tscn",
+	"res://addons/M.A.V.S/Vehicle/TGR/TRG.tscn",
+]
+
 const CRUISE := 7.0
 const PANIC := 12.0
 
 var waypoints: Array = []
 var wp := 0
 var paint := Color(0.6, 0.6, 0.65)
+var kind := 0
 
 var _speed := 0.0
 var _panic_left := 0.0
@@ -22,7 +32,7 @@ func _ready() -> void:
 	collision_mask = 1
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(2.0, 1.2, 4.3)
+	shape.size = Vector3(1.8, 1.4, 4.1)
 	col.shape = shape
 	col.position.y = 0.72
 	add_child(col)
@@ -36,42 +46,11 @@ func _ready() -> void:
 
 
 func _build_mesh() -> void:
-	var body_mat := StandardMaterial3D.new()
-	body_mat.albedo_color = paint
-	body_mat.metallic = 0.4
-	body_mat.roughness = 0.5
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.12, 0.12, 0.13)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.5, 0.65, 0.75, 0.6)
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	var parts := [
-		[Vector3(1.9, 0.6, 4.2), Vector3(0, 0.62, 0), body_mat],
-		[Vector3(1.7, 0.55, 2.0), Vector3(0, 1.2, 0.25), body_mat],
-		[Vector3(1.6, 0.42, 0.06), Vector3(0, 1.18, -0.78), glass],
-		[Vector3(1.6, 0.42, 0.06), Vector3(0, 1.18, 1.28), glass],
-	]
-	for p in parts:
-		var mi := MeshInstance3D.new()
-		var bm := BoxMesh.new()
-		bm.size = p[0]
-		bm.material = p[2]
-		mi.mesh = bm
-		mi.position = p[1]
-		add_child(mi)
-	for wx in [-0.95, 0.95]:
-		for wz in [-1.45, 1.45]:
-			var wheel := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.height = 0.28
-			cyl.top_radius = 0.38
-			cyl.bottom_radius = 0.38
-			cyl.radial_segments = 10
-			cyl.material = dark
-			wheel.mesh = cyl
-			wheel.rotation.z = PI / 2
-			wheel.position = Vector3(wx, 0.38, wz)
-			add_child(wheel)
+	# A street car from the M.A.V.S pack (meshes only, physics is ours)
+	var visual := CarVisual.build(KINDS[kind % KINDS.size()])
+	visual.name = "Visual"
+	visual.position.y = 0.02  # collision box bottom
+	add_child(visual)
 
 
 func take_hit(_damage: int, _point: Vector3) -> void:

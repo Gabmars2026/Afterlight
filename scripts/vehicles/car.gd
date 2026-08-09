@@ -2,6 +2,8 @@ extends CharacterBody3D
 ## Phase 18: a drivable survivor car. Press E to hop in, WASD to drive,
 ## Space (or E) to get out. Ramming zombies at speed hurts them.
 
+const CarVisual := preload("res://scripts/vehicles/car_visual.gd")
+
 const MAX_FWD := 16.0
 const MAX_REV := 6.5
 const ENGINE_ACCEL := 8.0
@@ -28,7 +30,7 @@ func _ready() -> void:
 	collision_mask = 1 | 4
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(2.0, 1.2, 4.3)
+	shape.size = Vector3(1.9, 1.3, 3.8)
 	col.shape = shape
 	col.position.y = 0.72
 	add_child(col)
@@ -46,34 +48,12 @@ func _ready() -> void:
 
 
 func _build_mesh() -> void:
-	var paint := StandardMaterial3D.new()
-	paint.albedo_color = Color(0.75, 0.55, 0.15)
-	paint.metallic = 0.5
-	paint.roughness = 0.4
-	var dark := StandardMaterial3D.new()
-	dark.albedo_color = Color(0.12, 0.12, 0.13)
-	var glass := StandardMaterial3D.new()
-	glass.albedo_color = Color(0.55, 0.7, 0.8, 0.55)
-	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glass.metallic = 0.4
-	glass.roughness = 0.1
-	_part(Vector3(1.9, 0.6, 4.2), Vector3(0, 0.62, 0), paint)
-	_part(Vector3(1.7, 0.55, 2.0), Vector3(0, 1.2, 0.25), paint)
-	_part(Vector3(1.6, 0.42, 0.06), Vector3(0, 1.18, -0.78), glass)
-	_part(Vector3(1.6, 0.42, 0.06), Vector3(0, 1.18, 1.28), glass)
-	for wx in [-0.95, 0.95]:
-		for wz in [-1.45, 1.45]:
-			var wheel := MeshInstance3D.new()
-			var cyl := CylinderMesh.new()
-			cyl.height = 0.28
-			cyl.top_radius = 0.38
-			cyl.bottom_radius = 0.38
-			cyl.radial_segments = 12
-			cyl.material = dark
-			wheel.mesh = cyl
-			wheel.rotation.z = PI / 2
-			wheel.position = Vector3(wx, 0.38, wz)
-			add_child(wheel)
+	# The Muscle Car model from the M.A.V.S pack (meshes only)
+	var visual := CarVisual.build(
+			"res://addons/M.A.V.S/Vehicle/Muscle/Muscle Car.tscn")
+	visual.name = "Visual"
+	visual.position.y = 0.07  # collision box bottom
+	add_child(visual)
 	for hx in [-0.6, 0.6]:
 		var lamp := SpotLight3D.new()
 		lamp.position = Vector3(hx, 0.75, -2.0)
@@ -84,16 +64,6 @@ func _build_mesh() -> void:
 		lamp.spot_angle = 32.0
 		add_child(lamp)
 		_lights.append(lamp)
-
-
-func _part(size: Vector3, pos: Vector3, mat: Material) -> void:
-	var mi := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	box.material = mat
-	mi.mesh = box
-	mi.position = pos
-	add_child(mi)
 
 
 func get_prompt() -> String:

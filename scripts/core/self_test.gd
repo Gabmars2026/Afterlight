@@ -183,6 +183,13 @@ func _test_streaming() -> void:
 					and c.mesh is CylinderMesh:
 				peaks += 1
 	_check(peaks >= 4, "climbable mountains have collision")
+	var tcars := _zone.get_tree().get_nodes_in_group("traffic")
+	var modeled := 0
+	for tc in tcars:
+		var vis := tc.get_node_or_null("Visual")
+		if vis and vis.get_child_count() >= 4:
+			modeled += 1
+	_check(modeled >= 6, "traffic uses real car models")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true
