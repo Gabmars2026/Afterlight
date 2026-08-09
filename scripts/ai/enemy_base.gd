@@ -434,6 +434,10 @@ func _animate(_delta: float) -> void:
 func take_hit(damage: int, point: Vector3) -> void:
 	if state == State.DEAD:
 		return
+	# Headshots hit 3x harder - aim high to drop zombies fast
+	var headshot := point.y > global_position.y + 1.45 * size_mult
+	if headshot:
+		damage *= 3
 	health -= damage
 	_voice.stream = _snd_hurt
 	_voice.pitch_scale = randf_range(0.85, 1.1)
@@ -448,7 +452,6 @@ func take_hit(damage: int, point: Vector3) -> void:
 	else:
 		state = State.STAGGER
 		_stagger_left = 0.28
-		var headshot := point.y > global_position.y + 1.45 * size_mult
 		_play_one_shot("Hit_Head" if headshot else "Hit_Chest")
 
 

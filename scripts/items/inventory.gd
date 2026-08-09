@@ -12,6 +12,8 @@ const DEFS := {
 			"damage": 26, "interval": 0.5, "durability": 30, "hint": "Click to equip"},
 	"bat": {"label": "BASEBALL BAT", "stack": 1, "melee": true,
 			"damage": 36, "interval": 0.62, "durability": 20, "hint": "Click to equip"},
+	"sword": {"label": "KNIGHT SWORD", "stack": 1, "melee": true,
+			"damage": 55, "interval": 0.7, "durability": 60, "hint": "Click to equip"},
 	"scrap": {"label": "SCRAP METAL", "stack": 12, "hint": "Crafting material"},
 	"planks": {"label": "WOOD PLANKS", "stack": 12, "hint": "Crafting material"},
 	"cloth": {"label": "CLOTH", "stack": 12, "hint": "Crafting material"},

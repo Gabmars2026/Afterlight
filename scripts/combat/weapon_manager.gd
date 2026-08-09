@@ -294,6 +294,13 @@ func _handle_combat_input() -> void:
 	if player.health <= 0 or player.get("is_hanging"):
 		return
 	var w := _weapons[_current]
+	if Input.is_action_just_pressed("weapon_cycle"):
+		var nxt := (_current + 1) % _weapons.size()
+		if nxt == 2:
+			equip_melee(_melee_slot if _melee_slot >= 0 else player.inventory.best_melee())
+		else:
+			_switch_to(nxt)
+		return
 	if Input.is_action_just_pressed("weapon_1"):
 		_switch_to(0)
 		return

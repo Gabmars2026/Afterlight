@@ -320,9 +320,11 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, target_vel.x, accel * delta * target_speed)
 		velocity.z = move_toward(velocity.z, target_vel.z, accel * delta * target_speed)
 
-		# Jump (standing only)
-		if on_floor and Input.is_action_just_pressed("jump") and stance == Stance.STAND \
+		# Jump: works from stand, crouch or crawl (stands you up first)
+		if on_floor and Input.is_action_just_pressed("jump") \
+				and (stance == Stance.STAND or _clearance() >= STAND_HEIGHT + 0.1) \
 				and stamina.try_spend(JUMP_COST):
+			stance = Stance.STAND
 			velocity.y = JUMP_VELOCITY
 			footsteps.play_step(_floor_surface, false, false)
 
@@ -774,7 +776,7 @@ func _update_view(delta: float) -> void:
 	camera.position = want_local * f
 	interaction.target_position = Vector3(0, 0, -(interaction.REACH + _boom * f))
 	# Hide the body if the camera got pushed right up against the head
-	_body.visible = f > 0.35 and stance != Stance.CRAWL
+	_body.visible = f > 0.35
 
 
 func _build_body() -> void:
@@ -971,9 +973,10 @@ func _sync_tp_weapon() -> void:
 
 
 func _update_body(delta: float) -> void:
-	# Body follows crouch height; hidden while crawling (no prone rig yet)
-	_body.visible = stance != Stance.CRAWL
-	_body.position.y = head.position.y - EYE_STAND
+	# Feet stay planted at the node origin; crouch/crawl posture comes from
+	# the rig's Crouch animations instead of sinking the whole mesh.
+	_body.visible = true
+	_body.position.y = 0.0
 	if _anim == null or not _third_person:
 		return
 	# One-shot actions (shoot/reload/swing) finish before locomotion resumes
@@ -985,7 +988,7 @@ func _update_body(delta: float) -> void:
 	var anim_scale := 1.0
 	if not is_on_floor():
 		next = "Jump"
-	elif stance == Stance.CROUCH:
+	elif stance != Stance.STAND:
 		next = "Crouch_Fwd" if hspeed > 0.3 else "Crouch_Idle"
 		if hspeed > 0.3:
 			anim_scale = clampf(hspeed / CROUCH_SPEED, 0.7, 1.4)

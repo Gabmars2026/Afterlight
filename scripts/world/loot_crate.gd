@@ -28,20 +28,25 @@ func interact(user: Node) -> void:
 	# Random supplies straight into the player's inventory
 	if user.has_method("pickup"):
 		var roll := randf()
-		if roll < 0.28:
-			user.pickup("ammo_pistol", randi_range(8, 16))
-		elif roll < 0.5:
-			user.pickup("ammo_rifle", randi_range(10, 24))
-		elif roll < 0.7:
+		if roll < 0.2:
+			user.pickup("ammo_pistol", randi_range(10, 20))
+		elif roll < 0.38:
+			user.pickup("ammo_rifle", randi_range(12, 28))
+		elif roll < 0.52:
 			user.pickup("bandage", randi_range(1, 2))
-		elif roll < 0.78:
+		elif roll < 0.6:
 			user.pickup("pipe", 1)
-		elif roll < 0.84:
+		elif roll < 0.68:
 			user.pickup("bat", 1)
-		elif roll < 0.92:
+		elif roll < 0.76:
+			user.pickup("sword", 1)
+		elif roll < 0.86:
 			user.pickup("scrap", randi_range(2, 5))
-		elif roll < 0.97:
+		elif roll < 0.94:
 			user.pickup("cloth", randi_range(2, 4))
 		else:
 			user.pickup("planks", randi_range(2, 4))
+		# Every crate also holds a few loose bullets
+		user.pickup("ammo_pistol", randi_range(4, 8))
+		user.pickup("ammo_rifle", randi_range(4, 10))
 	used.emit(user)

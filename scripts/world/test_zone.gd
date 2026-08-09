@@ -178,6 +178,7 @@ func _setup_input() -> void:
 	_add_key("reload", KEY_R)
 	_add_key("inventory", KEY_TAB)
 	_add_key("map", KEY_M)
+	_add_key("weapon_cycle", KEY_Q)
 	_add_key("weapon_1", KEY_1)
 	_add_key("weapon_2", KEY_2)
 	_add_key("weapon_3", KEY_3)

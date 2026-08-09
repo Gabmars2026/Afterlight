@@ -26,6 +26,14 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.5.0** — Control & combat fixes. Third-person body no longer sinks
+  into the floor when crouching (posture now comes from the rig's crouch
+  animations, and the body stays visible while crawling). Jumping works
+  from crouch/crawl and while holding Shift or Ctrl - you stand up and
+  hop. Q cycles weapons; 1/2/3 still pick directly. Headshots deal 3x
+  damage so weak zombies drop to one good shot. Loot crates can hold a
+  KNIGHT SWORD (55 dmg) and always include loose pistol + rifle bullets.
+
 - **v1.4.0** — Furnished interiors. The Medieval Village pack props now
   decorate the world: apartment block gets a living room, floor-2 den
   and a floor-3 trophy wall (sword, axes, shield) with a squatter
