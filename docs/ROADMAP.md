@@ -26,6 +26,10 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.10.0** — AI traffic. Seven painted sedans cruise fixed loops
+  along both main streets, brake for pedestrians, zombies and you,
+  creep through jammed junctions, and floor it in a panic when shot.
+
 - **v1.9.0** — Living town. Civilians now stroll the streets going
   about their day, with police on patrol. Commit a crime and a gold
   WANTED star bar appears: most bystanders flee screaming for cover,

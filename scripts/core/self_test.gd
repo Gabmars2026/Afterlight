@@ -170,6 +170,7 @@ func _test_streaming() -> void:
 	_check(civs.size() >= 18, "townsfolk spawned")
 	_check(_zone.get_tree().get_nodes_in_group("cops").size() >= 4, "police on patrol")
 	_check(_zone.get_node_or_null("WantedManager") != null, "wanted system active")
+	_check(_zone.get_tree().get_nodes_in_group("traffic").size() >= 6, "traffic on the streets")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true

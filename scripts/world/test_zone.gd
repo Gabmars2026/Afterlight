@@ -11,6 +11,7 @@ const CarScript := preload("res://scripts/vehicles/car.gd")
 const CastleBuilder := preload("res://scripts/world/castle_builder.gd")
 const CitizenScript := preload("res://scripts/ai/citizen.gd")
 const WantedScript := preload("res://scripts/core/wanted.gd")
+const TrafficScript := preload("res://scripts/vehicles/traffic_car.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -91,6 +92,7 @@ func _ready() -> void:
 	_build_weather()
 	_build_castle()
 	_build_citizens()
+	_build_traffic()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1077,6 +1079,32 @@ func _build_weather() -> void:
 	add_child(weather)
 
 
+
+
+func _build_traffic() -> void:
+	## Phase 21: cars cruising loops on the two main streets.
+	var loop_a := [Vector3(-3.2, 0.1, -68), Vector3(-3.2, 0.1, 60),
+			Vector3(-0.8, 0.1, 60), Vector3(-0.8, 0.1, -68)]
+	var loop_b := [Vector3(-68, 0.1, 8.8), Vector3(66, 0.1, 8.8),
+			Vector3(66, 0.1, 11.2), Vector3(-68, 0.1, 11.2)]
+	var paints := [Color(0.7, 0.25, 0.2), Color(0.25, 0.4, 0.7),
+			Color(0.8, 0.75, 0.6), Color(0.3, 0.55, 0.35),
+			Color(0.55, 0.55, 0.6), Color(0.75, 0.55, 0.2),
+			Color(0.4, 0.35, 0.5)]
+	for i in 7:
+		var car: CharacterBody3D = TrafficScript.new()
+		car.paint = paints[i]
+		var loop: Array = loop_a if i < 4 else loop_b
+		car.waypoints = loop
+		var leg := i % 2
+		car.wp = leg * 2
+		var a: Vector3 = loop[leg * 2]
+		var b: Vector3 = loop[leg * 2 + 1]
+		car.position = a.lerp(b, fposmod(0.15 + 0.18 * i, 0.9))
+		car.position.y = 0.2
+		var head := b - a
+		car.rotation.y = atan2(-head.x, -head.z)
+		add_child(car)
 
 
 func _build_citizens() -> void:
