@@ -13,6 +13,7 @@ const CitizenScript := preload("res://scripts/ai/citizen.gd")
 const WantedScript := preload("res://scripts/core/wanted.gd")
 const TrafficScript := preload("res://scripts/vehicles/traffic_car.gd")
 const DowntownBuilder := preload("res://scripts/world/downtown_builder.gd")
+const ResidentialBuilder := preload("res://scripts/world/residential_builder.gd")
 const FrontierBuilder := preload("res://scripts/world/frontier_builder.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
@@ -95,6 +96,7 @@ func _ready() -> void:
 	_build_citizens()
 	_build_traffic()
 	_build_downtown()
+	_build_residential()
 	var frontier: Node3D = FrontierBuilder.new()
 	frontier.name = "Frontier"
 	add_child(frontier)
@@ -1063,6 +1065,23 @@ func _build_weather() -> void:
 	add_child(weather)
 
 
+
+
+func _build_residential() -> void:
+	## v1.16.0: SUNSET FLATS, the residential district north of downtown.
+	var rd: Node3D = ResidentialBuilder.new()
+	rd.name = "Residential"
+	rd.position = Vector3(170, 8.6, -130)
+	add_child(rd)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 27
+	for i in 6:
+		var civ: CharacterBody3D = CitizenScript.new()
+		civ.anchor = Vector3(170, 9.8, -130)
+		civ.anchor_radius = 45.0
+		civ.position = Vector3(170 + rng.randf_range(-45, 45), 10.8,
+				-130 + rng.randf_range(-25, 25))
+		add_child(civ)
 
 
 func _build_downtown() -> void:

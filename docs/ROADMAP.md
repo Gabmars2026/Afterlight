@@ -26,6 +26,11 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.16.0** — SUNSET FLATS. A residential district on a mesa north
+  of downtown: main street, side lanes, streetlights, a ramp road
+  down to the NEON DISTRICT, and 32 enterable houses in six pastel
+  palettes - each with a door, warm windows, a lit room and furniture.
+
 - **v1.15.0** — Open towers. All 12 downtown towers are now real
   buildings: a front door with a neon sign leads into a lit lobby
   with furniture, and switchback ramps along the back wall climb
