@@ -26,6 +26,13 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.12.0** — The frontier. SALT COAST: a sand shelf over the west
+  dune ridge stepping down to a living ocean (drifting current, gentle
+  swell) with a walkable seabed. GRAYSPINE PEAKS: four climbable
+  mountains (60-120 m, two snow-capped) south of town with real
+  collision - every slope stays under 45 degrees so you can walk to
+  the summit. Both regions announce themselves as new territories.
+
 - **v1.11.0** — NEON DISTRICT. A downtown plinth east of town: twelve
   glass towers 60-120 m tall with colored neon window strips, a lit
   avenue reached by the crosstown road, streetlights, a red-capped

@@ -13,6 +13,7 @@ const CitizenScript := preload("res://scripts/ai/citizen.gd")
 const WantedScript := preload("res://scripts/core/wanted.gd")
 const TrafficScript := preload("res://scripts/vehicles/traffic_car.gd")
 const DowntownBuilder := preload("res://scripts/world/downtown_builder.gd")
+const FrontierBuilder := preload("res://scripts/world/frontier_builder.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -95,6 +96,9 @@ func _ready() -> void:
 	_build_citizens()
 	_build_traffic()
 	_build_downtown()
+	var frontier: Node3D = FrontierBuilder.new()
+	frontier.name = "Frontier"
+	add_child(frontier)
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()

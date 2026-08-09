@@ -174,6 +174,15 @@ func _test_streaming() -> void:
 	var dt := _zone.get_node_or_null("Downtown")
 	_check(dt != null, "NEON DISTRICT built")
 	_check(dt != null and dt.get_node_or_null("BarLight") != null, "the bar is lit")
+	var fr := _zone.get_node_or_null("Frontier")
+	_check(fr != null, "frontier built (ocean + mountains)")
+	var peaks := 0
+	if fr:
+		for c in fr.get_children():
+			if c is MeshInstance3D and c.get_child_count() > 0 \
+					and c.mesh is CylinderMesh:
+				peaks += 1
+	_check(peaks >= 4, "climbable mountains have collision")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true
