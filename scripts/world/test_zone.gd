@@ -6,6 +6,7 @@ const PlayerScene := preload("res://scripts/player/player.gd")
 const HudScene := preload("res://scripts/ui/hud.gd")
 const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
 const PropLib := preload("res://scripts/world/prop_lib.gd")
+const WeatherScript := preload("res://scripts/world/weather.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -83,6 +84,7 @@ func _ready() -> void:
 	_build_parkour_gym()
 	_build_old_market()
 	_decorate_interiors()
+	_build_weather()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1053,6 +1055,15 @@ func _build_parkour_gym() -> void:
 # ------------------------------------------------------------------
 # PHASE 5 - OLD MARKET (north-east district)
 # ------------------------------------------------------------------
+
+func _build_weather() -> void:
+	## Phase 17: drifting clouds + rain showers.
+	var weather: Node3D = WeatherScript.new()
+	weather.name = "Weather"
+	weather.player = player
+	weather.environment = _env
+	add_child(weather)
+
 
 func _decorate_interiors() -> void:
 	## Phase 16: furniture and clutter from the Medieval Village pack.

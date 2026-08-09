@@ -154,6 +154,9 @@ func _test_streaming() -> void:
 		await _zone.get_tree().physics_frame
 	var props := _zone.get_tree().get_nodes_in_group("prop")
 	_check(props.size() >= 30, "interior props placed (%d)" % props.size())
+	var weather := _zone.get_node_or_null("Weather")
+	_check(weather != null, "weather system present")
+	_check(weather != null and weather.get_child_count() > 20, "cloud layer built")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true

@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.6.0** — Weather. A layer of puffy clouds now drifts with the wind
+  above the whole map. Every few minutes a rain shower rolls in: clouds
+  darken, fog thickens, rain streaks fall around you with a pink-noise
+  rain loop, and it all fades out again. Rain stays outside - under a
+  roof the streaks stop and the sound goes muffled.
+
 - **v1.5.0** — Control & combat fixes. Third-person body no longer sinks
   into the floor when crouching (posture now comes from the rig's crouch
   animations, and the body stays visible while crawling). Jumping works
