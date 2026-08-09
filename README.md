@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: v1.0.5 — live town map on M, third-person view by default.**
+**Current build: v1.0.6 — office tower fire escape rebuilt as a real switchback staircase.**
 
 **Download:** grab `Afterlight-windows-x86_64.zip` from the [Releases page](https://github.com/Gabmars2026/Afterlight/releases) — no Godot needed, just unzip and run `Afterlight.exe`. (Or keep playing from the editor with F5 as always.)
 

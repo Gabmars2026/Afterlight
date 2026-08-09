@@ -102,23 +102,28 @@ func _meridian_heights() -> void:
 	for f in 3:
 		_box(Vector3(14.2, 0.7, 14.2), Vector3(ax, 5.6 + f * 3.0, az),
 				plaster_mat, Color(0.25, 0.3, 0.38))
-	# Fire escape: zigzag strips up the east face
-	var y := 0.0
-	var dir := 1.0
-	while y < h - 1.5:
-		_box(Vector3(1.4, 0.3, 7.0), Vector3(ax + 7.9, y + 1.5, az - dir * 3.0),
-				plaster_mat, Color(0.35, 0.3, 0.28), "metal")
-		var ny := y + 3.0
-		_box(Vector3(1.4, 0.3, 2.6), Vector3(ax + 7.9, ny + 0.05, az + dir * 4.6),
-				plaster_mat, Color(0.35, 0.3, 0.28), "metal")
-		# sloped connector steps
-		for i in 6:
-			_box(Vector3(1.4, 0.28, 1.1),
-					Vector3(ax + 7.9, y + 1.5 + (i + 1) * 0.42,
-					az - dir * 3.0 + dir * (3.4 + i * 0.75)), plaster_mat,
-					Color(0.32, 0.28, 0.26), "metal")
-		y = ny
-		dir = -dir
+	# Fire escape: two-lane switchback staircase up the east face.
+	# Even flights climb north->south on the inner lane, odd flights come
+	# back on the outer lane; a shared landing joins them at each level.
+	var esc := Color(0.35, 0.3, 0.28)
+	for k in 5:
+		var dk: float = 1.0 if k % 2 == 0 else -1.0
+		var lane: float = ax + (7.75 if k % 2 == 0 else 8.95)
+		var base := 3.0 * k
+		for j in 10:
+			_box(Vector3(1.2, 0.32, 1.2),
+					Vector3(lane, base + 0.3 * (j + 1) - 0.16, az + dk * (-3.9 + j * 0.867)),
+					plaster_mat, esc.darkened(0.05) if j % 2 == 0 else esc.darkened(0.12), "metal")
+			if k % 2 == 1 and j % 2 == 0:
+				_box(Vector3(0.12, 0.9, 0.8),
+						Vector3(ax + 9.61, base + 0.3 * (j + 1) + 0.55,
+						az + dk * (-3.9 + j * 0.867)), plaster_mat, esc.darkened(0.2), "metal")
+		# Turn landing at the top of this flight (spans both lanes)
+		var lz := az + dk * 5.75
+		_box(Vector3(2.4, 0.3, 2.5), Vector3(ax + 8.35, base + 2.85, lz), plaster_mat, esc, "metal")
+		_box(Vector3(0.12, 1.0, 2.5), Vector3(ax + 9.61, base + 3.5, lz), plaster_mat, esc.darkened(0.2), "metal")
+		_box(Vector3(2.6, 1.0, 0.12), Vector3(ax + 8.35, base + 3.5, az + dk * 7.0), plaster_mat, esc.darkened(0.2), "metal")
+
 	# Roof lip + reward
 	_box(Vector3(14.6, 0.5, 0.5), Vector3(ax, h + 0.25, az - 7), plaster_mat, c)
 	_box(Vector3(14.6, 0.5, 0.5), Vector3(ax, h + 0.25, az + 7), plaster_mat, c)

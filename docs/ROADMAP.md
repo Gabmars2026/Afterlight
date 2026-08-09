@@ -26,6 +26,8 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.0.6** — rebuilt the office tower fire escape: two-lane switchback staircase with turn landings and railings (the old floating zigzag planks were unreadable and partly blocked).
+
 - **v1.0.5** — live top-down map screen on M (player arrow, objective marker, compass); game now starts in third-person view (V still toggles).
 
 - **v1.0.4** — rewrote auto stair-stepping: raise-slide-drop method with multi-distance landing search; fixes players getting stuck at the base of stairs.

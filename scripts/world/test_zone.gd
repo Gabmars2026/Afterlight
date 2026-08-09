@@ -153,6 +153,8 @@ func _ready() -> void:
 
 
 
+
+
 	if "--selftest" in OS.get_cmdline_user_args():
 		var tester := SelfTestScript.new()
 		add_child(tester)
