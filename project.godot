@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Afterlight"
-config/version="1.17.0"
+config/version="1.18.0"
 run/main_scene="res://scenes/world/test_zone.tscn"
 config/features=PackedStringArray("4.7")
 config/icon="res://icon.svg"

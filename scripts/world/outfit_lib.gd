@@ -1,7 +1,7 @@
 extends Object
-## v1.17.0 helper: dresses a rigged mannequin in simple clothes.
-## Boxy vest + shorts ride the spine/hip bones; hats ride the head.
-## Static, no per-frame cost - the bones animate the meshes for free.
+## v1.18.0 helper: hats ride the head bone; the body itself is
+## colored via material tint (torso/pants args kept for the API).
+## No boxes strapped to characters - that looked like luggage.
 
 const HAT_NONE := 0
 const HAT_CAP := 1
@@ -9,16 +9,10 @@ const HAT_BRIM := 2
 const HAT_BEANIE := 3
 
 
-static func dress(skel: Skeleton3D, torso: Color, pants: Color,
+static func dress(skel: Skeleton3D, _torso: Color, _pants: Color,
 		hat_kind := HAT_NONE, hat_color := Color(0.2, 0.2, 0.22)) -> void:
 	if skel == null:
 		return
-	var vest := _attach(skel, "DEF-spine.003", "OutfitVest")
-	if vest:
-		_box(vest, Vector3(0.42, 0.36, 0.3), Vector3(0, 0.1, 0), torso)
-	var hips := _attach(skel, "DEF-hips", "OutfitShorts")
-	if hips:
-		_box(hips, Vector3(0.4, 0.3, 0.27), Vector3(0, 0.02, 0), pants)
 	if hat_kind == HAT_NONE:
 		return
 	var head := _attach(skel, "DEF-head", "OutfitHat")

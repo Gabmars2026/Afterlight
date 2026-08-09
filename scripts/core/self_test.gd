@@ -187,15 +187,23 @@ func _test_streaming() -> void:
 				homes += 1
 	_check(homes == 32, "32 enterable houses in the suburbs")
 	var pl := _zone.get_tree().get_first_node_in_group("player")
-	_check(pl != null and pl.find_child("OutfitVest", true, false) != null,
-			"the survivor wears a jacket")
+	_check(pl != null and pl.find_child("OutfitHat", true, false) != null,
+			"the survivor wears a cap")
 	var dressed := 0
 	for cz in _zone.get_tree().get_nodes_in_group("citizens"):
-		if cz.find_child("OutfitVest", true, false) != null:
+		if cz.find_child("OutfitVest", true, false) != null \
+				or cz.find_child("OutfitShorts", true, false) != null:
 			dressed += 1
-	_check(dressed >= 10, "citizens wear clothes")
+	_check(dressed == 0, "no boxes strapped to citizens")
 	_check(_zone.find_child("LightningBolt", true, false) != null,
 			"lightning bolt rigged for rainstorms")
+	var flora := _zone.get_node_or_null("Flora")
+	_check(flora != null and flora.palms >= 40,
+			"palm trees rise from the dunes")
+	var gt: MultiMeshInstance3D = flora.get_node_or_null("GrassTufts") \
+			if flora else null
+	_check(gt != null and gt.multimesh.instance_count >= 800,
+			"grass carpets the outskirts")
 	var fr := _zone.get_node_or_null("Frontier")
 	_check(fr != null, "frontier built (ocean + mountains)")
 	var peaks := 0

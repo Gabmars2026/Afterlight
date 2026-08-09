@@ -5,14 +5,14 @@
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_4ve75"]
 name = "Sand"
-albedo_color = Color(0.97, 0.92, 0.8, 1)
+albedo_color = Color(0.9, 0.79, 0.6, 1)
 albedo_texture = ExtResource("1_lkhic")
 uv_scale = 0.08
 
 [sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_juond"]
 name = "Rock"
 id = 1
-albedo_color = Color(0.62, 0.55, 0.46, 1)
+albedo_color = Color(0.5, 0.46, 0.4, 1)
 albedo_texture = ExtResource("2_iuwta")
 uv_scale = 0.06
 

@@ -798,7 +798,7 @@ func _build_body() -> void:
 	var mann: MeshInstance3D = skel.get_node_or_null("Mannequin")
 	if mann:
 		var tint := StandardMaterial3D.new()
-		tint.albedo_color = Color(0.45, 0.48, 0.45)
+		tint.albedo_color = Color(0.28, 0.37, 0.33)  # ranger green
 		tint.roughness = 0.9
 		mann.material_override = tint
 	# v1.17.0: signature outfit - rust jacket, dark pants, olive cap

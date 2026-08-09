@@ -14,6 +14,7 @@ const WantedScript := preload("res://scripts/core/wanted.gd")
 const TrafficScript := preload("res://scripts/vehicles/traffic_car.gd")
 const DowntownBuilder := preload("res://scripts/world/downtown_builder.gd")
 const ResidentialBuilder := preload("res://scripts/world/residential_builder.gd")
+const FloraBuilder := preload("res://scripts/world/flora_builder.gd")
 const FrontierBuilder := preload("res://scripts/world/frontier_builder.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
@@ -614,6 +615,29 @@ func _build_terrain() -> void:
 	var streamer: Node = get_tree().get_first_node_in_group("streamer")
 	if streamer:
 		streamer.terrain_data = terrain.get("data")
+	_build_flora(terrain.get("data"))
+
+
+func _build_flora(tdata: Object) -> void:
+	## v1.18.0: DESERT BLOOM - palms, bushes, rocks, grass and oases
+	var flora: Node3D = FloraBuilder.new()
+	flora.name = "Flora"
+	flora.terrain_data = tdata
+	add_child(flora)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 44
+	# Palm-lined avenue through the NEON DISTRICT (plinth top y=1)
+	for i in 6:
+		var ax := 107.5 + i * 25.0
+		flora.plant_palm(Vector3(ax, 1.0, 2.5), rng)
+		flora.plant_palm(Vector3(ax + 12.0, 1.0, 17.5), rng)
+	# Corner palms + front-yard bushes up in SUNSET FLATS (top y=9.6)
+	for c in [Vector3(163, 9.6, -137), Vector3(177, 9.6, -137),
+			Vector3(163, 9.6, -123), Vector3(177, 9.6, -123)]:
+		flora.plant_palm(c, rng)
+	for hx in [110.0, 126.0, 142.0, 158.0, 182.0, 198.0, 214.0, 230.0]:
+		flora.plant_bush(Vector3(hx - 3.2, 9.6, -138.5), rng)
+		flora.plant_bush(Vector3(hx + 3.2, 9.6, -121.5), rng)
 
 
 func _build_mountains() -> void:

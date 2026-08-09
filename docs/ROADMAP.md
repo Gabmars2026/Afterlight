@@ -25,6 +25,7 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 20 — Release build** — Windows Desktop export preset (single self-contained x86_64 .exe with embedded game data, v1.0.0 metadata); GitHub Actions release pipeline: pushing a version tag builds the .exe with official export templates and attaches `Afterlight-windows-x86_64.zip` to a GitHub Release automatically
 
 ## Post-release patches
+- **v1.18.0** - DESERT BLOOM: palm trees, two oases, bushes, rocks and 1400 grass tufts across the dunes; palm-lined NEON DISTRICT avenue; front-yard greenery in SUNSET FLATS; richer terrain colors; boxy vest/shorts removed from all characters (hats kept); deleted ~115 MB of unused addons and platform binaries.
 
 - **v1.17.0** — Style and storms. Every mannequin now dresses: colored
   vests, shorts and hats (cap/brim/beanie) for citizens, navy uniform
