@@ -89,6 +89,7 @@ var _third_person := true
 var _boom := 0.0
 var _arm_l: Node3D
 var _arm_r: Node3D
+var _tp_weapons: Array[Node3D] = []
 var _tp_parts: Array[Node3D] = []
 var _last_safe := Vector3(0, 0.5, 8)
 var _safe_timer := 0.0
@@ -166,6 +167,8 @@ func _ready() -> void:
 		weapons.visible = false
 		for part in _tp_parts:
 			part.visible = true
+	weapons.weapon_switched.connect(func(_i: int) -> void: _sync_tp_weapon())
+	_sync_tp_weapon()
 
 	_hurt = AudioStreamPlayer.new()
 	_hurt.stream = load("res://assets/audio/player_hurt.wav")
@@ -753,6 +756,7 @@ func _update_view(delta: float) -> void:
 		weapons.visible = not _third_person
 		for part in _tp_parts:
 			part.visible = _third_person
+		_sync_tp_weapon()
 	_boom = lerpf(_boom, BOOM_LEN if _third_person else 0.0, 10.0 * delta)
 	if _boom < 0.05:
 		camera.position = Vector3.ZERO
@@ -873,6 +877,38 @@ func _build_body() -> void:
 			_arm_l = apivot
 		else:
 			_arm_r = apivot
+
+	# In-hand weapon models (third person): holder aligned with the arm,
+	# so guns built barrel-forward point where the arm points.
+	var holder := Node3D.new()
+	holder.position = Vector3(0, -0.5, 0)
+	holder.rotation.x = -PI / 2
+	_arm_r.add_child(holder)
+	var gunmetal := StandardMaterial3D.new()
+	gunmetal.albedo_color = Color(0.15, 0.15, 0.17)
+	gunmetal.metallic = 0.6
+	gunmetal.roughness = 0.5
+	var wood := StandardMaterial3D.new()
+	wood.albedo_color = Color(0.23, 0.19, 0.14)
+	wood.roughness = 0.9
+	# Pistol (slot 0)
+	var tp_pistol := Node3D.new()
+	holder.add_child(tp_pistol)
+	_tp_box(tp_pistol, Vector3(0.055, 0.1, 0.28), Vector3(0, 0.05, -0.1), gunmetal)
+	_tp_box(tp_pistol, Vector3(0.05, 0.13, 0.075), Vector3(0, -0.04, 0.02), gunmetal)
+	_tp_weapons.append(tp_pistol)
+	# Rifle (slot 1)
+	var tp_rifle := Node3D.new()
+	holder.add_child(tp_rifle)
+	_tp_box(tp_rifle, Vector3(0.06, 0.1, 0.55), Vector3(0, 0.05, -0.18), gunmetal)
+	_tp_box(tp_rifle, Vector3(0.05, 0.08, 0.18), Vector3(0, 0.02, 0.2), wood)
+	_tp_box(tp_rifle, Vector3(0.045, 0.14, 0.055), Vector3(0, -0.05, -0.05), gunmetal)
+	_tp_weapons.append(tp_rifle)
+	# Melee pipe (slot 2)
+	var tp_pipe := Node3D.new()
+	holder.add_child(tp_pipe)
+	_tp_box(tp_pipe, Vector3(0.05, 0.05, 0.62), Vector3(0, 0.02, -0.2), gunmetal)
+	_tp_weapons.append(tp_pipe)
 
 	# Legs: capsule thigh + shin + boot, jointed at the hip
 	for data in [[-0.11, true], [0.11, false]]:
@@ -1030,6 +1066,24 @@ func _release_hang() -> void:
 	interaction_prompt.emit("")
 
 
+func _tp_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void:
+	var mi := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh.material = mat
+	mi.mesh = mesh
+	mi.position = pos
+	parent.add_child(mi)
+
+
+func _sync_tp_weapon() -> void:
+	if weapons == null:
+		return
+	var cur := weapons.current_index()
+	for i in _tp_weapons.size():
+		_tp_weapons[i].visible = _third_person and i == cur
+
+
 func _update_body(delta: float) -> void:
 	# Body follows crouch height; hidden while crawling (no prone rig yet)
 	_body.visible = stance != Stance.CRAWL
@@ -1043,3 +1097,13 @@ func _update_body(delta: float) -> void:
 	else:
 		_leg_l.rotation.x = lerpf(_leg_l.rotation.x, 0.35, 6.0 * delta)
 		_leg_r.rotation.x = lerpf(_leg_r.rotation.x, 0.15, 6.0 * delta)
+	# Third person: arms hold the weapon toward the aim point
+	if _third_person:
+		var aim := PI / 2 + head.rotation.x
+		_arm_r.rotation.x = lerpf(_arm_r.rotation.x, aim, 14.0 * delta)
+		_arm_l.rotation.x = lerpf(_arm_l.rotation.x, aim * 0.92, 14.0 * delta)
+		_arm_l.rotation.z = lerpf(_arm_l.rotation.z, -0.28, 14.0 * delta)
+	else:
+		_arm_r.rotation.x = 0.0
+		_arm_l.rotation.x = 0.0
+		_arm_l.rotation.z = 0.0

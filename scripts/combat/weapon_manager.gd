@@ -5,6 +5,7 @@ extends Node3D
 ## Created in code as a child of the player's camera.
 
 signal ammo_changed(text: String)
+signal weapon_switched(idx: int)
 
 const MAX_RANGE := 220.0
 const AIM_ZOOM := -10.0
@@ -230,6 +231,7 @@ func _switch_to(idx: int) -> void:
 	if idx == _current or idx < 0 or idx >= _weapons.size():
 		return
 	_current = idx
+	weapon_switched.emit(idx)
 	_reload_left = 0.0
 	_equip_left = 0.5
 	for i in _weapons.size():
@@ -237,6 +239,10 @@ func _switch_to(idx: int) -> void:
 	_handling.stream = _snd_equip
 	_handling.play()
 	_emit_ammo()
+
+
+func current_index() -> int:
+	return _current
 
 
 func _emit_ammo() -> void:
