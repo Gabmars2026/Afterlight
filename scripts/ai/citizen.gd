@@ -12,6 +12,8 @@ const CIV_COLORS := [Color(0.72, 0.6, 0.45), Color(0.5, 0.55, 0.7),
 		Color(0.6, 0.5, 0.65)]
 
 var is_cop := false
+var anchor := Vector3.ZERO
+var anchor_radius := 0.0
 var brave := false
 var health := 60
 
@@ -136,7 +138,12 @@ func _one_shot(anim_name: String) -> void:
 
 
 func _pick_target() -> void:
-	_target = Vector3(randf_range(-66.0, 66.0), 0.1, randf_range(-66.0, 66.0))
+	if anchor_radius > 0.0:
+		_target = anchor + Vector3(randf_range(-anchor_radius, anchor_radius),
+				0.0, randf_range(-anchor_radius, anchor_radius))
+	else:
+		_target = Vector3(randf_range(-66.0, 66.0), 0.1,
+				randf_range(-66.0, 66.0))
 	_wait = randf_range(2.0, 6.0)
 
 

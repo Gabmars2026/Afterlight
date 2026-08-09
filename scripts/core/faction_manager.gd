@@ -21,6 +21,7 @@ const TERRITORIES := [
 	[-75, 75, 45, 75, "scavengers", "CANAL DISTRICT - Scavenger docks"],
 	[45, 75, -45, 45, "survivors", "GREENROW - survivor gardens"],
 	[-75, -45, -45, 45, "feral", "ASHLINE - feral ground"],
+	[95, 245, -65, 85, "survivors", "NEON DISTRICT - downtown"],
 ]
 
 var player: Node

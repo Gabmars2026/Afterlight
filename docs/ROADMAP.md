@@ -26,6 +26,13 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.11.0** — NEON DISTRICT. A downtown plinth east of town: twelve
+  glass towers 60-120 m tall with colored neon window strips, a lit
+  avenue reached by the crosstown road, streetlights, a red-capped
+  antenna on the tallest spire, and THE LAST CALL - a warm street-level
+  bar with a counter, stools, barrels, a bartender and two regulars.
+  Its own citizens and cops roam the district.
+
 - **v1.10.0** — AI traffic. Seven painted sedans cruise fixed loops
   along both main streets, brake for pedestrians, zombies and you,
   creep through jammed junctions, and floor it in a panic when shot.

@@ -12,6 +12,7 @@ const CastleBuilder := preload("res://scripts/world/castle_builder.gd")
 const CitizenScript := preload("res://scripts/ai/citizen.gd")
 const WantedScript := preload("res://scripts/core/wanted.gd")
 const TrafficScript := preload("res://scripts/vehicles/traffic_car.gd")
+const DowntownBuilder := preload("res://scripts/world/downtown_builder.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -93,6 +94,7 @@ func _ready() -> void:
 	_build_castle()
 	_build_citizens()
 	_build_traffic()
+	_build_downtown()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1079,6 +1081,47 @@ func _build_weather() -> void:
 	add_child(weather)
 
 
+
+
+func _build_downtown() -> void:
+	## Phase 22: NEON DISTRICT east of town, plus its own crowd.
+	var dt: Node3D = DowntownBuilder.new()
+	dt.name = "Downtown"
+	dt.position = Vector3(170, 0, 10)
+	add_child(dt)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 22
+	for i in 8:
+		var civ: CharacterBody3D = CitizenScript.new()
+		civ.anchor = Vector3(170, 1.2, 10)
+		civ.anchor_radius = 55.0
+		civ.position = Vector3(170 + rng.randf_range(-50, 50), 2.2,
+				10 + rng.randf_range(-50, 50))
+		add_child(civ)
+	for i in 2:
+		var cop: CharacterBody3D = CitizenScript.new()
+		cop.is_cop = true
+		cop.anchor = Vector3(170, 1.2, 10)
+		cop.anchor_radius = 55.0
+		cop.position = Vector3(170 + rng.randf_range(-40, 40), 2.2,
+				10 + rng.randf_range(-40, 40))
+		add_child(cop)
+	# Bar staff and regulars (tight anchors keep them inside)
+	var keeper: CharacterBody3D = CitizenScript.new()
+	keeper.anchor = Vector3(140.5, 1.4, 30.5)
+	keeper.anchor_radius = 1.5
+	keeper.position = keeper.anchor + Vector3(0, 0.3, 0)
+	add_child(keeper)
+	var pat1: CharacterBody3D = CitizenScript.new()
+	pat1.anchor = Vector3(139, 1.4, 26.5)
+	pat1.anchor_radius = 1.2
+	pat1.position = pat1.anchor + Vector3(0, 0.3, 0)
+	add_child(pat1)
+	var pat2: CharacterBody3D = CitizenScript.new()
+	pat2.anchor = Vector3(144.5, 1.4, 24.5)
+	pat2.anchor_radius = 1.2
+	pat2.position = pat2.anchor + Vector3(0, 0.3, 0)
+	add_child(pat2)
 
 
 func _build_traffic() -> void:
