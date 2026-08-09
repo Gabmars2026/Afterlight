@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.7.0** — Drivable car. A running car (marked with a street sign)
+  sits on the main street. Press E to get in, W/S to drive and reverse,
+  A/D to steer, Space or E to hop out. It has headlights, an engine
+  hum that revs with speed, and running over zombies at speed hurts
+  them badly.
+
 - **v1.6.0** — Weather. A layer of puffy clouds now drifts with the wind
   above the whole map. Every few minutes a rain shower rolls in: clouds
   darken, fog thickens, rain streaks fall around you with a pink-noise

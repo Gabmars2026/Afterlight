@@ -157,6 +157,9 @@ func _test_streaming() -> void:
 	var weather := _zone.get_node_or_null("Weather")
 	_check(weather != null, "weather system present")
 	_check(weather != null and weather.get_child_count() > 20, "cloud layer built")
+	var cars := _zone.get_tree().get_nodes_in_group("vehicle")
+	_check(cars.size() >= 1, "drivable car present")
+	_check(cars.size() >= 1 and cars[0].has_method("interact"), "car is enterable")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true

@@ -7,6 +7,7 @@ const HudScene := preload("res://scripts/ui/hud.gd")
 const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 const WeatherScript := preload("res://scripts/world/weather.gd")
+const CarScript := preload("res://scripts/vehicles/car.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -846,6 +847,12 @@ func _build_district() -> void:
 	_sign("START THE GENERATOR (E)", Vector3(bx + 8.0, 1.9, bz - 3.0))
 
 	# --- Street cars (climbable) ---
+	# Phase 18: one car still runs - hop in with E
+	var runner: CharacterBody3D = CarScript.new()
+	runner.position = Vector3(-7.5, 0.4, -11.0)
+	runner.rotation.y = 0.35
+	add_child(runner)
+	_sign("THIS ONE STILL RUNS - PRESS E", Vector3(-7.5, 2.6, -11.0))
 	_car(Vector3(-12, 0, -14), 0.35, Color(0.55, 0.6, 0.68))
 	_car(Vector3(-17, 0, -18), -0.2, Color(0.62, 0.4, 0.3))
 	_sign("CLIMB THE CARS", Vector3(-14.5, 2.6, -16))
@@ -1110,6 +1117,8 @@ func _decorate_interiors() -> void:
 	PropLib.place(self, "Wood_Plank_B", Vector3(42.0, 0.06, 13.8), 0.5, 0.6, false)
 	# --- Market square: standing sign ---
 	PropLib.place(self, "Signal", Vector3(26.0, 0, 15.8), 0.9)
+
+
 
 
 func _build_old_market() -> void:
