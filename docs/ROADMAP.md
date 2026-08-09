@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.9.0** — Living town. Civilians now stroll the streets going
+  about their day, with police on patrol. Commit a crime and a gold
+  WANTED star bar appears: most bystanders flee screaming for cover,
+  the brave ones throw punches, and cops draw sidearms and hunt you
+  until the heat cools off. Killing cops earns stars fast.
+
 - **v1.8.0** — The castle. A medieval stone castle now towers over the
   dunes north of town (leave through the north gate, or drive). Grand
   steps lead up to a walled courtyard; inside the keep a great hall

@@ -9,6 +9,8 @@ const PropLib := preload("res://scripts/world/prop_lib.gd")
 const WeatherScript := preload("res://scripts/world/weather.gd")
 const CarScript := preload("res://scripts/vehicles/car.gd")
 const CastleBuilder := preload("res://scripts/world/castle_builder.gd")
+const CitizenScript := preload("res://scripts/ai/citizen.gd")
+const WantedScript := preload("res://scripts/core/wanted.gd")
 const SlidingDoorScript := preload("res://scripts/world/sliding_door.gd")
 const ToggleLampScript := preload("res://scripts/world/toggle_lamp.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
@@ -88,6 +90,7 @@ func _ready() -> void:
 	_decorate_interiors()
 	_build_weather()
 	_build_castle()
+	_build_citizens()
 	_spawn_npcs()
 
 	var city := CityBuilderScript.new()
@@ -1072,6 +1075,29 @@ func _build_weather() -> void:
 	weather.player = player
 	weather.environment = _env
 	add_child(weather)
+
+
+
+
+func _build_citizens() -> void:
+	## Phase 20: townsfolk going about their day, plus a police force.
+	var wm: Node = WantedScript.new()
+	wm.name = "WantedManager"
+	wm.hud = hud
+	add_child(wm)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20
+	for i in 14:
+		var civ: CharacterBody3D = CitizenScript.new()
+		civ.position = Vector3(rng.randf_range(-60, 60), 0.2,
+				rng.randf_range(-60, 60))
+		add_child(civ)
+	for i in 5:
+		var cop: CharacterBody3D = CitizenScript.new()
+		cop.is_cop = true
+		cop.position = Vector3(rng.randf_range(-55, 55), 0.2,
+				rng.randf_range(-55, 55))
+		add_child(cop)
 
 
 func _build_castle() -> void:

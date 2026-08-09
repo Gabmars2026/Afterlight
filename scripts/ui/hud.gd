@@ -12,6 +12,7 @@ var _fps: Label
 var _ammo: Label
 var _flash: ColorRect
 var _death: Label
+var _wanted: Label
 var _toast: Label
 var _clock: Label
 var _quest: Label
@@ -102,6 +103,18 @@ func _ready() -> void:
 	_clock.modulate = Color(1, 1, 1, 0.85)
 	_clock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_clock)
+
+	# WANTED stars (top center, under the clock)
+	_wanted = Label.new()
+	_wanted.text = ""
+	_wanted.add_theme_font_size_override("font_size", 26)
+	_wanted.add_theme_color_override("font_color", Color(1.0, 0.78, 0.15))
+	_wanted.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_wanted.position = Vector2(-150, 40)
+	_wanted.size = Vector2(300, 32)
+	_wanted.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_wanted.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_wanted)
 
 	# Toast message (top center, fades out)
 	_toast = Label.new()
@@ -521,6 +534,10 @@ func _on_craft(i: int) -> void:
 	if player:
 		player.call("craft_recipe", i)
 	refresh_inventory()
+
+
+func set_wanted(stars: int) -> void:
+	_wanted.text = "WANTED  " + "\u2605".repeat(stars) if stars > 0 else ""
 
 
 func set_quest(text: String) -> void:

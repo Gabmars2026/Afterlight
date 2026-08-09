@@ -166,6 +166,10 @@ func _test_streaming() -> void:
 	var dragons := _zone.get_tree().get_nodes_in_group("dragon")
 	_check(dragons.size() == 2, "two dungeon dragons")
 	_check(dragons.size() > 0 and dragons[0].has_method("take_hit"), "dragons can be shot")
+	var civs := _zone.get_tree().get_nodes_in_group("citizens")
+	_check(civs.size() >= 18, "townsfolk spawned")
+	_check(_zone.get_tree().get_nodes_in_group("cops").size() >= 4, "police on patrol")
+	_check(_zone.get_node_or_null("WantedManager") != null, "wanted system active")
 	var eb := load("res://scripts/ai/enemy_base.gd")
 	var zt: CharacterBody3D = eb.new()
 	zt.direct_nav = true

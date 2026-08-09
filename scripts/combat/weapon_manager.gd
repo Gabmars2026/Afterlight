@@ -384,6 +384,7 @@ func _fire(w: Dictionary) -> void:
 		_apply_impact(hit, w["damage"])
 	# Gunshots are LOUD: every zombie in a wide radius comes hunting
 	get_tree().call_group("enemies", "hear_noise", player.global_position, 45.0)
+	get_tree().call_group("citizens", "hear_gunshot", player.global_position, 38.0)
 
 
 func _play_shell() -> void:
