@@ -1,0 +1,20 @@
+[gd_resource type="Terrain3DAssets" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/sand.png" id="1_lkhic"]
+[ext_resource type="Texture2D" path="res://assets/textures/plaster.png" id="2_iuwta"]
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_4ve75"]
+name = "Sand"
+albedo_color = Color(0.97, 0.92, 0.8, 1)
+albedo_texture = ExtResource("1_lkhic")
+uv_scale = 0.08
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_juond"]
+name = "Rock"
+id = 1
+albedo_color = Color(0.62, 0.55, 0.46, 1)
+albedo_texture = ExtResource("2_iuwta")
+uv_scale = 0.06
+
+[resource]
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_4ve75"), SubResource("Terrain3DTextureAsset_juond")])

@@ -27,6 +27,8 @@ var player: Node3D
 var sand_mat: StandardMaterial3D
 var plaster_mat: StandardMaterial3D
 
+var terrain_data: Object = null  # Terrain3DData, set by the zone
+
 var _loaded := {}          # Vector2i -> cell root Node3D
 var _queue: Array = []     # cells waiting to be built
 var _timer := 0.0
@@ -82,8 +84,7 @@ func _build_cell(c: Vector2i) -> Node3D:
 	var root := Node3D.new()
 	root.position = Vector3(c.x * CELL, 0, c.y * CELL)
 	add_child(root)
-	# Ground slab (top at y = 0, matches the town ground)
-	_slab(root, Vector3(CELL, 1, CELL), Vector3(0, -0.5, 0), sand_mat)
+	# Terrain3D provides the ground out here - no flat slab needed.
 	var detail := Node3D.new()
 	detail.name = "detail"
 	root.add_child(detail)
@@ -92,14 +93,16 @@ func _build_cell(c: Vector2i) -> Node3D:
 		var size := Vector3(rng.randf_range(0.6, 2.2), rng.randf_range(0.5, 1.6),
 				rng.randf_range(0.6, 2.2))
 		var pos := _spot(rng, size)
-		_slab(detail, size, Vector3(pos.x, size.y * 0.25, pos.z), null,
+		pos.y = _h(root, pos)
+		_slab(detail, size, Vector3(pos.x, pos.y + size.y * 0.25, pos.z), null,
 				Color(0.62, 0.58, 0.52).lerp(Color(0.5, 0.47, 0.45), rng.randf()))
 	# Debris
 	for i in rng.randi_range(1, 3):
 		var dsize := Vector3(rng.randf_range(0.3, 0.9), rng.randf_range(0.2, 0.5),
 				rng.randf_range(0.3, 0.9))
 		var dpos := _spot(rng, dsize)
-		_slab(detail, dsize, Vector3(dpos.x, dsize.y * 0.5, dpos.z), null,
+		dpos.y = _h(root, dpos)
+		_slab(detail, dsize, Vector3(dpos.x, dpos.y + dsize.y * 0.35, dpos.z), null,
 				Color(0.55, 0.45, 0.35).lerp(Color(0.4, 0.38, 0.36), rng.randf()))
 	# Ruined shack (structure stays visible at any distance)
 	if rng.randf() < 0.35:
@@ -107,10 +110,13 @@ func _build_cell(c: Vector2i) -> Node3D:
 	# Car wreck
 	if rng.randf() < 0.25:
 		var cpos := _spot(rng, Vector3(4, 1, 2))
+		cpos.y = _h(root, cpos)
 		var tint := Color(rng.randf_range(0.3, 0.7), rng.randf_range(0.3, 0.6),
 				rng.randf_range(0.3, 0.6)).darkened(0.3)
-		_slab(root, Vector3(3.8, 0.75, 1.9), Vector3(cpos.x, 0.55, cpos.z), null, tint)
-		_slab(root, Vector3(2.0, 0.55, 1.7), Vector3(cpos.x, 1.2, cpos.z), null,
+		_slab(root, Vector3(3.8, 0.75, 1.9),
+				Vector3(cpos.x, cpos.y + 0.45, cpos.z), null, tint)
+		_slab(root, Vector3(2.0, 0.55, 1.7),
+				Vector3(cpos.x, cpos.y + 1.1, cpos.z), null,
 				tint.darkened(0.25))
 	# Zombie spawner (straight-line chase, no navmesh out here)
 	if rng.randf() < 0.18:
@@ -127,7 +133,7 @@ func _build_cell(c: Vector2i) -> Node3D:
 			sp.kind = "stalker"
 		sp.direct_nav = true
 		var spos := _spot(rng, Vector3.ONE)
-		sp.position = Vector3(spos.x, 0.1, spos.z)
+		sp.position = Vector3(spos.x, _h(root, spos) + 0.3, spos.z)
 		root.add_child(sp)
 	return root
 
@@ -137,31 +143,44 @@ func _shack(root: Node3D, detail: Node3D, rng: RandomNumberGenerator) -> void:
 	var d := rng.randf_range(4.0, 5.5)
 	var h := rng.randf_range(2.4, 3.0)
 	var pos := _spot(rng, Vector3(w, h, d))
+	var base := _h(root, pos)
 	var tint := Color(0.83, 0.56, 0.43) if rng.randf() < 0.4 \
 			else Color(0.85, 0.8, 0.7)
 	tint = tint.darkened(rng.randf_range(0.0, 0.25))
 	var missing := rng.randi_range(0, 3)  # one wall collapsed
+	# Foundation pad so the walls never float on a dune slope
+	_slab(root, Vector3(w + 1.2, 0.7, d + 1.2),
+			pos + Vector3(0, base - 0.15, 0), plaster_mat, tint.darkened(0.1))
 	if missing != 0:
-		_slab(root, Vector3(w, h, 0.3), pos + Vector3(0, h * 0.5, -d * 0.5),
+		_slab(root, Vector3(w, h, 0.3), pos + Vector3(0, base + h * 0.5, -d * 0.5),
 				plaster_mat, tint)
 	if missing != 1:
-		_slab(root, Vector3(w, h, 0.3), pos + Vector3(0, h * 0.5, d * 0.5),
+		_slab(root, Vector3(w, h, 0.3), pos + Vector3(0, base + h * 0.5, d * 0.5),
 				plaster_mat, tint)
 	if missing != 2:
-		_slab(root, Vector3(0.3, h, d), pos + Vector3(-w * 0.5, h * 0.5, 0),
+		_slab(root, Vector3(0.3, h, d), pos + Vector3(-w * 0.5, base + h * 0.5, 0),
 				plaster_mat, tint)
 	if missing != 3:
-		_slab(root, Vector3(0.3, h, d), pos + Vector3(w * 0.5, h * 0.5, 0),
+		_slab(root, Vector3(0.3, h, d), pos + Vector3(w * 0.5, base + h * 0.5, 0),
 				plaster_mat, tint)
 	if rng.randf() < 0.5:
 		_slab(root, Vector3(w + 0.6, 0.25, d + 0.6),
-				pos + Vector3(0, h + 0.12, 0), plaster_mat, tint.darkened(0.2))
+				pos + Vector3(0, base + h + 0.12, 0), plaster_mat, tint.darkened(0.2))
 	# Supplies hidden inside more often than not
 	if rng.randf() < 0.6:
 		var crate := LootCrateScript.new()
-		crate.position = pos + Vector3(rng.randf_range(-1, 1), 0.4,
+		crate.position = pos + Vector3(rng.randf_range(-1, 1), base + 0.75,
 				rng.randf_range(-1, 1))
 		detail.add_child(crate)
+
+
+## Terrain height at a cell-local offset (world = cell root + local).
+func _h(root: Node3D, local: Vector3) -> float:
+	if terrain_data == null:
+		return 0.0
+	var h: float = terrain_data.get_height(Vector3(
+			root.position.x + local.x, 0.0, root.position.z + local.z))
+	return h if is_finite(h) else 0.0
 
 
 ## Random spot inside the cell, keeping clear of the edges.

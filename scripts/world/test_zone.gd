@@ -148,7 +148,7 @@ func _ready() -> void:
 	add_child(gfx)
 
 	_build_mountains()
-
+	_build_terrain()
 
 
 
@@ -571,6 +571,29 @@ func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D, tint := Color.WH
 	body.set_meta("surface", surface)
 	_nav_region.add_child(body)
 	return body
+
+
+func _build_terrain() -> void:
+	## Rolling desert dunes around the town, powered by the Terrain3D plugin
+	## (baked height data in res://data/terrain). The terrain sits 8 m below
+	## the town slab inside the walls, meets it at the rim, and rises into
+	## dunes beyond ~75 m so the outskirts are no longer a flat pancake.
+	if not ClassDB.can_instantiate("Terrain3D"):
+		push_warning("Terrain3D unavailable - outskirts stay flat")
+		return
+	var terrain: Node3D = ClassDB.instantiate("Terrain3D")
+	terrain.name = "Terrain"
+	terrain.set("assets", load("res://data/terrain/assets.tres"))
+	terrain.set("data_directory", "res://data/terrain")
+	add_child(terrain)
+	terrain.set("camera", player.camera)
+	var tmat: Resource = terrain.get("material")
+	if tmat:
+		tmat.set("auto_shader", true)
+		tmat.set("world_background", 1)  # flat fill beyond the baked regions
+	var streamer: Node = get_tree().get_first_node_in_group("streamer")
+	if streamer:
+		streamer.terrain_data = terrain.get("data")
 
 
 func _build_mountains() -> void:

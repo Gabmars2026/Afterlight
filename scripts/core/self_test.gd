@@ -152,6 +152,14 @@ func _test_streaming() -> void:
 	# let the streamer queue and build cells (1 per physics frame)
 	for i in 60:
 		await _zone.get_tree().physics_frame
+	var terrain := _zone.get_node_or_null("Terrain")
+	_check(terrain != null, "Terrain3D node exists")
+	if terrain:
+		var td: Object = terrain.get("data")
+		_check(absf(td.get_height(Vector3.ZERO) - (-8.0)) < 0.5,
+				"terrain buried under town slab")
+		_check(td.get_height(Vector3(300, 0, 300)) > 0.5,
+				"dunes rise in the outskirts")
 	_check(streamer.cell_count() >= 9, "outskirt cells stream in (got %d)"
 			% streamer.cell_count())
 	p.global_position = pos0

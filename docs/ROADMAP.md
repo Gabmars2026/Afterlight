@@ -26,6 +26,11 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.2.0** — Real terrain. Terrain3D plugin drives 1 km² of baked desert
+  heightmap: dunes rise beyond the town walls, the town slab stays flat, and
+  the world streamer drops its flat ground tiles and snaps every ruin, rock,
+  car wreck, crate and spawner to the dune surface. Sand/rock auto-shader.
+
 - **v1.1.0** — animated character: replaced the hand-built blocky body with the CC0 rigged mannequin from the Animation Library pack (46 clips). Locomotion state machine (idle/walk/jog/sprint/crouch/jump) driven by velocity, pistol idle pose when armed, one-shot shoot/reload/melee actions, weapons attached to the right hand bone. Terrain3D plugin imported for a future terrain upgrade.
 
 - **v1.0.7** — third-person weapon models: the equipped pistol/rifle/pipe now shows in the character's hands, arms raise and track the aim pitch, and the model swaps when you change weapons.
