@@ -4,6 +4,13 @@ extends CharacterBody3D
 ## cops draw guns and hunt you while your WANTED level is up.
 
 const BodyScene := preload("res://Godot/AnimationLibrary_Godot_Standard.glb")
+const Outfit := preload("res://scripts/world/outfit_lib.gd")
+
+const TORSO_COLORS := [Color(0.75, 0.3, 0.25), Color(0.25, 0.45, 0.3),
+		Color(0.7, 0.6, 0.3), Color(0.35, 0.4, 0.6), Color(0.6, 0.35, 0.55),
+		Color(0.8, 0.75, 0.7), Color(0.3, 0.55, 0.55)]
+const PANTS_COLORS := [Color(0.2, 0.22, 0.3), Color(0.28, 0.24, 0.2),
+		Color(0.16, 0.16, 0.18), Color(0.3, 0.32, 0.34)]
 
 enum State { WANDER, FLEE, FIGHT, DEAD }
 
@@ -83,26 +90,18 @@ func _build_mesh() -> void:
 				else CIV_COLORS[randi() % CIV_COLORS.size()]
 		skin.roughness = 0.95
 		mesh.material_override = skin
+	# v1.17.0: everyone dresses now - vest, shorts, often a hat
+	var skel: Skeleton3D = rig.find_child("Skeleton3D", true)
+	if skel:
+		if is_cop:
+			Outfit.dress(skel, Color(0.1, 0.14, 0.32), Color(0.08, 0.1, 0.2),
+					Outfit.HAT_CAP, Color(0.08, 0.12, 0.3))
+		else:
+			Outfit.dress(skel,
+					TORSO_COLORS[randi() % TORSO_COLORS.size()],
+					PANTS_COLORS[randi() % PANTS_COLORS.size()],
+					randi() % 4)
 	if is_cop:
-		# Cap + sidearm so officers read as cops at a glance
-		var skel: Skeleton3D = rig.find_child("Skeleton3D", true)
-		if skel:
-			var head := skel.find_bone("Head")
-			if head >= 0:
-				var att := BoneAttachment3D.new()
-				att.bone_idx = head
-				skel.add_child(att)
-				var cap_mesh := MeshInstance3D.new()
-				var cb := CylinderMesh.new()
-				cb.top_radius = 0.13
-				cb.bottom_radius = 0.15
-				cb.height = 0.1
-				var cm := StandardMaterial3D.new()
-				cm.albedo_color = Color(0.08, 0.12, 0.3)
-				cb.material = cm
-				cap_mesh.mesh = cb
-				cap_mesh.position.y = 0.14
-				att.add_child(cap_mesh)
 		_gun = MeshInstance3D.new()
 		var gb := BoxMesh.new()
 		gb.size = Vector3(0.06, 0.14, 0.34)

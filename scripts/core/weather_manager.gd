@@ -29,6 +29,8 @@ var _next_flash := 6.0
 var _rain_node: CPUParticles3D
 var _rain_snd: AudioStreamPlayer
 var _thunder_snd: AudioStreamPlayer
+var _bolt: Node3D
+var _bolt_light: OmniLight3D
 
 
 func _ready() -> void:
@@ -66,6 +68,45 @@ func _ready() -> void:
 	_thunder_snd.volume_db = -2.0
 	add_child(_thunder_snd)
 
+	# v1.17.0: a visible lightning bolt + its own flash light. The sky
+	# brightening still goes through time_manager.weather_light - this
+	# never touches the sun directly.
+	_bolt = Node3D.new()
+	_bolt.name = "LightningBolt"
+	_bolt.visible = false
+	var bm := StandardMaterial3D.new()
+	bm.albedo_color = Color(0.92, 0.95, 1.0)
+	bm.emission_enabled = true
+	bm.emission = Color(0.85, 0.9, 1.0)
+	bm.emission_energy_multiplier = 6.0
+	bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 17
+	var y := 72.0
+	var xoff := 0.0
+	var zoff := 0.0
+	while y > 6.0:
+		var seg := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		var step := rng.randf_range(9.0, 13.0)
+		box.size = Vector3(0.45, step + 1.5, 0.45)
+		box.material = bm
+		seg.mesh = box
+		seg.position = Vector3(xoff, y - step * 0.5, zoff)
+		seg.rotation.z = rng.randf_range(-0.35, 0.35)
+		seg.rotation.x = rng.randf_range(-0.2, 0.2)
+		_bolt.add_child(seg)
+		xoff += rng.randf_range(-3.5, 3.5)
+		zoff += rng.randf_range(-2.5, 2.5)
+		y -= step
+	_bolt_light = OmniLight3D.new()
+	_bolt_light.light_color = Color(0.8, 0.86, 1.0)
+	_bolt_light.light_energy = 0.0
+	_bolt_light.omni_range = 120.0
+	_bolt_light.position = Vector3(0, 40, 0)
+	_bolt.add_child(_bolt_light)
+	add_child(_bolt)
+
 
 func _process(delta: float) -> void:
 	_next_change -= delta
@@ -76,15 +117,19 @@ func _process(delta: float) -> void:
 	_light = lerpf(_light, target["light"], delta * 0.5)
 	_fog = lerpf(_fog, target["fog"], delta * 0.4)
 	_wet = lerpf(_wet, 1.0 if target["rain"] > 0 else 0.0, delta * 0.25)
-	# Lightning
-	if state == "storm":
+	# Lightning: frequent in storms, occasional in plain rain
+	if state == "storm" or state == "rain":
 		_next_flash -= delta
 		if _next_flash <= 0.0:
 			_flash = 1.0
-			_next_flash = randf_range(4.0, 11.0)
+			_next_flash = randf_range(4.0, 11.0) if state == "storm" \
+					else randf_range(10.0, 22.0)
+			_strike()
 			get_tree().create_timer(randf_range(0.4, 1.6)).timeout.connect(
 					_thunder_snd.play)
 	_flash = maxf(0.0, _flash - delta * 3.5)
+	_bolt.visible = _flash > 0.45
+	_bolt_light.light_energy = _flash * _flash * 9.0
 	# Hand the result to the day/night cycle (single writer to the sky)
 	time_manager.weather_light = _light + _flash * 1.8
 	time_manager.weather_fog = _fog
@@ -104,6 +149,17 @@ func _process(delta: float) -> void:
 	# Wet surfaces: sun glints off the ground while/after it rains
 	for m in wet_mats:
 		m.roughness = lerpf(1.0, 0.5, _wet)
+
+
+func _strike() -> void:
+	## Drop the bolt somewhere near (but not on) the player
+	if player == null:
+		return
+	var ang := randf() * TAU
+	var dist := randf_range(45.0, 95.0)
+	_bolt.global_position = player.global_position + \
+			Vector3(cos(ang) * dist, 0.0, sin(ang) * dist)
+	_bolt.rotation.y = randf() * TAU
 
 
 func _pick_next() -> String:

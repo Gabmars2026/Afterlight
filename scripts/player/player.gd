@@ -801,6 +801,10 @@ func _build_body() -> void:
 		tint.albedo_color = Color(0.45, 0.48, 0.45)
 		tint.roughness = 0.9
 		mann.material_override = tint
+	# v1.17.0: signature outfit - rust jacket, dark pants, olive cap
+	var OutfitLib := load("res://scripts/world/outfit_lib.gd")
+	OutfitLib.dress(skel, Color(0.62, 0.28, 0.16), Color(0.16, 0.18, 0.16),
+			OutfitLib.HAT_CAP, Color(0.3, 0.36, 0.24))
 	# Weapon models attached to the right hand bone
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)

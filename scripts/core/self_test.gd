@@ -186,6 +186,16 @@ func _test_streaming() -> void:
 			if String(c.name).begins_with("House"):
 				homes += 1
 	_check(homes == 32, "32 enterable houses in the suburbs")
+	var pl := _zone.get_tree().get_first_node_in_group("player")
+	_check(pl != null and pl.find_child("OutfitVest", true, false) != null,
+			"the survivor wears a jacket")
+	var dressed := 0
+	for cz in _zone.get_tree().get_nodes_in_group("citizens"):
+		if cz.find_child("OutfitVest", true, false) != null:
+			dressed += 1
+	_check(dressed >= 10, "citizens wear clothes")
+	_check(_zone.find_child("LightningBolt", true, false) != null,
+			"lightning bolt rigged for rainstorms")
 	var fr := _zone.get_node_or_null("Frontier")
 	_check(fr != null, "frontier built (ocean + mountains)")
 	var peaks := 0

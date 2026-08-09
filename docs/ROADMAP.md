@@ -26,6 +26,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.17.0** — Style and storms. Every mannequin now dresses: colored
+  vests, shorts and hats (cap/brim/beanie) for citizens, navy uniform
+  and a fixed cap for cops, a rust jacket + olive cap for the player.
+  Lightning strikes near the player during rain and storms - visible
+  jagged bolt, blue-white flash light, delayed thunder.
+
 - **v1.16.0** — SUNSET FLATS. A residential district on a mesa north
   of downtown: main street, side lanes, streetlights, a ramp road
   down to the NEON DISTRICT, and 32 enterable houses in six pastel
