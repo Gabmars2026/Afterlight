@@ -174,6 +174,10 @@ func _test_streaming() -> void:
 	var dt := _zone.get_node_or_null("Downtown")
 	_check(dt != null, "NEON DISTRICT built")
 	_check(dt != null and dt.get_node_or_null("BarLight") != null, "the bar is lit")
+	var t0 := dt.get_node_or_null("Tower0") if dt else null
+	_check(t0 != null, "towers are individual nodes")
+	_check(t0 != null and t0.get_child_count() >= 80,
+			"tower has 20 floors of interior")
 	var fr := _zone.get_node_or_null("Frontier")
 	_check(fr != null, "frontier built (ocean + mountains)")
 	var peaks := 0

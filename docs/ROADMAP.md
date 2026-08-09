@@ -26,6 +26,11 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.15.0** — Open towers. All 12 downtown towers are now real
+  buildings: a front door with a neon sign leads into a lit lobby
+  with furniture, and switchback ramps along the back wall climb
+  through 20 interior floors to the roof line.
+
 - **v1.14.0** — San Andreas rules. All zombies removed (town, outskirts
   and city), box-car wrecks cleared, quests reworked to skip kill
   steps. Every vehicle on the map is now enterable: press E on any

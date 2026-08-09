@@ -117,30 +117,134 @@ func _build_plinth() -> void:
 
 
 func _build_towers() -> void:
+	var idx := 0
 	for spec in TOWER_SPECS:
-		var tx: float = spec[0]
-		var tz: float = spec[1]
-		var w: float = spec[2]
-		var h: float = spec[3]
-		var neon: Color = spec[4]
-		# Lobby block, tower body, roof cap
-		_box(Vector3(w + 4, 6, w + 4), Vector3(tx, 4, tz), _concrete)
-		_box(Vector3(w, h, w), Vector3(tx, 7 + h * 0.5, tz), _glass_dark)
-		_box(Vector3(w + 1.2, 2, w + 1.2), Vector3(tx, 7 + h + 1, tz),
-				_concrete, Color(0.35, 0.35, 0.4))
-		# Neon window strips up two faces (visual only)
-		for k in 3:
-			var sx := tx - w * 0.5 + w * 0.25 * (k + 1)
-			_neon(Vector3(0.9, h * 0.86, 0.15),
-					Vector3(sx, 7 + h * 0.48, tz - w * 0.5 - 0.1), neon)
-			_neon(Vector3(0.15, h * 0.86, 0.9),
-					Vector3(tx - w * 0.5 - 0.1, 7 + h * 0.48, sx - tx + tz),
-					neon)
+		_tower(idx, spec)
+		idx += 1
 	# Antenna on the tallest tower
 	_box(Vector3(0.5, 16, 0.5), Vector3(40, 137, -42), _asphalt,
 			Color(0.6, 0.2, 0.2))
 	_neon(Vector3(0.9, 0.9, 0.9), Vector3(40, 145.5, -42),
 			Color(1.0, 0.2, 0.2), 2.5)
+
+
+func _tower(idx: int, spec: Array) -> void:
+	## v1.15.0: every tower is enterable - a front door into a lit
+	## lobby, then 20 floors linked by switchback ramps along the
+	## back wall. Openings in each slab let the ramps pass through.
+	var tx: float = spec[0]
+	var tz: float = spec[1]
+	var w: float = spec[2]
+	var h: float = spec[3]
+	var neon: Color = spec[4]
+	var t := Node3D.new()
+	t.name = "Tower%d" % idx
+	t.position = Vector3(tx, 0, tz)
+	add_child(t)
+	var f := 1.0 if tz <= 0.0 else -1.0  # door faces the avenue
+	var H := h + 6.0                     # shell: plinth top to roof
+	var wi := w - 1.0                    # interior width
+	# Shell: back, sides, front-with-door (3 wide x 3 high)
+	_tbox(t, Vector3(w, H, 0.5), Vector3(0, 1 + H * 0.5, -f * (w * 0.5 - 0.25)),
+			_glass_dark)
+	for sx in [-1.0, 1.0]:
+		_tbox(t, Vector3(0.5, H, w - 1), Vector3(sx * (w * 0.5 - 0.25),
+				1 + H * 0.5, 0), _glass_dark)
+	var pw := (w - 3.0) * 0.5
+	for sx in [-1.0, 1.0]:
+		_tbox(t, Vector3(pw, H, 0.5), Vector3(sx * (3.0 + pw) * 0.5,
+				1 + H * 0.5, f * (w * 0.5 - 0.25)), _glass_dark)
+	_tbox(t, Vector3(3.0, H - 3.0, 0.5), Vector3(0, 4 + (H - 3.0) * 0.5,
+			f * (w * 0.5 - 0.25)), _glass_dark)
+	# Roof cap
+	_tbox(t, Vector3(w + 1.2, 2, w + 1.2), Vector3(0, 7 + h + 1, 0),
+			_concrete, Color(0.35, 0.35, 0.4))
+	# Neon sign over the door
+	var sn := MeshInstance3D.new()
+	var snm := BoxMesh.new()
+	snm.size = Vector3(2.6, 0.4, 0.16)
+	var smat := StandardMaterial3D.new()
+	smat.albedo_color = neon
+	smat.emission_enabled = true
+	smat.emission = neon
+	smat.emission_energy_multiplier = 2.0
+	snm.material = smat
+	sn.mesh = snm
+	sn.position = Vector3(0, 4.6, f * (w * 0.5 + 0.1))
+	t.add_child(sn)
+	# 20 floors + switchback ramps in a back stairwell strip
+	var fs := (h - 2.0) / 19.0
+	var strip := 3.2
+	var dm := wi - strip                 # main slab depth
+	var glow := StandardMaterial3D.new()
+	glow.albedo_color = Color(0.95, 0.93, 0.85)
+	glow.emission_enabled = true
+	glow.emission = Color(0.95, 0.93, 0.85)
+	glow.emission_energy_multiplier = 1.1
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for k in range(1, 21):
+		var y := 7.0 + (k - 1) * fs
+		var d := 1.0 if (k - 1) % 2 == 0 else -1.0  # ramp below tops out here
+		# Main slab (front part of the footprint)
+		_tbox(t, Vector3(wi, 0.3, dm), Vector3(0, y - 0.15,
+				f * (wi - dm) * 0.5), _concrete, Color(0.45, 0.45, 0.5))
+		# Strip slab with a 4.5 m opening at the arrival end
+		_tbox(t, Vector3(wi - 4.5, 0.3, strip), Vector3(-d * 2.25, y - 0.15,
+				-f * (wi - strip) * 0.5), _concrete, Color(0.45, 0.45, 0.5))
+		# Lit ceiling panel under this slab
+		var cp := MeshInstance3D.new()
+		var cpm := BoxMesh.new()
+		cpm.size = Vector3(wi * 0.5, 0.06, wi * 0.4)
+		cpm.material = glow
+		cp.mesh = cpm
+		cp.position = Vector3(0, y - 0.38, f * 1.2)
+		t.add_child(cp)
+	for k in 20:
+		var y0 := 1.0 if k == 0 else 7.0 + (k - 1) * fs
+		var y1 := 7.0 + k * fs
+		var d := 1.0 if k % 2 == 0 else -1.0        # ascend toward d*X
+		var run := w - 6.0
+		var rise := y1 - y0
+		var L := sqrt(run * run + rise * rise)
+		_tbox(t, Vector3(L, 0.25, 3.0),
+				Vector3(0, (y0 + y1) * 0.5 + 0.1, -f * (wi - strip) * 0.5),
+				_concrete, Color(0.5, 0.5, 0.55), true, d * atan(rise / run))
+	# Lobby light so the ground floor reads warm and safe
+	var ll := OmniLight3D.new()
+	ll.light_color = Color(1.0, 0.93, 0.78)
+	ll.light_energy = 0.85
+	ll.omni_range = 14.0
+	ll.position = Vector3(0, 5.2, 0)
+	t.add_child(ll)
+	# Lobby furniture
+	PropLib.place(t, "Table", Vector3(f * -2.0, 1.05, f * 2.0), 0.4, 1.0)
+	PropLib.place(t, "Seat", Vector3(f * -3.2, 1.05, f * 2.6), 1.2, 1.0)
+	PropLib.place(t, "Lamp", Vector3(-f * 3.0, 4.4, f * 3.0), 0.0, 1.0)
+
+
+func _tbox(parent: Node3D, size: Vector3, pos: Vector3, mat: Material,
+		tint := Color.WHITE, collide := true, rot_z := 0.0) -> void:
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	if tint == Color.WHITE:
+		bm.material = mat
+	else:
+		var m2: StandardMaterial3D = mat.duplicate()
+		m2.albedo_color = tint
+		bm.material = m2
+	mi.mesh = bm
+	mi.position = pos
+	mi.rotation.z = rot_z
+	parent.add_child(mi)
+	if collide:
+		var sb := StaticBody3D.new()
+		var cs := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = size
+		cs.shape = shape
+		sb.add_child(cs)
+		mi.add_child(sb)
 
 
 func _build_bar() -> void:
