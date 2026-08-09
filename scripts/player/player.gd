@@ -87,18 +87,15 @@ var _snd_bandage: AudioStreamPlayer
 var _snd_heart: AudioStreamPlayer
 var _third_person := true
 var _boom := 0.0
-var _arm_l: Node3D
-var _arm_r: Node3D
 var _tp_weapons: Array[Node3D] = []
+var _anim: AnimationPlayer
+var _anim_state := ""
 var _tp_parts: Array[Node3D] = []
 var _last_safe := Vector3(0, 0.5, 8)
 var _safe_timer := 0.0
 var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
-var _leg_l: Node3D
-var _leg_r: Node3D
-var _leg_phase := 0.0
 
 var is_hanging := false
 var _ledge_y := 0.0
@@ -168,6 +165,7 @@ func _ready() -> void:
 		for part in _tp_parts:
 			part.visible = true
 	weapons.weapon_switched.connect(func(_i: int) -> void: _sync_tp_weapon())
+	weapons.action_played.connect(play_action_anim)
 	_sync_tp_weapon()
 
 	_hurt = AudioStreamPlayer.new()
@@ -780,110 +778,35 @@ func _update_view(delta: float) -> void:
 
 
 func _build_body() -> void:
-	## Humanoid body v3: smooth capsule limbs, torso, head with hair and
-	## jointed arms. Legs show in first person when you look down; the head
-	## and arms only render in third-person view (V).
+	## Third-person body: CC0 rigged mannequin with 46 animations
+	## (res://Godot/AnimationLibrary_Godot_Standard.glb). Driven by
+	## _update_body() from velocity/stance; weapons ride the right hand bone.
 	_body = Node3D.new()
 	add_child(_body)
-	var cloth := StandardMaterial3D.new()
-	cloth.albedo_color = Color(0.32, 0.36, 0.33)
-	cloth.roughness = 1.0
-	var pants := StandardMaterial3D.new()
-	pants.albedo_color = Color(0.2, 0.22, 0.26)
-	pants.roughness = 1.0
-	var boots := StandardMaterial3D.new()
-	boots.albedo_color = Color(0.16, 0.13, 0.1)
-	boots.roughness = 0.95
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.8, 0.6, 0.46)
-	skin.roughness = 0.9
-	var hair := StandardMaterial3D.new()
-	hair.albedo_color = Color(0.19, 0.13, 0.08)
-	hair.roughness = 1.0
-
-	# Torso: one smooth capsule chest + a shorter belly capsule
-	var chest := MeshInstance3D.new()
-	var cmesh := CapsuleMesh.new()
-	cmesh.radius = 0.21
-	cmesh.height = 0.62
-	cmesh.material = cloth
-	chest.mesh = cmesh
-	chest.position = Vector3(0, 1.28, 0.03)
-	_body.add_child(chest)
-
-	var pelvis := MeshInstance3D.new()
-	var pmesh := CapsuleMesh.new()
-	pmesh.radius = 0.19
-	pmesh.height = 0.42
-	pmesh.material = pants
-	pelvis.mesh = pmesh
-	pelvis.position = Vector3(0, 0.95, 0.03)
-	_body.add_child(pelvis)
-
-	# Head + hair (third person only - would block the camera in first)
-	var head_vis := MeshInstance3D.new()
-	var hmesh := SphereMesh.new()
-	hmesh.radius = 0.135
-	hmesh.height = 0.27
-	hmesh.material = skin
-	head_vis.mesh = hmesh
-	head_vis.position = Vector3(0, 1.66, 0.0)
-	_body.add_child(head_vis)
-	_tp_parts.append(head_vis)
-
-	var hair_vis := MeshInstance3D.new()
-	var hairm := SphereMesh.new()
-	hairm.radius = 0.14
-	hairm.height = 0.2
-	hairm.material = hair
-	hair_vis.mesh = hairm
-	hair_vis.position = Vector3(0, 1.73, -0.02)
-	_body.add_child(hair_vis)
-	_tp_parts.append(hair_vis)
-
-	var neck := MeshInstance3D.new()
-	var nmesh := CapsuleMesh.new()
-	nmesh.radius = 0.06
-	nmesh.height = 0.18
-	nmesh.material = skin
-	neck.mesh = nmesh
-	neck.position = Vector3(0, 1.54, 0.0)
-	_body.add_child(neck)
-	_tp_parts.append(neck)
-
-	# Arms: shoulder pivots with capsule arm + skin hand (third person only)
-	for adata in [[-0.28, true], [0.28, false]]:
-		var apivot := Node3D.new()
-		apivot.position = Vector3(adata[0], 1.44, 0.03)
-		var arm := MeshInstance3D.new()
-		var amesh := CapsuleMesh.new()
-		amesh.radius = 0.065
-		amesh.height = 0.56
-		amesh.material = cloth
-		arm.mesh = amesh
-		arm.position = Vector3(0, -0.26, 0)
-		apivot.add_child(arm)
-		var hand := MeshInstance3D.new()
-		var hamesh := SphereMesh.new()
-		hamesh.radius = 0.06
-		hamesh.height = 0.12
-		hamesh.material = skin
-		hand.mesh = hamesh
-		hand.position = Vector3(0, -0.56, 0)
-		apivot.add_child(hand)
-		_body.add_child(apivot)
-		_tp_parts.append(apivot)
-		if adata[1]:
-			_arm_l = apivot
-		else:
-			_arm_r = apivot
-
-	# In-hand weapon models (third person): holder aligned with the arm,
-	# so guns built barrel-forward point where the arm points.
+	var rig_scene: PackedScene = load("res://Godot/AnimationLibrary_Godot_Standard.glb")
+	var rig := rig_scene.instantiate() as Node3D
+	rig.rotation.y = PI  # model faces +Z; the player moves toward -Z
+	_body.add_child(rig)
+	_anim = rig.get_node("AnimationPlayer")
+	# The importer strips the "_Loop" suffix and marks those clips looping
+	_anim.play("Idle")
+	_anim_state = "Idle"
+	# Survivor tint so the dummy reads as a person, not a showroom prop
+	var skel: Skeleton3D = rig.find_child("Skeleton3D", true, false)
+	var mann: MeshInstance3D = skel.get_node_or_null("Mannequin")
+	if mann:
+		var tint := StandardMaterial3D.new()
+		tint.albedo_color = Color(0.45, 0.48, 0.45)
+		tint.roughness = 0.9
+		mann.material_override = tint
+	# Weapon models attached to the right hand bone
+	var att := BoneAttachment3D.new()
+	skel.add_child(att)
+	att.bone_name = "DEF-hand.R"
 	var holder := Node3D.new()
-	holder.position = Vector3(0, -0.5, 0)
-	holder.rotation.x = -PI / 2
-	_arm_r.add_child(holder)
+	holder.position = Vector3(0, 0.07, 0.02)
+	holder.rotation = Vector3(PI / 2, 0, 0)
+	att.add_child(holder)
 	var gunmetal := StandardMaterial3D.new()
 	gunmetal.albedo_color = Color(0.15, 0.15, 0.17)
 	gunmetal.metallic = 0.6
@@ -891,61 +814,24 @@ func _build_body() -> void:
 	var wood := StandardMaterial3D.new()
 	wood.albedo_color = Color(0.23, 0.19, 0.14)
 	wood.roughness = 0.9
-	# Pistol (slot 0)
 	var tp_pistol := Node3D.new()
 	holder.add_child(tp_pistol)
 	_tp_box(tp_pistol, Vector3(0.055, 0.1, 0.28), Vector3(0, 0.05, -0.1), gunmetal)
 	_tp_box(tp_pistol, Vector3(0.05, 0.13, 0.075), Vector3(0, -0.04, 0.02), gunmetal)
 	_tp_weapons.append(tp_pistol)
-	# Rifle (slot 1)
 	var tp_rifle := Node3D.new()
 	holder.add_child(tp_rifle)
 	_tp_box(tp_rifle, Vector3(0.06, 0.1, 0.55), Vector3(0, 0.05, -0.18), gunmetal)
 	_tp_box(tp_rifle, Vector3(0.05, 0.08, 0.18), Vector3(0, 0.02, 0.2), wood)
 	_tp_box(tp_rifle, Vector3(0.045, 0.14, 0.055), Vector3(0, -0.05, -0.05), gunmetal)
 	_tp_weapons.append(tp_rifle)
-	# Melee pipe (slot 2)
 	var tp_pipe := Node3D.new()
 	holder.add_child(tp_pipe)
 	_tp_box(tp_pipe, Vector3(0.05, 0.05, 0.62), Vector3(0, 0.02, -0.2), gunmetal)
 	_tp_weapons.append(tp_pipe)
-
-	# Legs: capsule thigh + shin + boot, jointed at the hip
-	for data in [[-0.11, true], [0.11, false]]:
-		var pivot := Node3D.new()
-		pivot.position = Vector3(data[0], 0.86, 0.04)
-		var thigh := MeshInstance3D.new()
-		var tmesh := CapsuleMesh.new()
-		tmesh.radius = 0.08
-		tmesh.height = 0.46
-		tmesh.material = pants
-		thigh.mesh = tmesh
-		thigh.position = Vector3(0, -0.2, 0)
-		pivot.add_child(thigh)
-		var shin := MeshInstance3D.new()
-		var smesh := CapsuleMesh.new()
-		smesh.radius = 0.07
-		smesh.height = 0.44
-		smesh.material = pants
-		shin.mesh = smesh
-		shin.position = Vector3(0, -0.61, 0.01)
-		pivot.add_child(shin)
-		var foot := MeshInstance3D.new()
-		var fmesh := BoxMesh.new()
-		fmesh.size = Vector3(0.13, 0.09, 0.25)
-		fmesh.material = boots
-		foot.mesh = fmesh
-		foot.position = Vector3(0, -0.84, -0.04)
-		pivot.add_child(foot)
-		_body.add_child(pivot)
-		if data[1]:
-			_leg_l = pivot
-		else:
-			_leg_r = pivot
-
+	_tp_parts.append(rig)
 	for part in _tp_parts:
 		part.visible = false
-
 
 func _make_snd(res: String, db: float) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
@@ -1088,22 +974,48 @@ func _update_body(delta: float) -> void:
 	# Body follows crouch height; hidden while crawling (no prone rig yet)
 	_body.visible = stance != Stance.CRAWL
 	_body.position.y = head.position.y - EYE_STAND
+	if _anim == null or not _third_person:
+		return
+	# One-shot actions (shoot/reload/swing) finish before locomotion resumes
+	if _anim_state in ["Pistol_Shoot", "Pistol_Reload", "Sword_Attack", "Punch_Cross"] \
+			and _anim.is_playing():
+		return
 	var hspeed := Vector2(velocity.x, velocity.z).length()
-	if is_on_floor():
-		_leg_phase += hspeed * delta * 2.4
-		var amp := clampf(hspeed / SPRINT_SPEED, 0.0, 1.0) * 0.6
-		_leg_l.rotation.x = sin(_leg_phase) * amp
-		_leg_r.rotation.x = -sin(_leg_phase) * amp
+	var next := ""
+	var anim_scale := 1.0
+	if not is_on_floor():
+		next = "Jump"
+	elif stance == Stance.CROUCH:
+		next = "Crouch_Fwd" if hspeed > 0.3 else "Crouch_Idle"
+		if hspeed > 0.3:
+			anim_scale = clampf(hspeed / CROUCH_SPEED, 0.7, 1.4)
+	elif hspeed > (WALK_SPEED + SPRINT_SPEED) * 0.5:
+		next = "Sprint"
+		anim_scale = clampf(hspeed / SPRINT_SPEED, 0.8, 1.3)
+	elif hspeed > WALK_SPEED * 0.72:
+		next = "Jog_Fwd"
+		anim_scale = clampf(hspeed / WALK_SPEED, 0.8, 1.35)
+	elif hspeed > 0.3:
+		next = "Walk"
+		anim_scale = clampf(hspeed / (WALK_SPEED * 0.6), 0.7, 1.4)
+	elif weapons != null and weapons.current_index() == 2:
+		next = "Sword_Idle"
+	elif weapons != null and weapons.current_index() >= 0:
+		next = "Pistol_Idle"
 	else:
-		_leg_l.rotation.x = lerpf(_leg_l.rotation.x, 0.35, 6.0 * delta)
-		_leg_r.rotation.x = lerpf(_leg_r.rotation.x, 0.15, 6.0 * delta)
-	# Third person: arms hold the weapon toward the aim point
-	if _third_person:
-		var aim := PI / 2 + head.rotation.x
-		_arm_r.rotation.x = lerpf(_arm_r.rotation.x, aim, 14.0 * delta)
-		_arm_l.rotation.x = lerpf(_arm_l.rotation.x, aim * 0.92, 14.0 * delta)
-		_arm_l.rotation.z = lerpf(_arm_l.rotation.z, -0.28, 14.0 * delta)
-	else:
-		_arm_r.rotation.x = 0.0
-		_arm_l.rotation.x = 0.0
-		_arm_l.rotation.z = 0.0
+		next = "Idle"
+	if next != _anim_state:
+		_anim_state = next
+		_anim.play(next, 0.25)
+	_anim.speed_scale = anim_scale
+
+
+func play_action_anim(anim_name: String) -> void:
+	## Full-body one-shot (shoot/reload/melee) when roughly stationary.
+	if _anim == null or not _third_person:
+		return
+	if Vector2(velocity.x, velocity.z).length() > 1.2 or not is_on_floor():
+		return
+	_anim_state = anim_name
+	_anim.speed_scale = 1.0
+	_anim.play(anim_name, 0.1)

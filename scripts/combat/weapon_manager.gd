@@ -6,6 +6,7 @@ extends Node3D
 
 signal ammo_changed(text: String)
 signal weapon_switched(idx: int)
+signal action_played(anim: String)
 
 const MAX_RANGE := 220.0
 const AIM_ZOOM := -10.0
@@ -332,6 +333,7 @@ func _handle_combat_input() -> void:
 
 
 func _start_reload(w: Dictionary) -> void:
+	action_played.emit("Pistol_Reload")
 	if player.inventory.count_of(w["ammo_id"]) <= 0:
 		_handling.stream = _snd_empty
 		_handling.play()
@@ -343,6 +345,7 @@ func _start_reload(w: Dictionary) -> void:
 
 
 func _fire(w: Dictionary) -> void:
+	action_played.emit("Pistol_Shoot")
 	w["mag"] -= 1
 	_cooldown = w["interval"]
 	_emit_ammo()
@@ -437,6 +440,7 @@ func _apply_impact(hit: Dictionary, damage: int) -> void:
 # ---------------------------------------------------------------- melee
 
 func _melee_attack(w: Dictionary, heavy: bool) -> void:
+	action_played.emit("Sword_Attack" if not heavy else "Punch_Cross")
 	_cooldown = w["interval"] * (1.7 if heavy else 1.0)
 	_handling.stream = _snd_swing
 	_handling.pitch_scale = 0.8 if heavy else randf_range(0.95, 1.1)

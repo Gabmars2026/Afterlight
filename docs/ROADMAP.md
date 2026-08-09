@@ -26,6 +26,8 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.1.0** — animated character: replaced the hand-built blocky body with the CC0 rigged mannequin from the Animation Library pack (46 clips). Locomotion state machine (idle/walk/jog/sprint/crouch/jump) driven by velocity, pistol idle pose when armed, one-shot shoot/reload/melee actions, weapons attached to the right hand bone. Terrain3D plugin imported for a future terrain upgrade.
+
 - **v1.0.7** — third-person weapon models: the equipped pistol/rifle/pipe now shows in the character's hands, arms raise and track the aim pitch, and the model swaps when you change weapons.
 
 - **v1.0.6** — rebuilt the office tower fire escape: two-lane switchback staircase with turn landings and railings (the old floating zigzag planks were unreadable and partly blocked).
