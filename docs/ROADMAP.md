@@ -26,6 +26,11 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
 ## Post-release patches
 
+- **v1.14.0** — San Andreas rules. All zombies removed (town, outskirts
+  and city), box-car wrecks cleared, quests reworked to skip kill
+  steps. Every vehicle on the map is now enterable: press E on any
+  traffic car to carjack it - once stolen it stays yours.
+
 - **v1.13.0** — Real wheels. The box-built cars are gone: your drivable
   ride is now the M.A.V.S Muscle Car, and street traffic mixes four
   real models (NightSky, Cleo V8, GT30, TRG) with proper bodies, rims

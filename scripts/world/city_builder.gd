@@ -8,7 +8,6 @@ extends Node3D
 ##   East   (x  45..75)   GREENROW         - ruined park, pond, sewer
 ##   West   (x -75..-45)  ASHLINE          - burned ruins, feral ground
 
-const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
@@ -413,11 +412,8 @@ func _crate(pos: Vector3) -> void:
 	add_child(crate)
 
 
-func _spawn(kind: String, pos: Vector3) -> void:
-	var s := EnemySpawnerScript.new()
-	s.kind = kind
-	s.position = pos
-	add_child(s)
+func _spawn(_kind: String, _pos: Vector3) -> void:
+	pass  # v1.14.0: the city is zombie-free
 
 
 func _box(size: Vector3, pos: Vector3, mat: StandardMaterial3D,

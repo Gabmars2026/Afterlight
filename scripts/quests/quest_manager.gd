@@ -28,8 +28,6 @@ func _ready() -> void:
 		{"name": "THE LAST SIGNAL", "steps": [
 			{"type": "reach", "text": "climb the BLUE TOWER and check the antenna",
 				"target": Vector3(-37.5, 9.2, -28), "radius": 3.0},
-			{"type": "kill", "text": "the noise drew them - put down %d/5 zombies",
-				"count": 5},
 			{"type": "collect", "text": "gather %d/5 SCRAP METAL to fix the radio",
 				"id": "scrap", "count": 5},
 			{"type": "reach", "text": "bring the scrap to the MARKET SHOP counter",
@@ -51,8 +49,6 @@ func _ready() -> void:
 		{"name": "THE HEIGHTS", "steps": [
 			{"type": "reach", "text": "something nests on the OFFICE TOWER roof - climb the fire escape",
 				"target": Vector3(-20, 15.8, -62), "radius": 5.0},
-			{"type": "kill", "text": "clear the nest - put down %d/8 zombies",
-				"count": 8},
 			{"type": "talk", "text": "report the rooftops clear to IVY",
 				"npc": "IVY"},
 		], "reward": {"items": {"ammo_pistol": 24, "bandage": 1},
@@ -60,8 +56,6 @@ func _ready() -> void:
 		{"name": "UNDER THE PARK", "steps": [
 			{"type": "reach", "text": "the water line runs under GREENROW - descend into the SEWERS",
 				"target": Vector3(58, -3.8, -38), "radius": 5.0},
-			{"type": "kill", "text": "something hunts in the dark - kill %d/6 zombies",
-				"count": 6},
 			{"type": "collect", "text": "gather %d/3 CLOTH to filter the water intake",
 				"id": "cloth", "count": 3},
 		], "reward": {"items": {"bandage": 3, "ammo_rifle": 20},
@@ -72,8 +66,6 @@ func _ready() -> void:
 			{"type": "reach", "text": "install the beacon atop the BLUE TOWER",
 				"target": Vector3(-37.5, 9.2, -28), "radius": 3.0,
 				"deliver": {"id": "scrap", "count": 8}},
-			{"type": "kill", "text": "DEFEND THE LIGHT - put down %d/10 zombies",
-				"count": 10},
 		], "reward": {"items": {"bandage": 3, "ammo_rifle": 40, "ammo_pistol": 24},
 			"rep": {"survivors": 20, "wardens": 20, "scavengers": 20}}},
 	]

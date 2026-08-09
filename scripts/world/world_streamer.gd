@@ -20,7 +20,6 @@ func set_view(load_r: int, unload_r: int, detail_r: int) -> void:
 func cell_count() -> int:
 	return _loaded.size()
 
-const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const LootCrateScript := preload("res://scripts/world/loot_crate.gd")
 
 var player: Node3D
@@ -107,34 +106,6 @@ func _build_cell(c: Vector2i) -> Node3D:
 	# Ruined shack (structure stays visible at any distance)
 	if rng.randf() < 0.35:
 		_shack(root, detail, rng)
-	# Car wreck
-	if rng.randf() < 0.25:
-		var cpos := _spot(rng, Vector3(4, 1, 2))
-		cpos.y = _h(root, cpos)
-		var tint := Color(rng.randf_range(0.3, 0.7), rng.randf_range(0.3, 0.6),
-				rng.randf_range(0.3, 0.6)).darkened(0.3)
-		_slab(root, Vector3(3.8, 0.75, 1.9),
-				Vector3(cpos.x, cpos.y + 0.45, cpos.z), null, tint)
-		_slab(root, Vector3(2.0, 0.55, 1.7),
-				Vector3(cpos.x, cpos.y + 1.1, cpos.z), null,
-				tint.darkened(0.25))
-	# Zombie spawner (straight-line chase, no navmesh out here)
-	if rng.randf() < 0.18:
-		var sp := EnemySpawnerScript.new()
-		var kroll := rng.randf()
-		sp.kind = "shambler"
-		if kroll < 0.06:
-			sp.kind = "brute"
-		elif kroll < 0.14:
-			sp.kind = "screamer"
-		elif kroll < 0.22:
-			sp.kind = "hunter"
-		elif kroll < 0.34:
-			sp.kind = "stalker"
-		sp.direct_nav = true
-		var spos := _spot(rng, Vector3.ONE)
-		sp.position = Vector3(spos.x, _h(root, spos) + 0.3, spos.z)
-		root.add_child(sp)
 	return root
 
 

@@ -190,15 +190,13 @@ func _test_streaming() -> void:
 		if vis and vis.get_child_count() >= 4:
 			modeled += 1
 	_check(modeled >= 6, "traffic uses real car models")
-	var eb := load("res://scripts/ai/enemy_base.gd")
-	var zt: CharacterBody3D = eb.new()
-	zt.direct_nav = true
-	zt.position = Vector3(5, 0.5, 5)
-	_zone.add_child(zt)
-	await _zone.get_tree().physics_frame
-	_check(zt._anim != null, "zombie rig has AnimationPlayer")
-	_check(zt._anim != null and zt._anim.is_playing(), "zombie animation playing")
-	zt.queue_free()
+	_check(_zone.get_tree().get_nodes_in_group("enemies").is_empty(),
+			"streets are zombie-free")
+	var steal_ok := tcars.size() > 0
+	for tc2 in tcars:
+		if not tc2.has_method("interact"):
+			steal_ok = false
+	_check(steal_ok, "any traffic car can be carjacked")
 	var terrain := _zone.get_node_or_null("Terrain")
 	_check(terrain != null, "Terrain3D node exists")
 	if terrain:

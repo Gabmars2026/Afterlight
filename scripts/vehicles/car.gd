@@ -48,12 +48,7 @@ func _ready() -> void:
 
 
 func _build_mesh() -> void:
-	# The Muscle Car model from the M.A.V.S pack (meshes only)
-	var visual := CarVisual.build(
-			"res://addons/M.A.V.S/Vehicle/Muscle/Muscle Car.tscn")
-	visual.name = "Visual"
-	visual.position.y = 0.07  # collision box bottom
-	add_child(visual)
+	_build_visual()
 	for hx in [-0.6, 0.6]:
 		var lamp := SpotLight3D.new()
 		lamp.position = Vector3(hx, 0.75, -2.0)
@@ -64,6 +59,15 @@ func _build_mesh() -> void:
 		lamp.spot_angle = 32.0
 		add_child(lamp)
 		_lights.append(lamp)
+
+
+func _build_visual() -> void:
+	# The Muscle Car model from the M.A.V.S pack (meshes only)
+	var visual := CarVisual.build(
+			"res://addons/M.A.V.S/Vehicle/Muscle/Muscle Car.tscn")
+	visual.name = "Visual"
+	visual.position.y = 0.07  # collision box bottom
+	add_child(visual)
 
 
 func get_prompt() -> String:

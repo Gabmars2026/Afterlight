@@ -22,7 +22,6 @@ const LadderZoneScript := preload("res://scripts/world/ladder_zone.gd")
 const InteriorZoneScript := preload("res://scripts/world/interior_zone.gd")
 const TargetDummyScript := preload("res://scripts/combat/target_dummy.gd")
 const GeneratorPropScript := preload("res://scripts/world/generator_prop.gd")
-const EnemySpawnerScript := preload("res://scripts/ai/enemy_spawner.gd")
 const BreakableScript := preload("res://scripts/world/breakable.gd")
 const SaveManagerScript := preload("res://scripts/core/save_manager.gd")
 const QuestManagerScript := preload("res://scripts/quests/quest_manager.gd")
@@ -1009,29 +1008,8 @@ func _bake_navmesh() -> void:
 
 
 func _build_horde() -> void:
-	## Zombie spawn points. Shamblers: slow, tough, hit hard.
-	## Stalkers: fast, fragile, see further. Respawn ~18 s after dying.
-	_sign("!! INFESTED ZONE - ZOMBIES ROAM WEST !!", Vector3(-10, 3.0, -12))
-	_spawner("shambler", Vector3(-16, 0.1, -20))
-	_spawner("shambler", Vector3(-20, 0.1, 0))
-	_spawner("shambler", Vector3(-34, 0.1, -10))
-	_spawner("stalker", Vector3(-8, 0.1, -34))
-	_spawner("stalker", Vector3(14, 0.1, 24))
-	# Phase 14: special infected
-	_spawner("screamer", Vector3(-26, 0.1, -24))    # The Blocks
-	_spawner("brute", Vector3(-23, 0.1, 30))        # The Yards
-	_spawner("climber", Vector3(20, 0.1, -27))      # phase-1 building
-	_spawner("hunter", Vector3(8, 0.1, 32))         # near the tunnel
-	# Old Market is contested too
-	_spawner("shambler", Vector3(30, 0.1, 8))
-	_spawner("stalker", Vector3(36, 0.1, 26))
-
-
-func _spawner(kind: String, pos: Vector3) -> void:
-	var s := EnemySpawnerScript.new()
-	s.kind = kind
-	s.position = pos
-	add_child(s)
+	## v1.14.0: the outbreak is over - the town is zombie-free.
+	pass
 
 
 func _on_player_died() -> void:
