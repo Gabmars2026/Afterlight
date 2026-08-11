@@ -282,6 +282,8 @@ func _physics_process(delta: float) -> void:
 	var sprint_held := Input.is_action_pressed("sprint")
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	var clearance := _clearance()
+	var can_stand := _body_fits_at(global_position, STAND_HEIGHT)
+	var can_crouch := _body_fits_at(global_position, CROUCH_HEIGHT)
 
 	if is_sliding:
 		_update_slide(delta)
@@ -289,20 +291,20 @@ func _physics_process(delta: float) -> void:
 			and Input.is_action_just_pressed("crouch") and stamina.try_spend(SLIDE_COST):
 		_start_slide()
 	else:
-		if clearance < CROUCH_HEIGHT + 0.15:
+		if clearance < CROUCH_HEIGHT + 0.15 or not can_crouch:
 			stance = Stance.CRAWL          # ceiling too low: forced crawl
 		elif wants_crouch:
 			if stance == Stance.STAND:
 				stance = Stance.CROUCH
 			if stance == Stance.CROUCH and on_floor and _low_gap_ahead():
 				stance = Stance.CRAWL      # crouched at a low opening: go prone
-			elif stance == Stance.CRAWL and clearance >= CROUCH_HEIGHT + 0.15 \
+			elif stance == Stance.CRAWL and can_crouch \
 					and not _low_gap_ahead():
 				stance = Stance.CROUCH
 		else:
-			if clearance >= STAND_HEIGHT + 0.1:
+			if can_stand:
 				stance = Stance.STAND      # room to stand
-			elif stance == Stance.CRAWL and clearance >= CROUCH_HEIGHT + 0.15:
+			elif stance == Stance.CRAWL and can_crouch:
 				stance = Stance.CROUCH     # room to at least crouch
 
 	_update_collider(delta)
@@ -338,7 +340,7 @@ func _physics_process(delta: float) -> void:
 		# Buffered/coyote jump: a slightly early or late press still responds.
 		# Works from stand, crouch or crawl when there is room to stand.
 		if _jump_buffer_left > 0.0 and _coyote_left > 0.0 \
-				and (stance == Stance.STAND or _clearance() >= STAND_HEIGHT + 0.1) \
+				and (stance == Stance.STAND or can_stand) \
 				and stamina.try_spend(JUMP_COST):
 			stance = Stance.STAND
 			velocity.y = JUMP_VELOCITY
@@ -473,7 +475,8 @@ func _update_slide(delta: float) -> void:
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if _slide_time_left <= 0.0 or hspeed < 2.2 or not is_on_floor():
 		is_sliding = false
-		if not Input.is_action_pressed("crouch") and _clearance() >= STAND_HEIGHT + 0.1:
+		if not Input.is_action_pressed("crouch") \
+				and _body_fits_at(global_position, STAND_HEIGHT):
 			stance = Stance.STAND
 
 

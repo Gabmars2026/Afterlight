@@ -63,6 +63,13 @@ func _test_player() -> void:
 	_check(p.COYOTE_TIME > 0.0, "player has coyote-time jumping")
 	_check(p.JUMP_BUFFER_TIME > 0.0, "player buffers early jump input")
 	_check(p.LADDER_REGRAB_DELAY > 0.0, "ladder jump-off has regrab protection")
+	var interactable := Interactable.new()
+	var collider_child := Node3D.new()
+	interactable.add_child(collider_child)
+	_zone.add_child(interactable)
+	_check(p.interaction.find_interactable(collider_child) == interactable,
+			"interaction resolves child colliders to their usable parent")
+	interactable.queue_free()
 	var hp0: int = p.health
 	p.take_damage(10)
 	_check(p.health == hp0 - 10, "take_damage subtracts health")
