@@ -3,6 +3,124 @@
 Each phase produces a playable build. Say **NEXT** to advance.
 Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 
+## Current improvement backlog
+
+Updated 2026-08-11 after a Godot 4.7.1 project audit. The completed phases
+below are historical delivery notes; this backlog is the source of truth for
+what should be improved next. Work in priority order and keep each change
+small enough to test in a playable build.
+
+### P0 — Stabilize the playable build
+
+- [ ] **Set a performance budget and profile startup.** `test_zone.gd` builds
+  most districts, traffic, citizens, terrain, navigation, weather, and props
+  from code during startup. Measure CPU frame time, GPU frame time, draw calls,
+  memory, and time-to-control on the minimum-spec PC. Target 60 FPS at 1080p
+  Medium, 30 FPS minimum on Low, and less than 10 seconds to player control.
+- [ ] **Stream major districts instead of constructing the whole city at
+  once.** Keep the active district and neighboring transition cells loaded;
+  unload distant interiors, NPCs, traffic, lights, and collision. No visible
+  pop-in within the player's normal sightline and no frame above 33 ms during
+  a district transition.
+- [ ] **Split the player controller into explicit states.** Move grounded,
+  airborne, slide, ladder, mantle, ledge-hang, vehicle, disabled, and dead
+  behavior out of the single large physics function. Exactly one movement
+  state should own velocity and collision each frame.
+- [ ] **Add physics-level movement tests.** Cover buffered/coyote jumps,
+  crouch/crawl headroom, blocked standing, stairs, slopes, mantle clearance,
+  ladder detach, ledge release, door obstruction, and falling out of bounds.
+  Run them in GitHub Actions alongside the existing self-test.
+- [ ] **Eliminate startup errors, leaks, and deprecation warnings.** The test
+  suite must exit without script/resource errors, leaked ObjectDB instances,
+  resources still in use, or deprecated API warnings.
+- [ ] **Make save files crash-safe and versioned.** Write to a temporary file,
+  validate it, then replace the previous save atomically. Preserve a backup,
+  reject corrupt data gracefully, and test migration from every supported
+  save version.
+- [ ] **Choose and document the current game identity.** The original roadmap
+  describes survival against infected, while recent patches remove zombies
+  and emphasize civilians, police, traffic, a castle, and dragons. Decide
+  whether Afterlight is survival-parkour, an open-world crime sandbox, or a
+  deliberate hybrid; align quests, enemies, README, and release description.
+
+### P1 — Improve moment-to-moment play
+
+- [ ] **Finish interaction feedback.** Add a consistent crosshair/focus state,
+  unavailable/locked prompts, hold-progress where appropriate, controller
+  glyphs, and a short interaction cooldown. Imported child colliders must
+  resolve to the correct usable parent without interacting through walls.
+- [ ] **Polish doors and enterable buildings.** Doors need blocked-path safety,
+  open/close state persistence, lock/key support, AI navigation updates, and
+  correct audio zones. Every advertised enterable building needs an entrance,
+  exit route, lighting, collision, furnishing, and a gameplay reason to enter.
+- [ ] **Tune parkour with a standard obstacle kit.** Define supported vault,
+  mantle, ledge, ladder, crawl, and jump dimensions. Build a repeatable test
+  course and verify every move from multiple approach angles and frame rates.
+- [ ] **Improve vehicle safety and feel.** Validate exit space before placing
+  the player, prevent entering moving/occupied cars incorrectly, improve
+  suspension and collision response, add reverse/brake feedback, and test
+  traffic recovery from jams.
+- [ ] **Add a complete 15-minute vertical-slice loop.** Start with a clear
+  objective, travel using parkour or a vehicle, enter a building, encounter a
+  threat, collect or activate something, escape, receive a reward, and save.
+  A first-time tester should finish without developer instructions.
+- [ ] **Make combat and damage readable.** Add clear hit confirmation, damage
+  direction, enemy reactions, impact audio, death/restart flow, weapon-state
+  feedback, and difficulty tuning. Avoid adding weapons until the existing
+  set has distinct roles.
+
+### P2 — World, AI, and audio depth
+
+- [ ] **Replace monolithic procedural builders with modular scenes/resources.**
+  Author reusable building, room, street, encounter, and prop modules with
+  stable IDs so designers can edit and test one location without loading the
+  entire world.
+- [ ] **Give NPCs robust schedules and recovery.** Citizens and police should
+  navigate doors/stairs, avoid traffic, recover when stuck, react consistently
+  to danger, and serialize only meaningful persistent state.
+- [ ] **Improve traffic simulation.** Add intersection priority, lane-change
+  safety, despawn/respawn rules outside view, stuck detection, and bounded
+  vehicle counts. Traffic must not block the main route indefinitely.
+- [ ] **Complete environmental audio.** Add dirt, sand, water, carpet, glass,
+  and vehicle surface footsteps; room-size reverb presets; wall occlusion;
+  sensible ambience ducking; distant gunshot tails; and concurrency limits.
+- [ ] **Strengthen world readability.** Use landmarks, signs, lighting, color,
+  road hierarchy, and map markers so players can navigate without floating
+  debug labels. Each district needs a distinct silhouette and gameplay role.
+- [ ] **Add systemic mission variety.** Support pursuit, timed escape, stealth,
+  vehicle delivery, defend, rescue, investigation, and multi-route objectives.
+  Reuse systems while giving each mission a meaningful complication.
+
+### P3 — Accessibility, production, and release quality
+
+- [ ] **Support input remapping and controllers.** Persist bindings, show the
+  active device's glyphs, configure dead zones, and ensure every menu and
+  gameplay action works without a mouse.
+- [ ] **Add accessibility options.** Include subtitles/captions, text scaling,
+  high-contrast interaction markers, color-independent status cues, toggle
+  alternatives for holds, camera-motion reduction, and separate audio sliders.
+- [ ] **Create repeatable visual and performance test routes.** Capture the
+  same daytime, nighttime, rain, interior, downtown, vehicle, and parkour
+  sequences for regression comparison before releases.
+- [ ] **Unify project and release versioning.** `project.godot`, README,
+  exported metadata, tags, release notes, and save schema should report
+  compatible versions from one source of truth.
+- [ ] **Audit asset licensing and repository size.** Record source/license for
+  every third-party pack, remove unused imports, keep generated caches out of
+  Git, and prevent files over GitHub's size limit.
+- [ ] **Harden release automation.** Produce reproducible Windows builds,
+  retain symbols/logs, smoke-test the exported executable, generate checksums,
+  and block a release when tests or required assets fail.
+
+### Recommended next three milestones
+
+1. **Reliability milestone:** state-machine foundation, physics tests, clean
+   headless exit, safe/versioned saves.
+2. **Vertical-slice milestone:** one polished district and 15-minute mission
+   with parkour, building interaction, threat, reward, and save/reload.
+3. **Open-world milestone:** district streaming, bounded NPC/traffic systems,
+   performance budgets, navigation recovery, and release smoke tests.
+
 - [x] **PHASE 1 — Player movement** — walk, sprint, crouch, slide, jump, gravity, stamina, head bob, footsteps, landing effects, interaction raycast, greybox test course, HUD (stamina/prompt/FPS)
 - [x] **PHASE 2 — Basic combat** — pistol + automatic rifle with viewmodel, per-weapon fire sounds, reload/empty/equip audio, shell casings, recoil, muzzle flash, surface-based bullet impacts (sound + particles), weapon switching, aim zoom, training dummies, 3-floor apartment block with interior stairs/balcony/fire escape/rooftop, climbable cars, echo tunnel, generator prop, bird ambience (melee weapon moved to Phase 7 with inventory)
 - [x] **PHASE 3 — Basic enemy AI** — Shambler (slow, tough) + Stalker (fast, keen-eyed) with patrol/investigate/chase/attack states, baked navigation mesh, vision cone + line-of-sight checks, hearing (gunshots 45 m, glass 24 m, sprinting 12 m), zombie voice audio (growls, alert scream, attack, hurt, death), stagger on hit, death + respawning spawners, player health bar, damage flash, death screen with auto-restart, first-person body v1 (look down to see your legs walk)
