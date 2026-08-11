@@ -20,8 +20,11 @@ const CROUCH_SPEED := 2.4
 const CRAWL_SPEED := 1.4
 const SLIDE_START_SPEED := 9.2
 const JUMP_VELOCITY := 4.8
+const COYOTE_TIME := 0.12
+const JUMP_BUFFER_TIME := 0.12
 const VAULT_VELOCITY := 4.3
 const LADDER_CLIMB_SPEED := 3.0
+const LADDER_REGRAB_DELAY := 0.3
 const ACCEL_GROUND := 11.0
 const ACCEL_AIR := 3.0
 const MOUSE_SENSITIVITY := 0.0022
@@ -70,10 +73,13 @@ var _capsule: CapsuleShape3D
 var _slide_time_left := 0.0
 var _slide_dir := Vector3.ZERO
 var _was_on_floor := true
+var _coyote_left := 0.0
+var _jump_buffer_left := 0.0
 var _last_fall_speed := 0.0
 var _step_distance := 0.0
 var _floor_surface := "concrete"
 var _ladders := 0
+var _ladder_regrab_left := 0.0
 var _climb_dist := 0.0
 var _mantling := false
 var _mantle_from := Vector3.ZERO
@@ -96,6 +102,7 @@ var _safe_timer := 0.0
 var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
+var _audio_environments: Array[Dictionary] = []
 
 var is_hanging := false
 var _ledge_y := 0.0
@@ -214,6 +221,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_heartbeat(delta)
+	_jump_buffer_left = maxf(0.0, _jump_buffer_left - delta)
+	_ladder_regrab_left = maxf(0.0, _ladder_regrab_left - delta)
+	if Input.is_action_just_pressed("jump"):
+		_jump_buffer_left = JUMP_BUFFER_TIME
 	if _dead:
 		# Dead: no control, just settle to the ground
 		if not is_on_floor():
@@ -239,6 +250,10 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var on_floor := is_on_floor()
+	if on_floor:
+		_coyote_left = COYOTE_TIME
+	else:
+		_coyote_left = maxf(0.0, _coyote_left - delta)
 
 	# --- Gravity and landing ---
 	if not on_floor:
@@ -320,12 +335,15 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, target_vel.x, accel * delta * target_speed)
 		velocity.z = move_toward(velocity.z, target_vel.z, accel * delta * target_speed)
 
-		# Jump: works from stand, crouch or crawl (stands you up first)
-		if on_floor and Input.is_action_just_pressed("jump") \
+		# Buffered/coyote jump: a slightly early or late press still responds.
+		# Works from stand, crouch or crawl when there is room to stand.
+		if _jump_buffer_left > 0.0 and _coyote_left > 0.0 \
 				and (stance == Stance.STAND or _clearance() >= STAND_HEIGHT + 0.1) \
 				and stamina.try_spend(JUMP_COST):
 			stance = Stance.STAND
 			velocity.y = JUMP_VELOCITY
+			_jump_buffer_left = 0.0
+			_coyote_left = 0.0
 			footsteps.play_step(_floor_surface, false, false)
 
 		# Wall jump: airborne, pressing into a wall, alternate walls to climb
@@ -508,8 +526,11 @@ func _try_mantle() -> void:
 	var rise: float = top.position.y - global_position.y
 	if rise < 0.4 or rise > 1.8:
 		return
+	var destination: Vector3 = top.position + Vector3(0, 0.05, 0)
+	if not _body_fits_at(destination, STAND_HEIGHT):
+		return
 	_mantle_from = global_position
-	_mantle_to = top.position + Vector3(0, 0.05, 0)
+	_mantle_to = destination
 	_mantle_t = 0.0
 	_mantling = true
 	velocity = Vector3.ZERO
@@ -534,6 +555,8 @@ func _update_mantle(delta: float) -> void:
 # ---------------------------------------------------------------- ladders
 
 func enter_ladder() -> void:
+	if _ladder_regrab_left > 0.0:
+		return
 	_ladders += 1
 
 
@@ -552,6 +575,8 @@ func _ladder_move(delta: float) -> void:
 		var away := transform.basis.z
 		away.y = 0.0
 		velocity = away.normalized() * 3.0 + Vector3(0, 2.0, 0)
+		_ladders = 0
+		_ladder_regrab_left = LADDER_REGRAB_DELAY
 	_climb_dist += absf(velocity.y) * delta
 	if _climb_dist >= 0.75:
 		_climb_dist = 0.0
@@ -561,11 +586,52 @@ func _ladder_move(delta: float) -> void:
 
 # ---------------------------------------------------------------- audio/world
 
+func enter_audio_environment(zone_id: int, bus_name: String) -> void:
+	## Keep a stack so leaving one of two overlapping rooms does not
+	## incorrectly reset audio to outdoors while still inside the other.
+	exit_audio_environment(zone_id)
+	_audio_environments.append({"id": zone_id, "bus": bus_name})
+	_apply_audio_environment()
+
+
+func exit_audio_environment(zone_id: int) -> void:
+	for i in range(_audio_environments.size() - 1, -1, -1):
+		if _audio_environments[i]["id"] == zone_id:
+			_audio_environments.remove_at(i)
+	_apply_audio_environment()
+
+
 func set_audio_environment(bus_name: String) -> void:
-	## Called by InteriorZone: "Interior"/"Tunnel" = reverberant buses.
+	## Backward-compatible direct setter for older world objects.
+	_set_audio_bus(bus_name)
+
+
+func _apply_audio_environment() -> void:
+	var bus_name: String = "Master"
+	if not _audio_environments.is_empty():
+		bus_name = String(_audio_environments.back()["bus"])
+	_set_audio_bus(bus_name)
+
+
+func _set_audio_bus(bus_name: String) -> void:
 	footsteps.set_bus(bus_name)
 	if weapons:
 		weapons.set_bus(bus_name)
+
+
+func _body_fits_at(feet_position: Vector3, body_height: float) -> bool:
+	## Full capsule query used before scripted moves such as mantling.
+	## A ray can miss beams and corners that would overlap the player's body.
+	var shape := CapsuleShape3D.new()
+	shape.radius = _capsule.radius
+	shape.height = body_height
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY,
+			feet_position + Vector3.UP * body_height * 0.5)
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _update_floor_surface() -> void:
