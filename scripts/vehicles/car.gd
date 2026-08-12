@@ -133,7 +133,7 @@ func teleport_vehicle(target: Vector3, target_yaw: float) -> void:
 	# underground positions bypass the mountain under-surface rescue check.
 	_allow_underground = target.y < -1.0
 	if driver != null:
-		driver.global_position = target + Vector3.UP * 0.8
+		_update_driver_mount()
 
 
 func interact(user: Node) -> void:
@@ -144,8 +144,9 @@ func interact(user: Node) -> void:
 	_saved_mask = driver.collision_mask
 	driver.collision_layer = 0
 	driver.collision_mask = 0
-	driver.visible = false
+	driver.visible = _show_driver_while_mounted()
 	driver.process_mode = Node.PROCESS_MODE_DISABLED
+	_update_driver_mount()
 	_cam.make_current()
 	_engine.pitch_scale = 0.7
 	_engine.play()
@@ -282,7 +283,7 @@ func _recover_from_fall() -> void:
 	_safe_sample_cooldown = 1.0
 	_allow_underground = false
 	if driver != null:
-		driver.global_position = global_position + Vector3.UP * 0.8
+		_update_driver_mount()
 		if driver.has_signal("notify"):
 			driver.emit_signal("notify", "VEHICLE RECOVERED TO SAFE GROUND")
 
@@ -306,7 +307,7 @@ func _apply_impact_response(normal: Vector3, forward: Vector3) -> void:
 
 func _drive(delta: float) -> void:
 	# Keep the (disabled) player along for the ride so AI and saves track us
-	driver.global_position = global_position + Vector3(0, 0.8, 0)
+	_update_driver_mount()
 	var throttle := Input.get_action_strength("move_forward") \
 			- Input.get_action_strength("move_back")
 	var keyboard_steer := Input.get_action_strength("move_left") \
@@ -331,6 +332,23 @@ func _drive(delta: float) -> void:
 	var dir := 1.0 if _speed >= 0.0 else -1.0
 	rotation.y += steer * STEER_RATE * turn_authority * dir * delta
 	_engine.pitch_scale = 0.7 + absf(_speed) / MAX_FWD * 0.85
+
+
+func _show_driver_while_mounted() -> bool:
+	## Cars hide the player inside their enclosed cabin. Open vehicles override
+	## this and keep the third-person character visible.
+	return false
+
+
+func _driver_mount_offset() -> Vector3:
+	return Vector3(0, 0.8, 0)
+
+
+func _update_driver_mount() -> void:
+	if driver == null:
+		return
+	driver.global_position = global_transform * _driver_mount_offset()
+	driver.global_rotation = Vector3(0.0, global_rotation.y, 0.0)
 
 
 func _animate_wheels(delta: float) -> void:
