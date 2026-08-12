@@ -202,6 +202,11 @@ func _build_eastern_mountain() -> void:
 	collision.shape = mesh.create_trimesh_shape()
 	body.add_child(collision)
 	terrain.add_child(body)
+	# The height field ends five metres before the east boundary wall. Fill that
+	# strip with a hidden support shelf so a fast vehicle cannot slip through the
+	# narrow seam between terrain and perimeter collision.
+	_box(Vector3(8.0, 10.0, 1080.0), Vector3(970.0, -5.0, 0.0),
+			_mountain_mat, true, "grass")
 	_build_mountain_switchback()
 
 
