@@ -299,10 +299,11 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 
 
 func _mountain_road_control() -> Array[Vector3]:
-	# The highway boxes are 0.5 m thick, so their first two centre points sit
-	# slightly below grade. Their driving surface is flush with the city road and
-	# cannot catch a car's bumper at the mountain entrance.
-	return [Vector3(520, -0.22, 300), Vector3(600, -0.22, 300),
+	# Begin well before the visible mountain entrance and below city grade. The
+	# thick highway therefore emerges through the ground as a gentle ramp instead
+	# of presenting a vertical collision edge that stops bikes and cars.
+	return [Vector3(480, -0.42, 300), Vector3(535, -0.28, 300),
+			Vector3(610, -0.08, 300),
 			Vector3(680, 4.0, 300), Vector3(730, 14.0, 220),
 			Vector3(680, 26.0, 130), Vector3(760, 40.0, 60),
 			Vector3(720, 55.0, -40), Vector3(800, 72.0, -110),
