@@ -33,8 +33,11 @@ var _map_cam: Camera3D
 var _map_marker: Polygon2D
 var _map_quest_dot: Polygon2D
 var _map_open := false
-const MAP_PX := 560.0
-const MAP_METERS := 130.0
+var _map_size := Vector2(560, 560)
+var _map_zoom_meters := 390.0
+const MAP_WORLD_METERS := 390.0 # Three times the previous 130 m coverage.
+const MAP_MIN_ZOOM := 45.0
+const MAP_ZOOM_STEP := 1.18
 var _fps_accum := 0.0
 var _last_health := 100
 
@@ -298,6 +301,13 @@ func _ready() -> void:
 
 
 func _build_map() -> void:
+	var screen := get_viewport().get_visible_rect().size
+	# A near-full-screen rectangular map uses substantially more screen area
+	# than the old fixed 560 px square while still leaving room for controls.
+	_map_size = Vector2(maxf(640.0, screen.x * 0.9),
+			maxf(480.0, screen.y * 0.82))
+	_map_size.x = minf(_map_size.x, screen.x - 32.0)
+	_map_size.y = minf(_map_size.y, screen.y - 90.0)
 	_map_panel = Control.new()
 	_map_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_map_panel.visible = false
@@ -312,28 +322,28 @@ func _build_map() -> void:
 
 	var frame := Panel.new()
 	frame.set_anchors_preset(Control.PRESET_CENTER)
-	frame.position = Vector2(-MAP_PX * 0.5 - 8, -MAP_PX * 0.5 - 8)
-	frame.size = Vector2(MAP_PX + 16, MAP_PX + 16)
+	frame.position = -_map_size * 0.5 - Vector2(8, 8)
+	frame.size = _map_size + Vector2(16, 16)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_panel.add_child(frame)
 
 	var vpc := SubViewportContainer.new()
 	vpc.stretch = true
 	vpc.set_anchors_preset(Control.PRESET_CENTER)
-	vpc.position = Vector2(-MAP_PX * 0.5, -MAP_PX * 0.5)
-	vpc.size = Vector2(MAP_PX, MAP_PX)
+	vpc.position = -_map_size * 0.5
+	vpc.size = _map_size
 	vpc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_map_panel.add_child(vpc)
 
 	_map_vp = SubViewport.new()
-	_map_vp.size = Vector2i(int(MAP_PX), int(MAP_PX))
+	_map_vp.size = Vector2i(_map_size)
 	_map_vp.own_world_3d = false
 	_map_vp.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	vpc.add_child(_map_vp)
 
 	_map_cam = Camera3D.new()
 	_map_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_map_cam.size = MAP_METERS
+	_map_cam.size = _map_zoom_meters
 	_map_cam.rotation_degrees = Vector3(-90, 0, 0)
 	_map_cam.far = 300.0
 	var env := Environment.new()
@@ -349,7 +359,7 @@ func _build_map() -> void:
 	_map_marker = Polygon2D.new()
 	_map_marker.polygon = PackedVector2Array([Vector2(0, -11), Vector2(8, 9), Vector2(0, 4), Vector2(-8, 9)])
 	_map_marker.color = Color(1, 1, 1)
-	_map_marker.position = Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	_map_marker.position = _map_size * 0.5
 	vpc.add_child(_map_marker)
 
 	# Objective diamond
@@ -359,14 +369,25 @@ func _build_map() -> void:
 	vpc.add_child(_map_quest_dot)
 
 	var title := Label.new()
-	title.text = "MAP    [M] CLOSE"
+	title.text = "CITY MAP    [M] CLOSE"
 	title.set_anchors_preset(Control.PRESET_CENTER)
-	title.position = Vector2(-MAP_PX * 0.5, -MAP_PX * 0.5 - 40)
+	title.position = Vector2(-_map_size.x * 0.5, -_map_size.y * 0.5 - 42)
 	title.add_theme_font_size_override("font_size", 20)
 	_map_panel.add_child(title)
 
-	for d in [["N", Vector2(-8, -MAP_PX * 0.5 - 40)], ["S", Vector2(-8, MAP_PX * 0.5 + 14)],
-			["W", Vector2(-MAP_PX * 0.5 - 34, -14)], ["E", Vector2(MAP_PX * 0.5 + 14, -14)]]:
+	var hint := Label.new()
+	hint.text = "MOUSE WHEEL: ZOOM IN / OUT"
+	hint.set_anchors_preset(Control.PRESET_CENTER)
+	hint.position = Vector2(-150, _map_size.y * 0.5 + 17)
+	hint.size = Vector2(300, 24)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.modulate = Color(1, 1, 1, 0.75)
+	_map_panel.add_child(hint)
+
+	for d in [["N", Vector2(-8, -_map_size.y * 0.5 - 40)],
+			["S", Vector2(-8, _map_size.y * 0.5 + 14)],
+			["W", Vector2(-_map_size.x * 0.5 - 34, -14)],
+			["E", Vector2(_map_size.x * 0.5 + 14, -14)]]:
 		var lb := Label.new()
 		lb.text = d[0]
 		lb.set_anchors_preset(Control.PRESET_CENTER)
@@ -384,7 +405,11 @@ func toggle_map() -> void:
 	_map_open = not _map_open
 	_map_panel.visible = _map_open
 	player.set("ui_lock", _map_open)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if _map_open \
+			else Input.MOUSE_MODE_CAPTURED
 	if _map_open:
+		_map_zoom_meters = MAP_WORLD_METERS
+		_map_cam.size = _map_zoom_meters
 		_update_map()
 
 
@@ -395,10 +420,11 @@ func _update_map() -> void:
 	_map_marker.rotation = atan2(fwd.x, -fwd.z)
 	var target = quests.current_reach_target() if quests else null
 	if target != null:
-		var scale := MAP_PX / MAP_METERS
-		var px: float = MAP_PX * 0.5 + (target.x - p.x) * scale
-		var py: float = MAP_PX * 0.5 + (target.z - p.z) * scale
-		_map_quest_dot.position = Vector2(clampf(px, 12, MAP_PX - 12), clampf(py, 12, MAP_PX - 12))
+		var scale := _map_size.y / _map_zoom_meters
+		var px: float = _map_size.x * 0.5 + (target.x - p.x) * scale
+		var py: float = _map_size.y * 0.5 + (target.z - p.z) * scale
+		_map_quest_dot.position = Vector2(clampf(px, 12, _map_size.x - 12),
+				clampf(py, 12, _map_size.y - 12))
 		_map_quest_dot.visible = true
 	else:
 		_map_quest_dot.visible = false
@@ -471,12 +497,31 @@ func show_death() -> void:
 # ---------------------------------------------------------------- inventory
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _map_open and event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if not mouse_event.pressed:
+			return
+		if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_set_map_zoom(_map_zoom_meters / MAP_ZOOM_STEP)
+			get_viewport().set_input_as_handled()
+			return
+		if mouse_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_set_map_zoom(_map_zoom_meters * MAP_ZOOM_STEP)
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed("inventory") and not _death.visible \
 			and not get_tree().paused and not _map_open:
 		toggle_inventory()
 	elif event.is_action_pressed("map") and not _death.visible \
 			and not get_tree().paused:
 		toggle_map()
+
+
+func _set_map_zoom(value: float) -> void:
+	_map_zoom_meters = clampf(value, MAP_MIN_ZOOM, MAP_WORLD_METERS)
+	if _map_cam != null:
+		_map_cam.size = _map_zoom_meters
+	_update_map()
 
 
 func toggle_inventory() -> void:
