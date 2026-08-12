@@ -129,7 +129,7 @@ func _build_road_grid() -> void:
 		_box(Vector3(20, 0.018, 1900), Vector3(coordinate, 0.009, 0),
 				_road_mat, false, "concrete")
 		# Pale shoulders define a safe pedestrian edge without becoming curbs.
-		for shoulder in [-12.0, 12.0]:
+		for shoulder in [-11.5, 11.5]:
 			_box(Vector3(1900, 0.012, 3.0),
 					Vector3(0, 0.006, coordinate + shoulder),
 					_sidewalk_mat, false, "concrete")
@@ -143,6 +143,13 @@ func _build_road_grid() -> void:
 					Vector3(dash, 0.012, coordinate), _lane_mat, false, "concrete")
 			_box(Vector3(0.22, 0.022, 11.0),
 					Vector3(coordinate, 0.012, dash), _lane_mat, false, "concrete")
+	# Clean square junctions cover shoulder/marking overlaps and guarantee that
+	# every side road visually meets the main road without a sand-colored seam.
+	for intersection_x in range(-840, 841, 120):
+		for intersection_z in range(-840, 841, 120):
+			_box(Vector3(26.0, 0.02, 26.0),
+					Vector3(intersection_x, 0.024, intersection_z),
+					_road_mat, false, "concrete")
 
 
 func _build_eastern_mountain() -> void:
