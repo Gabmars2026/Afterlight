@@ -58,7 +58,7 @@ func _blocked(x: float, z: float) -> bool:
 	if x > 90.0 and x < 248.0 and z > -68.0 and z < 88.0:
 		return true
 	# SUNSET FLATS mesa + ramp
-	if x > 96.0 and x < 244.0 and z > -174.0 and z < -86.0:
+	if x > 88.0 and x < 252.0 and z > -192.0 and z < -68.0:
 		return true
 	# Castle grounds
 	if absf(x) < 48.0 and z > -218.0 and z < -122.0:

@@ -182,12 +182,17 @@ func _test_streaming() -> void:
 			"downtown has dense detailed commercial blocks")
 	var rd := _zone.get_node_or_null("Residential")
 	_check(rd != null, "SUNSET FLATS district exists")
-	var homes := 0
-	if rd:
-		for c in rd.get_children():
-			if String(c.name).begins_with("House"):
-				homes += 1
-	_check(homes == 32, "32 enterable houses in the suburbs")
+	var homes := _zone.get_tree().get_nodes_in_group("residential_house")
+	var detailed_homes := _zone.get_tree().get_nodes_in_group("suburban_asset_house")
+	var enterable_homes := _zone.get_tree().get_nodes_in_group("enterable_house")
+	_check(homes.size() == 80, "80 homes fill SUNSET FLATS")
+	_check(detailed_homes.size() == 48, "48 detailed Kenney houses placed")
+	_check(enterable_homes.size() == 32, "32 enterable houses retained")
+	var block_counts: Array[int] = rd.block_house_counts() if rd else []
+	_check(block_counts == [20, 20, 20, 20],
+			"each of four residential blocks has exactly 20 homes")
+	_check(rd != null and rd.has_method("driving_grid_clear")
+			and rd.driving_grid_clear(), "residential driving grid stays clear")
 	var pl := _zone.get_tree().get_first_node_in_group("player")
 	_check(pl != null and pl.find_child("OutfitHat", true, false) != null,
 			"the survivor wears a cap")

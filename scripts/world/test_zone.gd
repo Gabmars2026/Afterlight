@@ -1092,7 +1092,7 @@ func _build_weather() -> void:
 
 
 func _build_residential() -> void:
-	## v1.16.0: SUNSET FLATS, the residential district north of downtown.
+	## v1.20.0: SUNSET FLATS, four dense 20-home blocks north of downtown.
 	var rd: Node3D = ResidentialBuilder.new()
 	rd.name = "Residential"
 	rd.position = Vector3(170, 8.6, -130)

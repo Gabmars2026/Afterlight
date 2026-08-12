@@ -25,6 +25,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 20 — Release build** — Windows Desktop export preset (single self-contained x86_64 .exe with embedded game data, v1.0.0 metadata); GitHub Actions release pipeline: pushing a version tag builds the .exe with official export templates and attaches `Afterlight-windows-x86_64.zip` to a GitHub Release automatically
 
 ## Post-release patches
+- **v1.20.0** - SUBURBAN BLOCKS: added 21 CC0 Kenney suburban house
+  models and rebuilt SUNSET FLATS as four compact blocks with exactly 20
+  homes each. The district now has 80 homes total: 48 detailed asset houses
+  and all 32 prior enterable furnished homes. A wider central grid, perimeter
+  loop, block access lanes and a continuous bridge-ramp keep vehicle routes
+  open through the denser neighborhood.
 - **v1.19.0** - DOWNTOWN REBUILD: added 35 detailed CC0 Kenney commercial
   buildings and skyscrapers in compact blocks, reorganized the 12 enterable
   towers into a dense skyline, added cross streets and side streets, replaced
