@@ -431,7 +431,9 @@ func _furnish_floor(lot: Node3D, width: float, depth: float,
 			turn, 0.55)
 	PropLib.place(lot, "Chair", Vector3(-width * 0.28, y, depth * 0.08),
 			PI + turn, 0.55)
-	var accent := ["Lamp", "Barril", "Seat", "Wood_Plank_A"][floor_index % 4]
+	# Explicit type is required because indexing an untyped literal Array
+	# returns Variant and strict GDScript cannot infer `:=` from it.
+	var accent: String = ["Lamp", "Barril", "Seat", "Wood_Plank_A"][floor_index % 4]
 	PropLib.place(lot, accent, Vector3(width * 0.05, y, -depth * 0.3),
 			-turn, 0.5)
 
