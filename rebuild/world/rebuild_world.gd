@@ -23,6 +23,7 @@ const STAIR_STEPS := 12
 var _ground_mat: StandardMaterial3D
 var _wall_mat: StandardMaterial3D
 var _road_mat: StandardMaterial3D
+var _mountain_mat: StandardMaterial3D
 var _model_bounds: Dictionary = {}
 
 
@@ -30,6 +31,7 @@ func build() -> void:
 	_make_materials()
 	_build_ground()
 	_build_road_grid()
+	_build_eastern_mountain()
 	# Building centers are deliberately kept outside the x=0 and horizontal
 	# road corridors. Lots now span the enlarged map instead of clustering only
 	# in the original 370 metre centre.
@@ -68,6 +70,12 @@ func _make_materials() -> void:
 	_road_mat.roughness = 0.96
 	_road_mat.uv1_triplanar = true
 	_road_mat.uv1_world_triplanar = true
+	_mountain_mat = StandardMaterial3D.new()
+	_mountain_mat.albedo_color = Color(0.24, 0.31, 0.2)
+	_mountain_mat.roughness = 1.0
+	_mountain_mat.uv1_triplanar = true
+	_mountain_mat.uv1_world_triplanar = true
+	_mountain_mat.uv1_scale = Vector3.ONE * 0.08
 
 
 func _build_ground() -> void:
@@ -98,6 +106,92 @@ func _build_road_grid() -> void:
 				_road_mat, false, "concrete")
 		_box(Vector3(18, 0.012, 1900), Vector3(coordinate, 0.006, 0),
 				_road_mat, false, "concrete")
+
+
+func _build_eastern_mountain() -> void:
+	## A continuous, walkable ridge frames the city like GTA's edge mountains.
+	## It occupies the otherwise empty eastern strip, clear of authored lots.
+	const GRID_X := 25
+	const GRID_Z := 31
+	const MIN_X := 610.0
+	const MAX_X := 968.0
+	const MIN_Z := -255.0
+	const MAX_Z := 255.0
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	for z_index in GRID_Z:
+		var z_ratio := float(z_index) / float(GRID_Z - 1)
+		var world_z := lerpf(MIN_Z, MAX_Z, z_ratio)
+		for x_index in GRID_X:
+			var x_ratio := float(x_index) / float(GRID_X - 1)
+			var world_x := lerpf(MIN_X, MAX_X, x_ratio)
+			var height := _mountain_height(world_x, world_z)
+			vertices.append(Vector3(world_x, height, world_z))
+			normals.append(Vector3.UP)
+			uvs.append(Vector2(x_ratio * 8.0, z_ratio * 8.0))
+	for z_index in GRID_Z - 1:
+		for x_index in GRID_X - 1:
+			var a := z_index * GRID_X + x_index
+			var b := a + 1
+			var c := a + GRID_X
+			var d := c + 1
+			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _mountain_mat)
+	var terrain := MeshInstance3D.new()
+	terrain.name = "EasternMountainRidge"
+	terrain.mesh = mesh
+	add_child(terrain)
+	var body := StaticBody3D.new()
+	body.set_meta("surface", "grass")
+	var collision := CollisionShape3D.new()
+	collision.shape = mesh.create_trimesh_shape()
+	body.add_child(collision)
+	terrain.add_child(body)
+	_build_mountain_switchback()
+
+
+func _mountain_height(world_x: float, world_z: float) -> float:
+	var rise := smoothstep(610.0, 925.0, world_x)
+	var edge_falloff := 1.0 - pow(absf(world_z) / 275.0, 2.0)
+	edge_falloff = clampf(edge_falloff, 0.0, 1.0)
+	var broad_ridge := rise * edge_falloff * 142.0
+	var natural_breakup := sin(world_z * 0.032) * 8.0 * rise \
+			+ sin((world_x + world_z) * 0.055) * 4.0 * rise
+	return maxf(0.0, broad_ridge + natural_breakup)
+
+
+func _build_mountain_switchback() -> void:
+	## Wide ramp segments provide a reliable car route while the surrounding
+	## terrain remains freely climbable on foot.
+	var points: Array[Vector3] = [Vector3(620, 0.4, 205),
+			Vector3(700, 17, 205), Vector3(700, 34, 95),
+			Vector3(770, 51, 95), Vector3(770, 68, -35),
+			Vector3(835, 85, -35), Vector3(835, 102, -155),
+			Vector3(900, 119, -155), Vector3(930, 142, -70)]
+	for index in points.size() - 1:
+		_build_road_ramp(points[index], points[index + 1])
+	# A broad overlook gives cars room to turn around at the summit.
+	_box(Vector3(44, 0.45, 34), Vector3(930, 142.0, -70),
+			_road_mat, true, "concrete")
+
+
+func _build_road_ramp(from: Vector3, to: Vector3) -> void:
+	var delta := to - from
+	var horizontal := Vector2(delta.x, delta.z).length()
+	var ramp := _box(Vector3(9.5, 0.45, delta.length()),
+			(from + to) * 0.5, _road_mat, true, "concrete")
+	ramp.rotation = Vector3(-atan2(delta.y, horizontal),
+			atan2(delta.x, delta.z), 0.0)
 
 
 func _build_district(root: String, x_positions: Array,
