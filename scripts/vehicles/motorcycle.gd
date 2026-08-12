@@ -13,7 +13,9 @@ func _init() -> void:
 func _build_visual() -> void:
 	var bike := Node3D.new()
 	bike.name = "MotorcycleVisual"
-	bike.position.y = 0.08
+	# Wheel centres are at y=.42 with a .38 radius. Offset the complete visual
+	# by -.04 so tyre bottoms touch the same y=0 plane as the body collider.
+	bike.position.y = -0.04
 	add_child(bike)
 
 	var paint := StandardMaterial3D.new()
