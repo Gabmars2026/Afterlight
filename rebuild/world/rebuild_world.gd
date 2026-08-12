@@ -197,40 +197,76 @@ func _mountain_peak(world_x: float, world_z: float, centre_x: float,
 
 
 func _build_mountain_switchback() -> void:
-	## Wide ramp segments provide a reliable car route while the surrounding
-	## terrain remains freely climbable on foot.
-	var points: Array[Vector3] = [Vector3(590, 0, 300), Vector3(680, 0, 300),
+	## One continuous ribbon eliminates the raised collision lips that stopped
+	## CharacterBody3D cars at every old box-ramp connection.
+	var control: Array[Vector3] = [Vector3(555, 0, 300), Vector3(620, 0, 300),
+			Vector3(680, 0, 300),
 			Vector3(720, 0, 210), Vector3(675, 0, 120),
 			Vector3(755, 0, 55), Vector3(720, 0, -40),
 			Vector3(800, 0, -105), Vector3(770, 0, -200),
 			Vector3(850, 0, -145), Vector3(845, 0, -55)]
-	for index in points.size():
-		points[index].y = _mountain_height(points[index].x, points[index].z) + 0.45
-	for index in points.size() - 1:
-		# Subdivision keeps the paved route pressed against curved terrain.
-		var start := points[index]
-		var finish := points[index + 1]
-		for section in 8:
-			var from_ratio := float(section) / 8.0
-			var to_ratio := float(section + 1) / 8.0
-			var from := start.lerp(finish, from_ratio)
-			var to := start.lerp(finish, to_ratio)
-			from.y = _mountain_height(from.x, from.z) + 0.45
-			to.y = _mountain_height(to.x, to.z) + 0.45
-			_build_road_ramp(from, to)
+	var centreline: Array[Vector3] = []
+	for index in control.size() - 1:
+		for section in 16:
+			var point := control[index].lerp(control[index + 1],
+					float(section) / 16.0)
+			point.y = _mountain_height(point.x, point.z) + 0.72
+			centreline.append(point)
+	var final_point := control[control.size() - 1]
+	final_point.y = _mountain_height(final_point.x, final_point.z) + 0.72
+	centreline.append(final_point)
+	_build_road_ribbon(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
-	var summit_y := _mountain_height(845.0, -55.0) + 0.35
+	var summit_y := _mountain_height(845.0, -55.0) + 0.5
 	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
 			_road_mat, true, "concrete")
 
 
-func _build_road_ramp(from: Vector3, to: Vector3) -> void:
-	var delta := to - from
-	var horizontal := Vector2(delta.x, delta.z).length()
-	var ramp := _box(Vector3(9.5, 0.45, delta.length()),
-			(from + to) * 0.5, _road_mat, true, "concrete")
-	ramp.rotation = Vector3(-atan2(delta.y, horizontal),
-			atan2(delta.x, delta.z), 0.0)
+func _build_road_ribbon(points: Array[Vector3]) -> void:
+	const HALF_WIDTH := 6.0
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var distance := 0.0
+	for index in points.size():
+		var previous: Vector3 = points[maxi(index - 1, 0)]
+		var following: Vector3 = points[mini(index + 1, points.size() - 1)]
+		var direction := following - previous
+		direction.y = 0.0
+		direction = direction.normalized()
+		var right := Vector3(direction.z, 0.0, -direction.x)
+		if index > 0:
+			distance += points[index].distance_to(points[index - 1])
+		vertices.append(points[index] - right * HALF_WIDTH)
+		vertices.append(points[index] + right * HALF_WIDTH)
+		normals.append(Vector3.UP)
+		normals.append(Vector3.UP)
+		uvs.append(Vector2(0.0, distance * 0.08))
+		uvs.append(Vector2(1.0, distance * 0.08))
+	for index in points.size() - 1:
+		var a := index * 2
+		indices.append_array(PackedInt32Array([a, a + 2, a + 1,
+				a + 1, a + 2, a + 3]))
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	mesh.surface_set_material(0, _road_mat)
+	var road := MeshInstance3D.new()
+	road.name = "ContinuousMountainRoad"
+	road.mesh = mesh
+	add_child(road)
+	var body := StaticBody3D.new()
+	body.set_meta("surface", "concrete")
+	var collision := CollisionShape3D.new()
+	collision.shape = mesh.create_trimesh_shape()
+	body.add_child(collision)
+	road.add_child(body)
 
 
 func _build_district(root: String, x_positions: Array,
