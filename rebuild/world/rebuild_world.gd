@@ -107,7 +107,7 @@ func _build_district(root: String, x_positions: Array,
 			break
 		var pos := Vector3(x_positions[column], 0.0, z_positions[row])
 		var yaw := PI if row % 2 == 0 else 0.0
-		_place_collidable_model(paths[index], pos, yaw, model_scale, "concrete")
+		_build_enterable_lot(paths[index], pos, yaw, model_scale, index)
 
 
 func _building_paths(root: String) -> Array[String]:
@@ -210,6 +210,85 @@ func _build_enterable_house(base: Vector3) -> void:
 	house.add_child(light)
 
 
+func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
+		model_scale: float, lot_index: int) -> void:
+	## Every generated building gets a physical, furnished ground-floor lobby.
+	## The original Kenney model becomes the upper facade so the skyline keeps
+	## its downloaded art without blocking the walkable interior.
+	var packed := load(path) as PackedScene
+	if packed == null:
+		push_warning("Missing rebuild model: %s" % path)
+		return
+	var upper := packed.instantiate() as Node3D
+	upper.scale = Vector3.ONE * model_scale
+	var bounds := _bounds_for(path, upper)
+	var width := clampf(bounds.size.x * model_scale, 7.5, 13.0)
+	var depth := clampf(bounds.size.z * model_scale, 7.5, 12.0)
+	const LOBBY_HEIGHT := 3.6
+	const DOOR_WIDTH := 1.9
+	const DOOR_HEIGHT := 2.55
+	var lot := Node3D.new()
+	lot.name = "EnterableBuilding_%02d" % lot_index
+	lot.position = pos
+	lot.rotation.y = yaw
+	add_child(lot)
+	_box(Vector3(width, 0.25, depth), Vector3(0, 0.125, 0),
+			_wall_mat, true, "wood", lot)
+	_box(Vector3(width, LOBBY_HEIGHT, 0.3),
+			Vector3(0, LOBBY_HEIGHT * 0.5, -depth * 0.5),
+			_wall_mat, true, "concrete", lot)
+	_box(Vector3(0.3, LOBBY_HEIGHT, depth),
+			Vector3(-width * 0.5, LOBBY_HEIGHT * 0.5, 0),
+			_wall_mat, true, "concrete", lot)
+	_box(Vector3(0.3, LOBBY_HEIGHT, depth),
+			Vector3(width * 0.5, LOBBY_HEIGHT * 0.5, 0),
+			_wall_mat, true, "concrete", lot)
+	var side_width := (width - DOOR_WIDTH) * 0.5
+	var side_offset := (DOOR_WIDTH + side_width) * 0.5
+	_box(Vector3(side_width, LOBBY_HEIGHT, 0.3),
+			Vector3(-side_offset, LOBBY_HEIGHT * 0.5, depth * 0.5),
+			_wall_mat, true, "concrete", lot)
+	_box(Vector3(side_width, LOBBY_HEIGHT, 0.3),
+			Vector3(side_offset, LOBBY_HEIGHT * 0.5, depth * 0.5),
+			_wall_mat, true, "concrete", lot)
+	_box(Vector3(DOOR_WIDTH, LOBBY_HEIGHT - DOOR_HEIGHT, 0.3),
+			Vector3(0, DOOR_HEIGHT + (LOBBY_HEIGHT - DOOR_HEIGHT) * 0.5,
+			depth * 0.5), _wall_mat, true, "concrete", lot)
+	_box(Vector3(width + 0.35, 0.3, depth + 0.35),
+			Vector3(0, LOBBY_HEIGHT, 0), _road_mat, true, "concrete", lot)
+	var door := SlidingDoor.new()
+	door.slide_offset = Vector3(DOOR_WIDTH + 0.15, 0, 0)
+	var door_mesh := MeshInstance3D.new()
+	var door_box := BoxMesh.new()
+	door_box.size = Vector3(DOOR_WIDTH - 0.08, DOOR_HEIGHT, 0.18)
+	door_box.material = _road_mat
+	door_mesh.mesh = door_box
+	door.add_child(door_mesh)
+	var door_shape := CollisionShape3D.new()
+	var door_collision := BoxShape3D.new()
+	door_collision.size = door_box.size
+	door_shape.shape = door_collision
+	door.add_child(door_shape)
+	door.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5)
+	lot.add_child(door)
+	# Centre the original model and rest its lowest point on the lobby roof.
+	upper.position = Vector3(
+			-(bounds.position.x + bounds.size.x * 0.5) * model_scale,
+			LOBBY_HEIGHT - bounds.position.y * model_scale,
+			-(bounds.position.z + bounds.size.z * 0.5) * model_scale)
+	lot.add_child(upper)
+	PropLib.place(lot, "Table", Vector3(width * 0.2, 0.25, -depth * 0.15),
+			lot_index * 0.3, 0.55)
+	PropLib.place(lot, "Chair", Vector3(-width * 0.2, 0.25, -depth * 0.15),
+			PI + lot_index * 0.2, 0.55)
+	var light := OmniLight3D.new()
+	light.position = Vector3(0, 2.8, 0)
+	light.light_color = Color(1.0, 0.8, 0.62)
+	light.light_energy = 1.0
+	light.omni_range = maxf(width, depth)
+	lot.add_child(light)
+
+
 func _build_prop_plaza(origin: Vector3) -> void:
 	# Curated medieval assets stay reusable and visible without duplicating files.
 	var props := ["Barril", "Battle_Axe", "Chair", "Chope_A", "Chope_B", "Cup",
@@ -232,7 +311,9 @@ func _build_street_furniture() -> void:
 		add_child(light)
 	# Keep large furniture beyond the five-metre road edge and out of the
 	# intersection sightline. The sign faces traffic from the east shoulder.
-	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb", Vector3(18, 0.02, 28), PI, 6.0)
+	# Roadside wayfinding: close enough to read from traffic, but fully outside
+	# the five-metre driving lane and clear of the workshop wall.
+	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb", Vector3(10, 0.02, 20), PI, 6.0)
 	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(12, 0.02, 25), 0.0, 4.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.12, 44), 0.0, 7.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
