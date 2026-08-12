@@ -26,6 +26,7 @@ var _road_mat: StandardMaterial3D
 var _lane_mat: StandardMaterial3D
 var _sidewalk_mat: StandardMaterial3D
 var _mountain_mat: StandardMaterial3D
+var _route_mat: StandardMaterial3D
 var _model_bounds: Dictionary = {}
 
 
@@ -90,6 +91,12 @@ func _make_materials() -> void:
 	_mountain_mat.uv1_triplanar = true
 	_mountain_mat.uv1_world_triplanar = true
 	_mountain_mat.uv1_scale = Vector3.ONE * 0.08
+	_route_mat = StandardMaterial3D.new()
+	_route_mat.albedo_color = Color(0.05, 0.78, 0.92)
+	_route_mat.emission_enabled = true
+	_route_mat.emission = Color(0.02, 0.35, 0.48)
+	_route_mat.emission_energy_multiplier = 1.35
+	_route_mat.roughness = 0.72
 
 
 func _build_ground() -> void:
@@ -294,6 +301,8 @@ func _build_mountain_switchback() -> void:
 	final_point.y = _mountain_height(final_point.x, final_point.z) + 0.08
 	centreline.append(final_point)
 	_build_road_ribbon(centreline)
+	_build_mountain_guard_walls(centreline)
+	_build_mountain_route_map(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
 	var summit_y := _mountain_height(845.0, -55.0) + 0.08
 	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
@@ -341,6 +350,78 @@ func _build_road_ribbon(points: Array[Vector3]) -> void:
 	add_child(road)
 	# Do not add a second collision sheet. Cars and players travel on the single
 	# continuous terrain collision immediately beneath this visual road ribbon.
+
+
+func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
+	## Low continuous walls on both exposed edges stop pedestrians, bikes, and
+	## cars without blocking the mountain view. Short overlapping sections follow
+	## the switchback closely enough to remain smooth on its slopes and bends.
+	const ROAD_EDGE := 6.65
+	for index in range(0, points.size() - 1, 3):
+		var end_index := mini(index + 3, points.size() - 1)
+		var start: Vector3 = points[index]
+		var finish: Vector3 = points[end_index]
+		var direction := finish - start
+		var flat_direction := Vector3(direction.x, 0.0, direction.z).normalized()
+		if flat_direction.is_zero_approx():
+			continue
+		var right := Vector3(flat_direction.z, 0.0, -flat_direction.x)
+		var length := Vector2(direction.x, direction.z).length() + 0.8
+		var midpoint := (start + finish) * 0.5
+		var yaw := atan2(flat_direction.x, flat_direction.z)
+		for side in [-1.0, 1.0]:
+			var wall := _box(Vector3(0.55, 0.85, length),
+					midpoint + right * ROAD_EDGE + Vector3(0, 0.48, 0),
+					_wall_mat, true, "concrete")
+			wall.rotation.y = yaw
+
+
+func _build_mountain_route_map(mountain_points: Array[Vector3]) -> void:
+	## A cyan breadcrumb route begins at the city centre, follows existing roads,
+	## joins the mountain entrance, and continues to the summit. Because it is
+	## world geometry, the same route is visible both while travelling and on M.
+	var city_route: Array[Vector3] = [Vector3(0, 0.055, 0),
+			Vector3(0, 0.055, 240), Vector3(480, 0.055, 240),
+			Vector3(520, 0.055, 300)]
+	_build_route_segments(city_route, 0.7)
+	_build_route_segments(mountain_points, 0.65)
+	# The last diagonal is an actual paved connector, not only a painted guide.
+	var connector_start := city_route[2]
+	var connector_end := city_route[3]
+	var connector_direction := connector_end - connector_start
+	var connector_mid := (connector_start + connector_end) * 0.5
+	var connector := _box(Vector3(12.0, 0.025,
+			Vector2(connector_direction.x, connector_direction.z).length()),
+			connector_mid - Vector3(0, 0.035, 0), _road_mat, false, "concrete")
+	connector.rotation.y = atan2(connector_direction.x, connector_direction.z)
+	_add_route_sign(Vector3(455, 0.0, 240), "MOUNTAIN  →")
+	_add_route_sign(Vector3(520, 0.0, 286), "SUMMIT ROUTE")
+
+
+func _build_route_segments(points: Array[Vector3], width: float) -> void:
+	for index in points.size() - 1:
+		var start: Vector3 = points[index]
+		var finish: Vector3 = points[index + 1]
+		var direction := finish - start
+		var flat_length := Vector2(direction.x, direction.z).length()
+		if flat_length < 0.05:
+			continue
+		var marker := _box(Vector3(width, 0.035, flat_length),
+				(start + finish) * 0.5 + Vector3(0, 0.055, 0),
+				_route_mat, false, "concrete")
+		marker.rotation.y = atan2(direction.x, direction.z)
+
+
+func _add_route_sign(pos: Vector3, text: String) -> void:
+	var sign := Label3D.new()
+	sign.text = text
+	sign.position = pos + Vector3(0, 2.7, 0)
+	sign.font_size = 54
+	sign.outline_size = 10
+	sign.modulate = Color(0.1, 0.9, 1.0)
+	sign.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	sign.no_depth_test = true
+	add_child(sign)
 
 
 func _build_district(root: String, x_positions: Array,

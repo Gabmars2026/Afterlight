@@ -345,7 +345,7 @@ func _build_map() -> void:
 	_map_cam.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_map_cam.size = _map_zoom_meters
 	_map_cam.rotation_degrees = Vector3(-90, 0, 0)
-	_map_cam.far = 300.0
+	_map_cam.far = 500.0
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
 	env.background_color = Color(0.09, 0.10, 0.12)
@@ -369,7 +369,7 @@ func _build_map() -> void:
 	vpc.add_child(_map_quest_dot)
 
 	var title := Label.new()
-	title.text = "CITY MAP    [M] CLOSE"
+	title.text = "CITY MAP    CYAN: MOUNTAIN SUMMIT ROUTE    [M] CLOSE"
 	title.set_anchors_preset(Control.PRESET_CENTER)
 	title.position = Vector2(-_map_size.x * 0.5, -_map_size.y * 0.5 - 42)
 	title.add_theme_font_size_override("font_size", 20)
@@ -415,7 +415,9 @@ func toggle_map() -> void:
 
 func _update_map() -> void:
 	var p: Vector3 = player.global_position
-	_map_cam.global_position = Vector3(p.x, p.y + 60.0, p.z)
+	# Stay above the mountain summit so its terrain and cyan route remain visible
+	# on the city map instead of clipping through the overhead camera.
+	_map_cam.global_position = Vector3(p.x, p.y + 200.0, p.z)
 	var fwd: Vector3 = -player.global_transform.basis.z
 	_map_marker.rotation = atan2(fwd.x, -fwd.z)
 	var target = quests.current_reach_target() if quests else null
