@@ -60,7 +60,9 @@ func _spawn_player() -> void:
 func _spawn_vehicle() -> void:
 	var parking_spots: Array[Vector3] = [Vector3(9, 0.2, 24), Vector3(-18, 0.2, 24),
 			Vector3(32, 0.2, -18), Vector3(-42, 0.2, -18),
-			Vector3(64, 0.2, 72)]
+			Vector3(64, 0.2, 72), Vector3(-76, 0.2, 72),
+			Vector3(86, 0.2, -72), Vector3(-92, 0.2, -72),
+			Vector3(120, 0.2, 24), Vector3(-120, 0.2, 24)]
 	for i in parking_spots.size():
 		var car := CarScript.new()
 		car.visual_kind = i
@@ -120,7 +122,8 @@ func _setup_environment() -> void:
 
 func _start_ambience() -> void:
 	for data in [["res://assets/audio/wind_loop.wav", -22.0],
-			["res://assets/audio/birds_loop.wav", -24.0]]:
+			["res://assets/audio/birds_loop.wav", -27.0],
+			["res://assets/audio/city_traffic_loop.wav", -19.0]]:
 		var player_audio := AudioStreamPlayer.new()
 		var stream := load(data[0]) as AudioStreamWAV
 		if stream == null:

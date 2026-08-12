@@ -13,6 +13,7 @@ const COMMERCIAL_ROOT := "res://assets/kenney/city_commercial"
 const INDUSTRIAL_ROOT := "res://assets/kenney/city_industrial"
 const SUBURBAN_ROOT := "res://assets/kenney/city_suburban"
 const DOWNTOWN_ROOT := "res://assets/quaternius/downtown_city"
+const POLY_HYDRANT := "res://assets/poly_haven/fire_hydrant/fire_hydrant_1k.gltf"
 const FLOOR_HEIGHT := 3.6
 const DOOR_WIDTH := 1.9
 const DOOR_HEIGHT := 2.55
@@ -47,6 +48,7 @@ func build() -> void:
 			[755.0], 5.5)
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
+	_build_city_parks()
 
 
 func _make_materials() -> void:
@@ -542,6 +544,14 @@ func _furnish_floor(lot: Node3D, width: float, depth: float,
 	var accent: String = ["Lamp", "Barril", "Seat", "Wood_Plank_A"][floor_index % 4]
 	PropLib.place(lot, accent, Vector3(width * 0.28, y, depth * 0.32),
 			-turn, 0.5)
+	# Extra groups give homes recognizable living, dining, and bedroom zones.
+	if width > 10.0 and depth > 10.0:
+		PropLib.place(lot, "Seat", Vector3(-width * 0.25, y, depth * 0.34),
+				-turn, 0.75)
+		PropLib.place(lot, "Seat", Vector3(-width * 0.25 + 1.8, y,
+				depth * 0.34), PI - turn, 0.75)
+		PropLib.place(lot, "Panel", Vector3(width * 0.25, y,
+				-depth * 0.34), turn, 0.6)
 
 
 func _add_floor_light(lot: Node3D, width: float, depth: float,
@@ -580,8 +590,31 @@ func _build_street_furniture() -> void:
 	# the five-metre driving lane and clear of the workshop wall.
 	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb", Vector3(10, 0.02, 20), PI, 6.0)
 	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(12, 0.02, 25), 0.0, 4.0)
-	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.12, 44), 0.0, 7.0)
-	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
+	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.0, 44), 0.0, 7.0)
+	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.0, 48), 0.0, 7.0)
+	for x in [-54.0, 54.0, -174.0, 174.0]:
+		_place_visual(POLY_HYDRANT, Vector3(x, 0.0, 12.0), 0.0, 1.0)
+
+
+func _build_city_parks() -> void:
+	## Small planted public spaces break up the dense city without introducing
+	## terrain mounds or blocking the road grid.
+	var park_centres: Array[Vector3] = [Vector3(-180, 0, 180),
+			Vector3(180, 0, -180), Vector3(420, 0, 420)]
+	for centre in park_centres:
+		var grass := StandardMaterial3D.new()
+		grass.albedo_color = Color(0.22, 0.46, 0.2)
+		grass.roughness = 1.0
+		_box(Vector3(42, 0.04, 42), centre + Vector3(0, 0.02, 0),
+				grass, false, "grass")
+		for offset in [Vector3(-14, 0, -14), Vector3(14, 0, -14),
+				Vector3(-14, 0, 14), Vector3(14, 0, 14)]:
+			_place_visual(SUBURBAN_ROOT + "/tree-small.glb",
+					centre + offset, 0.0, 5.5)
+		PropLib.place(self, "Seat", centre + Vector3(-5, 0.2, 0),
+				PI * 0.5, 0.8)
+		PropLib.place(self, "Seat", centre + Vector3(5, 0.2, 0),
+				-PI * 0.5, 0.8)
 
 
 func _place_visual(path: String, pos: Vector3, yaw: float, model_scale: float) -> Node3D:
@@ -590,7 +623,10 @@ func _place_visual(path: String, pos: Vector3, yaw: float, model_scale: float) -
 		push_warning("Missing rebuild model: %s" % path)
 		return null
 	var model := packed.instantiate() as Node3D
-	model.position = pos
+	var bounds := _bounds_for(path, model)
+	# Imported origins vary. Ground the actual lowest mesh point after scaling;
+	# otherwise a small source offset becomes a large floating gap on trees.
+	model.position = Vector3(pos.x, pos.y - bounds.position.y * model_scale, pos.z)
 	model.rotation.y = yaw
 	model.scale = Vector3.ONE * model_scale
 	add_child(model)

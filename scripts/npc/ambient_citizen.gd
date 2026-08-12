@@ -9,6 +9,8 @@ var _anchor := Vector3.ZERO
 var _target := Vector3.ZERO
 var _anim: AnimationPlayer
 var _idle_time := 0.0
+var _emote_cooldown := 0.0
+var _emoting := false
 var _rng := RandomNumberGenerator.new()
 
 
@@ -21,6 +23,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_emote_cooldown = maxf(0.0, _emote_cooldown - delta)
 	if not is_on_floor():
 		velocity.y -= 18.0 * delta
 	else:
@@ -29,7 +32,11 @@ func _physics_process(delta: float) -> void:
 		_idle_time -= delta
 		velocity.x = move_toward(velocity.x, 0.0, 5.0 * delta)
 		velocity.z = move_toward(velocity.z, 0.0, 5.0 * delta)
-		_play("Idle_Neutral")
+		if not _emoting and _emote_cooldown <= 0.0 \
+				and _rng.randf() < delta * 0.18:
+			_play_emote()
+		elif not _emoting:
+			_play("Idle_Neutral")
 	else:
 		var direction := _target - global_position
 		direction.y = 0.0
@@ -76,6 +83,23 @@ func _build_model() -> void:
 		if resolved != &"":
 			_anim.get_animation(resolved).loop_mode = Animation.LOOP_LINEAR
 	_play("Idle_Neutral")
+	if _anim != null:
+		_anim.animation_finished.connect(_on_animation_finished)
+
+
+func _play_emote() -> void:
+	var choices: Array[String] = ["Wave", "Interact", "Kick_Left", "Punch_Right"]
+	var choice: String = choices[_rng.randi_range(0, choices.size() - 1)]
+	var resolved := _find_animation(choice)
+	if resolved == &"":
+		return
+	_emoting = true
+	_emote_cooldown = _rng.randf_range(8.0, 16.0)
+	_anim.play(resolved, 0.2)
+
+
+func _on_animation_finished(_animation_name: StringName) -> void:
+	_emoting = false
 
 
 func _choose_target() -> void:
