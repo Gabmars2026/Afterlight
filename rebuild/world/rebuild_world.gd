@@ -294,12 +294,15 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 	# Shape the terrain itself into a broad road bed. This prevents grass
 	# triangles from intersecting the paved surface or creating stair-like lips.
 	var road_sample := _mountain_road_sample(world_x, world_z)
-	var road_blend := smoothstep(8.0, 22.0, road_sample.x)
-	return lerpf(road_sample.y - 0.18, terrain_height, road_blend)
+	var road_blend := smoothstep(14.0, 30.0, road_sample.x)
+	return lerpf(road_sample.y - 1.2, terrain_height, road_blend)
 
 
 func _mountain_road_control() -> Array[Vector3]:
-	return [Vector3(520, 0.1, 300), Vector3(600, 0.1, 300),
+	# The highway boxes are 0.5 m thick, so their first two centre points sit
+	# slightly below grade. Their driving surface is flush with the city road and
+	# cannot catch a car's bumper at the mountain entrance.
+	return [Vector3(520, -0.22, 300), Vector3(600, -0.22, 300),
 			Vector3(680, 4.0, 300), Vector3(730, 14.0, 220),
 			Vector3(680, 26.0, 130), Vector3(760, 40.0, 60),
 			Vector3(720, 55.0, -40), Vector3(800, 72.0, -110),
@@ -349,69 +352,49 @@ func _build_mountain_switchback() -> void:
 			centreline.append(point)
 	var final_point := control[control.size() - 1]
 	centreline.append(final_point)
-	_build_road_ribbon(centreline)
+	_build_mountain_highway(centreline)
 	_build_mountain_guard_walls(centreline)
 	_build_mountain_route_map(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
 	var summit_y := 120.0
 	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
-			_road_mat, false, "concrete")
+			_road_mat, true, "concrete")
+	_place_visual(ROAD_ROOT + "/sign-highway-detailed.glb",
+			Vector3(526, 0.0, 286), PI * 0.5, 4.5)
+	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb",
+			Vector3(835, summit_y + 0.25, -68), 0.0, 3.5)
 
 
-func _build_road_ribbon(points: Array[Vector3]) -> void:
-	const HALF_WIDTH := 6.0
-	var vertices := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var uvs := PackedVector2Array()
-	var indices := PackedInt32Array()
-	var distance := 0.0
-	for index in points.size():
-		var previous: Vector3 = points[maxi(index - 1, 0)]
-		var following: Vector3 = points[mini(index + 1, points.size() - 1)]
-		var direction := following - previous
-		direction.y = 0.0
-		direction = direction.normalized()
-		var right := Vector3(direction.z, 0.0, -direction.x)
-		if index > 0:
-			distance += points[index].distance_to(points[index - 1])
-		vertices.append(points[index] - right * HALF_WIDTH)
-		vertices.append(points[index] + right * HALF_WIDTH)
-		normals.append(Vector3.UP)
-		normals.append(Vector3.UP)
-		uvs.append(Vector2(0.0, distance * 0.08))
-		uvs.append(Vector2(1.0, distance * 0.08))
+func _build_mountain_highway(points: Array[Vector3]) -> void:
+	## Thick, overlapping sloped highway slabs remain visible above the carved
+	## terrain and provide reliable convex collision. This uses the proportions
+	## and dark asphalt style of Kenney City Kit Roads without forcing flat modular
+	## pieces onto a continuously climbing curve.
+	const HIGHWAY_WIDTH := 15.0
 	for index in points.size() - 1:
-		var a := index * 2
-		indices.append_array(PackedInt32Array([a, a + 2, a + 1,
-				a + 1, a + 2, a + 3]))
-	var arrays := []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_TEX_UV] = uvs
-	arrays[Mesh.ARRAY_INDEX] = indices
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, _road_mat)
-	var road := MeshInstance3D.new()
-	road.name = "ContinuousMountainRoad"
-	road.mesh = mesh
-	add_child(road)
-	# The road is now the authoritative smooth driving collision. The surrounding
-	# terrain is carved slightly below it, eliminating triangle seams and steps.
-	var body := StaticBody3D.new()
-	body.set_meta("surface", "concrete")
-	var collision := CollisionShape3D.new()
-	collision.shape = mesh.create_trimesh_shape()
-	body.add_child(collision)
-	road.add_child(body)
+		var start: Vector3 = points[index]
+		var finish: Vector3 = points[index + 1]
+		var direction := finish - start
+		if direction.length() < 0.05:
+			continue
+		var basis := Basis.looking_at(direction.normalized(), Vector3.UP)
+		var highway := _box(Vector3(HIGHWAY_WIDTH, 0.5,
+				direction.length() + 1.2), (start + finish) * 0.5,
+				_road_mat, true, "concrete")
+		highway.basis = basis
+		# Dashed yellow centre markings make the route unmistakably a road.
+		if index % 4 < 2:
+			var stripe := _box(Vector3(0.28, 0.025, direction.length() * 0.72),
+					(start + finish) * 0.5 + Vector3.UP * 0.28,
+					_lane_mat, false, "concrete")
+			stripe.basis = basis
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
 	## Low continuous walls on both exposed edges stop pedestrians, bikes, and
 	## cars without blocking the mountain view. Short overlapping sections follow
 	## the switchback closely enough to remain smooth on its slopes and bends.
-	const ROAD_EDGE := 6.65
+	const ROAD_EDGE := 7.9
 	for index in range(0, points.size() - 1, 3):
 		var end_index := mini(index + 3, points.size() - 1)
 		var start: Vector3 = points[index]
@@ -430,7 +413,7 @@ func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
 			wall.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
 
 
-func _build_mountain_route_map(mountain_points: Array[Vector3]) -> void:
+func _build_mountain_route_map(_mountain_points: Array[Vector3]) -> void:
 	## A cyan breadcrumb route begins at the city centre, follows existing roads,
 	## joins the mountain entrance, and continues to the summit. Because it is
 	## world geometry, the same route is visible both while travelling and on M.
@@ -438,7 +421,8 @@ func _build_mountain_route_map(mountain_points: Array[Vector3]) -> void:
 			Vector3(0, 0.015, 240), Vector3(480, 0.015, 240),
 			Vector3(520, 0.015, 300)]
 	_build_route_segments(city_route, 0.7)
-	_build_route_segments(mountain_points, 0.65)
+	# The mountain portion uses ordinary yellow highway markings. The cyan guide
+	# ends at the entrance instead of floating over the climb.
 	# The last diagonal is an actual paved connector, not only a painted guide.
 	var connector_start := city_route[2]
 	var connector_end := city_route[3]
