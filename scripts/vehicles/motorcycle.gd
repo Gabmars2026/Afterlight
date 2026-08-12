@@ -16,10 +16,14 @@ func _show_driver_while_mounted() -> bool:
 	return true
 
 
+func _vehicle_pose_kind() -> String:
+	return "motorcycle"
+
+
 func _driver_mount_offset() -> Vector3:
 	# The player node is foot-anchored. Placing that anchor just above the chassis
 	# makes the legs straddle the bike while keeping the torso behind the bars.
-	return Vector3(0.0, 0.34, 0.18)
+	return Vector3(0.0, 0.58, 0.28)
 
 
 func _build_visual() -> void:
