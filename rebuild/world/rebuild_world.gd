@@ -243,10 +243,13 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	var exterior := packed.instantiate() as Node3D
 	var bounds := _bounds_for(path, exterior)
 	var exterior_scale := model_scale * 1.65
-	var width := clampf(bounds.size.x * exterior_scale, 16.0, 26.0)
-	var depth := clampf(bounds.size.z * exterior_scale, 15.0, 24.0)
+	# Do not cap the playable interior. The previous 26 x 24 m cap caused large
+	# towers to become a small hallway after entering. These dimensions now use
+	# the exact scaled exterior footprint.
+	var width := maxf(bounds.size.x * exterior_scale, DOOR_WIDTH + 4.0)
+	var depth := maxf(bounds.size.z * exterior_scale, 8.0)
 	var authored_height := maxf(bounds.size.y * exterior_scale, FLOOR_HEIGHT)
-	var floor_count := clampi(int(ceil(authored_height / FLOOR_HEIGHT)), 1, 6)
+	var floor_count := clampi(int(ceil(authored_height / FLOOR_HEIGHT)), 1, 14)
 	var lot := Node3D.new()
 	lot.name = "EnterableBuilding_%02d" % lot_index
 	lot.position = pos
@@ -266,7 +269,8 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	# transition while the exterior remains visually faithful to the asset.
 	var interior := Node3D.new()
 	interior.name = "PlayableInterior"
-	interior.position.y = -24.0
+	# Keep the ceiling of even the tallest interior safely below terrain.
+	interior.position.y = -(floor_count * FLOOR_HEIGHT + 8.0)
 	lot.add_child(interior)
 	_build_floor_slab(interior, width, depth, 0.0, false)
 	for floor_index in floor_count:
