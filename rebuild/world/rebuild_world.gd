@@ -297,7 +297,10 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 	# Shape the terrain itself into a broad road bed. This prevents grass
 	# triangles from intersecting the paved surface or creating stair-like lips.
 	var road_sample := _mountain_road_sample(world_x, world_z)
-	var road_blend := smoothstep(14.0, 30.0, road_sample.x)
+	# Keep every terrain triangle well below the full asphalt width and its
+	# shoulders.  A narrow cut previously let grass collision protrude through
+	# bends and behave like an invisible wall to cars and bicycles.
+	var road_blend := smoothstep(22.0, 38.0, road_sample.x)
 	return lerpf(road_sample.y - 1.2, terrain_height, road_blend)
 
 
@@ -410,16 +413,17 @@ func _build_mountain_highway(points: Array[Vector3]) -> void:
 	highway.name = "ContinuousMountainHighway"
 	highway.mesh = mesh
 	add_child(highway)
-	# Physics uses simple overlapping convex supports, not the visible trimesh.
-	# This avoids one-sided triangle edges catching CharacterBody3D vehicles.
+	# Physics uses closely overlapping convex supports, not the visible trimesh.
+	# Each support follows one short centreline section.  Their top surfaces are
+	# sunk slightly below the asphalt so no exposed box edge can stop a vehicle.
 	for index in points.size() - 1:
 		var start := points[index]
 		var finish := points[index + 1]
 		var direction := finish - start
 		if direction.length() < 0.05:
 			continue
-		var support := _box(Vector3(14.8, 0.48, direction.length() + 1.8),
-				(start + finish) * 0.5 - Vector3.UP * 0.25,
+		var support := _box(Vector3(14.6, 0.32, direction.length() + 1.2),
+				(start + finish) * 0.5 - Vector3.UP * 0.21,
 				_road_mat, true, "concrete")
 		support.visible = false
 		support.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
@@ -450,12 +454,12 @@ func _add_highway_quad(surface: SurfaceTool, a: Vector3, b: Vector3,
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
-	## Low continuous walls on both exposed edges stop pedestrians, bikes, and
-	## cars without blocking the mountain view. Short overlapping sections follow
-	## the switchback closely enough to remain smooth on its slopes and bends.
-	const ROAD_EDGE := 7.9
-	for index in range(0, points.size() - 1, 3):
-		var end_index := mini(index + 3, points.size() - 1)
+	## Low barriers follow every short road section.  The previous three-section
+	## chords cut across switchback corners and formed the invisible blockade
+	## shown by the player.  Leave the first approach completely open.
+	const ROAD_EDGE := 8.35
+	for index in range(8, points.size() - 1):
+		var end_index := index + 1
 		var start: Vector3 = points[index]
 		var finish: Vector3 = points[end_index]
 		var direction := finish - start
@@ -463,10 +467,10 @@ func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
 		if flat_direction.is_zero_approx():
 			continue
 		var right := Vector3(flat_direction.z, 0.0, -flat_direction.x)
-		var length := Vector2(direction.x, direction.z).length() + 0.8
+		var length := Vector2(direction.x, direction.z).length() + 0.15
 		var midpoint := (start + finish) * 0.5
 		for side in [-1.0, 1.0]:
-			var wall := _box(Vector3(0.55, 0.85, length),
+			var wall := _box(Vector3(0.38, 0.62, length),
 					midpoint + right * ROAD_EDGE + Vector3(0, 0.48, 0),
 					_wall_mat, true, "concrete")
 			wall.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
