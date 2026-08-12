@@ -6,6 +6,18 @@ const PlayerScript := preload("res://scripts/player/player.gd")
 const HudScript := preload("res://scripts/ui/hud.gd")
 const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
 const CarScript := preload("res://scripts/vehicles/car.gd")
+const AmbientCitizenScript := preload("res://scripts/npc/ambient_citizen.gd")
+
+const CITIZEN_MODELS := [
+	"res://assets/characters/quaternius_modular_men/glTF/Adventurer.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Beach.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Casual_2.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Casual_Hoodie.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Farmer.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Punk.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Suit.gltf",
+	"res://assets/characters/quaternius_modular_men/glTF/Worker.gltf",
+]
 
 var player: Player
 var hud: Hud
@@ -21,6 +33,7 @@ func _ready() -> void:
 	world.build()
 	_spawn_player()
 	_spawn_vehicle()
+	_spawn_citizens()
 	add_child(PauseMenuScript.new())
 
 
@@ -49,6 +62,28 @@ func _spawn_vehicle() -> void:
 	car.position = Vector3(9, 0.2, 24)
 	car.rotation.y = PI * 0.5
 	add_child(car)
+
+
+func _spawn_citizens() -> void:
+	# Fixed pedestrian-safe anchors keep citizens off the driving lanes while
+	# still making every district feel occupied.
+	var anchors := [
+		Vector3(-12, 0.15, 18), Vector3(15, 0.15, 10),
+		Vector3(-13, 0.15, -8), Vector3(13, 0.15, -18),
+		Vector3(-38, 0.15, 28), Vector3(38, 0.15, 18),
+		Vector3(-42, 0.15, -20), Vector3(42, 0.15, -30),
+		Vector3(-68, 0.15, 12), Vector3(68, 0.15, -8),
+		Vector3(-72, 0.15, -42), Vector3(72, 0.15, 42),
+		Vector3(-24, 0.15, 62), Vector3(25, 0.15, 68),
+		Vector3(-18, 0.15, -68), Vector3(22, 0.15, -62),
+	]
+	for i in anchors.size():
+		var citizen := AmbientCitizenScript.new()
+		citizen.position = anchors[i]
+		citizen.model_path = CITIZEN_MODELS[i % CITIZEN_MODELS.size()]
+		citizen.wander_radius = 5.0 + float(i % 3) * 1.5
+		citizen.name = "Citizen_%02d" % (i + 1)
+		add_child(citizen)
 
 
 func _setup_environment() -> void:

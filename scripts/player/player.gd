@@ -863,36 +863,22 @@ func _update_view(delta: float) -> void:
 
 
 func _build_body() -> void:
-	## Third-person body: CC0 rigged mannequin with 46 animations
-	## (res://Godot/AnimationLibrary_Godot_Standard.glb). Driven by
-	## _update_body() from velocity/stance; weapons ride the right hand bone.
+	## Third-person body: fully clothed CC0 Quaternius character.
 	_body = Node3D.new()
 	add_child(_body)
-	var rig_scene: PackedScene = load("res://Godot/AnimationLibrary_Godot_Standard.glb")
+	var rig_scene: PackedScene = load("res://assets/characters/quaternius_modular_men/glTF/Casual_Hoodie.gltf")
 	var rig := rig_scene.instantiate() as Node3D
 	rig.position.y = BODY_VISUAL_Y_OFFSET
 	rig.rotation.y = PI  # model faces +Z; the player moves toward -Z
 	_body.add_child(rig)
-	_anim = rig.get_node("AnimationPlayer")
-	# The importer strips the "_Loop" suffix and marks those clips looping
-	_anim.play("Idle")
-	_anim_state = "Idle"
-	# Survivor tint so the dummy reads as a person, not a showroom prop
+	_anim = rig.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_anim.play("Idle_Neutral")
+	_anim_state = "Idle_Neutral"
 	var skel: Skeleton3D = rig.find_child("Skeleton3D", true, false)
-	var mann: MeshInstance3D = skel.get_node_or_null("Mannequin")
-	if mann:
-		var tint := StandardMaterial3D.new()
-		tint.albedo_color = Color(0.28, 0.37, 0.33)  # ranger green
-		tint.roughness = 0.9
-		mann.material_override = tint
-	# v1.17.0: signature outfit - rust jacket, dark pants, olive cap
-	var OutfitLib := load("res://scripts/world/outfit_lib.gd")
-	OutfitLib.dress(skel, Color(0.62, 0.28, 0.16), Color(0.16, 0.18, 0.16),
-			OutfitLib.HAT_CAP, Color(0.3, 0.36, 0.24))
 	# Weapon models attached to the right hand bone
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)
-	att.bone_name = "DEF-hand.R"
+	att.bone_name = "Wrist.R"
 	var holder := Node3D.new()
 	holder.position = Vector3(0, 0.07, 0.02)
 	holder.rotation = Vector3(PI / 2, 0, 0)
@@ -1068,33 +1054,33 @@ func _update_body(delta: float) -> void:
 	if _anim == null or not _third_person:
 		return
 	# One-shot actions (shoot/reload/swing) finish before locomotion resumes
-	if _anim_state in ["Pistol_Shoot", "Pistol_Reload", "Sword_Attack", "Punch_Cross"] \
+	if _anim_state in ["Gun_Shoot", "Idle_Gun_Shoot", "Interact", "Sword_Slash", "Punch_Right"] \
 			and _anim.is_playing():
 		return
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	var next := ""
 	var anim_scale := 1.0
 	if not is_on_floor():
-		next = "Jump"
+		next = "Idle_Neutral"
 	elif stance != Stance.STAND:
-		next = "Crouch_Fwd" if hspeed > 0.3 else "Crouch_Idle"
+		next = "Walk" if hspeed > 0.3 else "Idle_Neutral"
 		if hspeed > 0.3:
 			anim_scale = clampf(hspeed / CROUCH_SPEED, 0.7, 1.4)
 	elif hspeed > (WALK_SPEED + SPRINT_SPEED) * 0.5:
-		next = "Sprint"
+		next = "Run"
 		anim_scale = clampf(hspeed / SPRINT_SPEED, 0.8, 1.3)
 	elif hspeed > WALK_SPEED * 0.72:
-		next = "Jog_Fwd"
+		next = "Run"
 		anim_scale = clampf(hspeed / WALK_SPEED, 0.8, 1.35)
 	elif hspeed > 0.3:
 		next = "Walk"
 		anim_scale = clampf(hspeed / (WALK_SPEED * 0.6), 0.7, 1.4)
 	elif weapons != null and weapons.current_index() == 2:
-		next = "Sword_Idle"
+		next = "Idle_Sword"
 	elif weapons != null and weapons.current_index() >= 0:
-		next = "Pistol_Idle"
+		next = "Idle_Gun"
 	else:
-		next = "Idle"
+		next = "Idle_Neutral"
 	if next != _anim_state:
 		_anim_state = next
 		_anim.play(next, 0.25)
@@ -1107,6 +1093,14 @@ func play_action_anim(anim_name: String) -> void:
 		return
 	if Vector2(velocity.x, velocity.z).length() > 1.2 or not is_on_floor():
 		return
-	_anim_state = anim_name
+	var mapped := {
+		"Pistol_Shoot": "Gun_Shoot",
+		"Pistol_Reload": "Interact",
+		"Sword_Attack": "Sword_Slash",
+		"Punch_Cross": "Punch_Right",
+	}.get(anim_name, anim_name) as String
+	if not _anim.has_animation(mapped):
+		return
+	_anim_state = mapped
 	_anim.speed_scale = 1.0
-	_anim.play(anim_name, 0.1)
+	_anim.play(mapped, 0.1)

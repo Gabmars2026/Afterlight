@@ -1,0 +1,84 @@
+extends CharacterBody3D
+## Lightweight clothed pedestrian used by the clean rebuild city.
+
+@export_file("*.gltf") var model_path := ""
+@export var wander_radius := 6.0
+@export var walk_speed := 1.35
+
+var _anchor := Vector3.ZERO
+var _target := Vector3.ZERO
+var _anim: AnimationPlayer
+var _idle_time := 0.0
+var _rng := RandomNumberGenerator.new()
+
+
+func _ready() -> void:
+	_rng.seed = hash(name)
+	_anchor = global_position
+	_build_collision()
+	_build_model()
+	_choose_target()
+
+
+func _physics_process(delta: float) -> void:
+	if not is_on_floor():
+		velocity.y -= 18.0 * delta
+	else:
+		velocity.y = -0.5
+	if _idle_time > 0.0:
+		_idle_time -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 5.0 * delta)
+		velocity.z = move_toward(velocity.z, 0.0, 5.0 * delta)
+		_play("Idle_Neutral")
+	else:
+		var direction := _target - global_position
+		direction.y = 0.0
+		if direction.length() < 0.7:
+			_idle_time = _rng.randf_range(1.0, 3.5)
+			_choose_target()
+		else:
+			direction = direction.normalized()
+			velocity.x = direction.x * walk_speed
+			velocity.z = direction.z * walk_speed
+			rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 7.0 * delta)
+			_play("Walk")
+	move_and_slide()
+	if is_on_wall():
+		_choose_target()
+
+
+func _build_collision() -> void:
+	var collision := CollisionShape3D.new()
+	var capsule := CapsuleShape3D.new()
+	capsule.radius = 0.3
+	capsule.height = 1.75
+	collision.shape = capsule
+	collision.position.y = 0.875
+	add_child(collision)
+	collision_layer = 4
+	collision_mask = 1
+
+
+func _build_model() -> void:
+	var scene := load(model_path) as PackedScene
+	if scene == null:
+		push_warning("Citizen model could not load: %s" % model_path)
+		return
+	var model := scene.instantiate() as Node3D
+	model.rotation.y = PI
+	add_child(model)
+	_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_play("Idle_Neutral")
+
+
+func _choose_target() -> void:
+	var angle := _rng.randf_range(0.0, TAU)
+	var distance := _rng.randf_range(wander_radius * 0.35, wander_radius)
+	_target = _anchor + Vector3(sin(angle), 0.0, cos(angle)) * distance
+
+
+func _play(animation_name: String) -> void:
+	if _anim == null or _anim.current_animation == animation_name:
+		return
+	if _anim.has_animation(animation_name):
+		_anim.play(animation_name, 0.2)
