@@ -39,6 +39,7 @@ const EYE_STAND := 1.62
 const EYE_CROUCH := 1.05
 const EYE_CRAWL := 0.5
 const EYE_SLIDE := 0.72
+const BODY_VISUAL_Y_OFFSET := 0.24
 
 const SPRINT_DRAIN_PER_SEC := 11.0
 const JUMP_COST := 8.0
@@ -862,6 +863,7 @@ func _build_body() -> void:
 	add_child(_body)
 	var rig_scene: PackedScene = load("res://Godot/AnimationLibrary_Godot_Standard.glb")
 	var rig := rig_scene.instantiate() as Node3D
+	rig.position.y = BODY_VISUAL_Y_OFFSET
 	rig.rotation.y = PI  # model faces +Z; the player moves toward -Z
 	_body.add_child(rig)
 	_anim = rig.get_node("AnimationPlayer")
