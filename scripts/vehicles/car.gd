@@ -14,6 +14,8 @@ const IMPACT_COOLDOWN := 0.18
 const HEAD_ON_BOUNCE := 0.22
 const WHEEL_RADIUS := 0.35
 const MAX_VISUAL_STEER := 0.48
+const MOUSE_STEER_SENSITIVITY := 0.018
+const MOUSE_STEER_RETURN := 1.8
 
 var prompt := "Press E to drive"
 
@@ -28,6 +30,7 @@ var _saved_mask := 0
 var _impact_cooldown := 0.0
 var _wheel_spin := 0.0
 var _visual_steer := 0.0
+var _mouse_steer := 0.0
 var _wheel_meshes: Array[Dictionary] = []
 @export_enum("Muscle", "NightSky", "Cleo V8", "GT30", "TGR") var visual_kind := 0
 
@@ -41,6 +44,7 @@ const VISUAL_KINDS: Array[String] = [
 
 
 func _ready() -> void:
+	set_process_input(true)
 	add_to_group("interactable")
 	add_to_group("vehicle")
 	collision_layer = 1
@@ -62,6 +66,16 @@ func _ready() -> void:
 	_cam.rotation.x = -0.24
 	_cam.current = false
 	add_child(_cam)
+
+
+func _input(event: InputEvent) -> void:
+	if driver == null or Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+		return
+	if event is InputEventMouseMotion:
+		var motion := event as InputEventMouseMotion
+		# Mouse right produces negative steering because positive car yaw is left.
+		_mouse_steer = clampf(_mouse_steer
+				- motion.relative.x * MOUSE_STEER_SENSITIVITY, -1.0, 1.0)
 
 
 func _build_mesh() -> void:
@@ -108,6 +122,7 @@ func teleport_vehicle(target: Vector3, target_yaw: float) -> void:
 	_speed = 0.0
 	velocity = Vector3.ZERO
 	_visual_steer = 0.0
+	_mouse_steer = 0.0
 	if driver != null:
 		driver.global_position = target + Vector3.UP * 0.8
 
@@ -251,8 +266,11 @@ func _drive(delta: float) -> void:
 	driver.global_position = global_position + Vector3(0, 0.8, 0)
 	var throttle := Input.get_action_strength("move_forward") \
 			- Input.get_action_strength("move_back")
-	var steer := Input.get_action_strength("move_left") \
+	var keyboard_steer := Input.get_action_strength("move_left") \
 			- Input.get_action_strength("move_right")
+	var steer := _mouse_steer if absf(keyboard_steer) < 0.05 else keyboard_steer
+	_mouse_steer = move_toward(_mouse_steer, 0.0,
+			MOUSE_STEER_RETURN * delta)
 	_visual_steer = move_toward(_visual_steer, steer * MAX_VISUAL_STEER, 4.5 * delta)
 	if throttle > 0.05:
 		if _speed < -0.5:
