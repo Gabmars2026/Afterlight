@@ -89,7 +89,13 @@ func _make_materials() -> void:
 
 
 func _build_ground() -> void:
-	_box(Vector3(1950, 2, 1950), Vector3(0, -1, 0), _ground_mat, true, "sand")
+	# Keep one full-size visual ground, but end its collision underneath the
+	# mountain's broad approach. Previously two coplanar collision surfaces
+	# overlapped from x=500 onward, which could trap CharacterBody3D vehicles
+	# before they visibly reached the slope.
+	_box(Vector3(1950, 2, 1950), Vector3(0, -1, 0), _ground_mat, false, "sand")
+	_box(Vector3(1495, 2, 1950), Vector3(-227.5, -1, 0),
+			_ground_mat, true, "sand")
 	_build_boundary_walls()
 
 
@@ -140,7 +146,10 @@ func _build_eastern_mountain() -> void:
 	## It occupies the otherwise empty eastern strip, clear of authored lots.
 	const GRID_X := 49
 	const GRID_Z := 65
-	const MIN_X := 500.0
+	# Start underground and overlap the city-ground collider by 75 metres. The
+	# player therefore crosses a continuous supporting surface with no exposed
+	# trimesh edge or collision gap.
+	const MIN_X := 440.0
 	const MAX_X := 968.0
 	const MIN_Z := -540.0
 	const MAX_Z := 540.0
@@ -206,12 +215,15 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 	var height := main_peak + north_peak * 0.68 + south_peak * 0.62 + foothill
 	# Keep the outer eastern face filled with grass all the way to the boundary;
 	# tapering it down over 23 metres created an unwalkable cliff at the edge.
-	var edge_x := smoothstep(500.0, 575.0, world_x)
+	var edge_x := smoothstep(455.0, 610.0, world_x)
 	var edge_z := smoothstep(-540.0, -440.0, world_z) \
 			* (1.0 - smoothstep(440.0, 540.0, world_z))
 	var rock_detail := (sin(world_x * 0.052 + world_z * 0.019)
 			+ sin(world_z * 0.067) * 0.55) * 5.0 * clampf(height / 80.0, 0.0, 1.0)
-	return maxf(0.0, (height + rock_detail) * edge_x * edge_z)
+	# Sink the raw terrain edge below the flat city collider. It emerges gently
+	# after the overlap instead of presenting a vertical collision lip.
+	var approach_depth := (1.0 - edge_x) * 0.45
+	return (height + rock_detail) * edge_x * edge_z - approach_depth
 
 
 func _mountain_peak(world_x: float, world_z: float, centre_x: float,
