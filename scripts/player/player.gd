@@ -834,12 +834,32 @@ func _update_safety(delta: float) -> void:
 	var beneath_mountain := global_position.x > 510.0 \
 			and absf(global_position.z) < 730.0 \
 			and global_position.y < -1.0 and global_position.y > -10.0
-	if global_position.y < -30.0 or beneath_mountain:
+	if global_position.y < -30.0 or beneath_mountain or _has_mountain_overhead():
 		if _last_safe.x > 510.0 and _last_safe.y < -0.5:
+			_last_safe = Vector3(500.0, 0.3, 300.0)
+		# A position can be grounded yet still be inside the mountain shell. Never
+		# reuse a mountain-region sample after the overhead test detects that case.
+		if _last_safe.x > 510.0 and _has_mountain_overhead_at(_last_safe):
 			_last_safe = Vector3(500.0, 0.3, 300.0)
 		global_position = _last_safe + Vector3(0, 0.6, 0)
 		velocity = Vector3.ZERO
 		notify.emit("YOU CRAWL BACK TO SOLID GROUND")
+
+
+func _has_mountain_overhead() -> bool:
+	return _has_mountain_overhead_at(global_position)
+
+
+func _has_mountain_overhead_at(position: Vector3) -> bool:
+	## The old Y-only test missed pockets inside the mountain that are above sea
+	## level. A vertical ray finds the terrain shell overhead while remaining
+	## clear when the player is standing on its exterior surface.
+	if position.x <= 520.0 or absf(position.z) >= 720.0:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(
+			position + Vector3.UP * 0.35, position + Vector3.UP * 240.0, 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _update_view(delta: float) -> void:
