@@ -6,6 +6,7 @@ const PlayerScript := preload("res://scripts/player/player.gd")
 const HudScript := preload("res://scripts/ui/hud.gd")
 const PauseMenuScript := preload("res://scripts/ui/pause_menu.gd")
 const CarScript := preload("res://scripts/vehicles/car.gd")
+const MotorcycleScript := preload("res://scripts/vehicles/motorcycle.gd")
 const AmbientCitizenScript := preload("res://scripts/npc/ambient_citizen.gd")
 
 const CITIZEN_MODELS := [
@@ -33,6 +34,7 @@ func _ready() -> void:
 	world.build()
 	_spawn_player()
 	_spawn_vehicle()
+	_spawn_motorcycles()
 	_spawn_citizens()
 	add_child(PauseMenuScript.new())
 
@@ -70,6 +72,21 @@ func _spawn_vehicle() -> void:
 		car.rotation.y = PI * 0.5 if i % 2 == 0 else -PI * 0.5
 		car.name = "DrivableCar_%02d" % (i + 1)
 		add_child(car)
+
+
+func _spawn_motorcycles() -> void:
+	# Bikes sit on roadside shoulders near the starting district and downtown.
+	# They use the same E/WASD/mouse controls as cars, so no extra bindings or
+	# tutorial friction are introduced.
+	var parking_spots: Array[Vector3] = [Vector3(14, 0.2, 16),
+			Vector3(-110, 0.2, -106), Vector3(250, 0.2, 226),
+			Vector3(-370, 0.2, 346)]
+	for i in parking_spots.size():
+		var bike := MotorcycleScript.new()
+		bike.position = parking_spots[i]
+		bike.rotation.y = PI * 0.5 if i % 2 == 0 else -PI * 0.5
+		bike.name = "DrivableMotorcycle_%02d" % (i + 1)
+		add_child(bike)
 
 
 func _spawn_citizens() -> void:

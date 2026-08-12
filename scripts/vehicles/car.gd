@@ -32,6 +32,8 @@ var _wheel_spin := 0.0
 var _visual_steer := 0.0
 var _mouse_steer := 0.0
 var _wheel_meshes: Array[Dictionary] = []
+@export var body_size := Vector3(1.9, 1.3, 3.8)
+@export var camera_position := Vector3(0, 3.4, 7.8)
 @export_enum("Muscle", "NightSky", "Cleo V8", "GT30", "TGR") var visual_kind := 0
 
 const VISUAL_KINDS: Array[String] = [
@@ -51,7 +53,7 @@ func _ready() -> void:
 	collision_mask = 1 | 4
 	var col := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.9, 1.3, 3.8)
+	shape.size = body_size
 	col.shape = shape
 	col.position.y = 0.72
 	add_child(col)
@@ -62,7 +64,7 @@ func _ready() -> void:
 	_engine.max_distance = 40.0
 	add_child(_engine)
 	_cam = Camera3D.new()
-	_cam.position = Vector3(0, 3.4, 7.8)
+	_cam.position = camera_position
 	_cam.rotation.x = -0.24
 	_cam.current = false
 	add_child(_cam)

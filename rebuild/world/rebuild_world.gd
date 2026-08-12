@@ -23,6 +23,8 @@ const STAIR_STEPS := 12
 var _ground_mat: StandardMaterial3D
 var _wall_mat: StandardMaterial3D
 var _road_mat: StandardMaterial3D
+var _lane_mat: StandardMaterial3D
+var _sidewalk_mat: StandardMaterial3D
 var _mountain_mat: StandardMaterial3D
 var _model_bounds: Dictionary = {}
 
@@ -66,10 +68,18 @@ func _make_materials() -> void:
 	_wall_mat.uv1_triplanar = true
 	_wall_mat.uv1_world_triplanar = true
 	_road_mat = StandardMaterial3D.new()
-	_road_mat.albedo_texture = load("res://assets/textures/cobble.png")
-	_road_mat.roughness = 0.96
+	# A dark, slightly blue asphalt reads much closer to a modern open-world
+	# street than the old tan cobble grid.
+	_road_mat.albedo_color = Color(0.105, 0.115, 0.13)
+	_road_mat.roughness = 0.88
 	_road_mat.uv1_triplanar = true
 	_road_mat.uv1_world_triplanar = true
+	_lane_mat = StandardMaterial3D.new()
+	_lane_mat.albedo_color = Color(0.92, 0.78, 0.22)
+	_lane_mat.roughness = 0.82
+	_sidewalk_mat = StandardMaterial3D.new()
+	_sidewalk_mat.albedo_color = Color(0.43, 0.44, 0.47)
+	_sidewalk_mat.roughness = 0.96
 	_mountain_mat = StandardMaterial3D.new()
 	_mountain_mat.albedo_color = Color(0.24, 0.31, 0.2)
 	_mountain_mat.roughness = 1.0
@@ -102,10 +112,27 @@ func _build_road_grid() -> void:
 	# One continuous, flush road grid replaces overlapping GLB road tiles. The
 	# old tiles produced the scattered white lane fragments shown by the user.
 	for coordinate in range(-840, 841, 120):
-		_box(Vector3(1900, 0.012, 18), Vector3(0, 0.006, coordinate),
+		# Flush visuals have no collision sheet, so feet and tyres remain on the
+		# single ground collider instead of catching raised road edges.
+		_box(Vector3(1900, 0.018, 20), Vector3(0, 0.009, coordinate),
 				_road_mat, false, "concrete")
-		_box(Vector3(18, 0.012, 1900), Vector3(coordinate, 0.006, 0),
+		_box(Vector3(20, 0.018, 1900), Vector3(coordinate, 0.009, 0),
 				_road_mat, false, "concrete")
+		# Pale shoulders define a safe pedestrian edge without becoming curbs.
+		for shoulder in [-12.0, 12.0]:
+			_box(Vector3(1900, 0.012, 3.0),
+					Vector3(0, 0.006, coordinate + shoulder),
+					_sidewalk_mat, false, "concrete")
+			_box(Vector3(3.0, 0.012, 1900),
+					Vector3(coordinate + shoulder, 0.006, 0),
+					_sidewalk_mat, false, "concrete")
+		# Short dashed yellow center lines keep intersections open and make the
+		# large grid legible from both a car and the expanded map.
+		for dash in range(-900, 901, 24):
+			_box(Vector3(11.0, 0.022, 0.22),
+					Vector3(dash, 0.012, coordinate), _lane_mat, false, "concrete")
+			_box(Vector3(0.22, 0.022, 11.0),
+					Vector3(coordinate, 0.012, dash), _lane_mat, false, "concrete")
 
 
 func _build_eastern_mountain() -> void:
