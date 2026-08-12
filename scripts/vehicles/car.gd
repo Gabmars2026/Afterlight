@@ -230,7 +230,8 @@ func _physics_process(delta: float) -> void:
 	var beneath_mountain := global_position.x > 510.0 \
 			and absf(global_position.z) < 730.0 \
 			and global_position.y < -1.0 and not _allow_underground
-	if global_position.y < -8.0 or beneath_mountain:
+	if global_position.y < -8.0 or beneath_mountain \
+			or (not _allow_underground and _has_mountain_overhead()):
 		_recover_from_fall()
 		return
 	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
@@ -279,6 +280,9 @@ func _recover_from_fall() -> void:
 	# fallback remains usable even if an earlier bad frame overwrote safe state.
 	if _last_safe_position.x > 510.0 and _last_safe_position.y < -0.5:
 		_last_safe_position = Vector3(500.0, 0.3, 300.0)
+	if _last_safe_position.x > 510.0 \
+			and _has_mountain_overhead_at(_last_safe_position):
+		_last_safe_position = Vector3(500.0, 0.3, 300.0)
 	global_position = _last_safe_position + Vector3.UP * 1.2
 	_speed = 0.0
 	velocity = Vector3.ZERO
@@ -290,6 +294,22 @@ func _recover_from_fall() -> void:
 		_update_driver_mount()
 		if driver.has_signal("notify"):
 			driver.emit_signal("notify", "VEHICLE RECOVERED TO SAFE GROUND")
+
+
+func _has_mountain_overhead() -> bool:
+	return _has_mountain_overhead_at(global_position)
+
+
+func _has_mountain_overhead_at(position: Vector3) -> bool:
+	## Detect the mountain shell above a vehicle even when it fell into a pocket
+	## whose elevation is still positive. This closes the gap left by Y-only
+	## recovery without affecting garages, which explicitly allow underground.
+	if position.x <= 520.0 or absf(position.z) >= 720.0:
+		return false
+	var query := PhysicsRayQueryParameters3D.create(
+			position + Vector3.UP * 1.0, position + Vector3.UP * 260.0, 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _apply_impact_response(normal: Vector3, forward: Vector3) -> void:
