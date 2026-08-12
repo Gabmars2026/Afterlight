@@ -357,6 +357,7 @@ func _build_mountain_switchback() -> void:
 	var final_point := control[control.size() - 1]
 	centreline.append(final_point)
 	_build_mountain_highway(centreline)
+	_build_mountain_entrance_apron()
 	_build_mountain_guard_walls(centreline)
 	_build_mountain_route_map(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
@@ -409,23 +410,16 @@ func _build_mountain_highway(points: Array[Vector3]) -> void:
 	highway.name = "ContinuousMountainHighway"
 	highway.mesh = mesh
 	add_child(highway)
-	var body := StaticBody3D.new()
-	body.set_meta("surface", "concrete")
-	var collision := CollisionShape3D.new()
-	collision.shape = mesh.create_trimesh_shape()
-	body.add_child(collision)
-	highway.add_child(body)
-	# A second, slightly buried collision deck is made from overlapping sloped
-	# boxes. The visible mesh stays seamless, while these supports prevent a bike
-	# from ever finding a one-triangle hole or catching a raised box face.
+	# Physics uses simple overlapping convex supports, not the visible trimesh.
+	# This avoids one-sided triangle edges catching CharacterBody3D vehicles.
 	for index in points.size() - 1:
 		var start := points[index]
 		var finish := points[index + 1]
 		var direction := finish - start
 		if direction.length() < 0.05:
 			continue
-		var support := _box(Vector3(14.6, 0.55, direction.length() + 1.4),
-				(start + finish) * 0.5 - Vector3.UP * 0.48,
+		var support := _box(Vector3(14.8, 0.48, direction.length() + 1.8),
+				(start + finish) * 0.5 - Vector3.UP * 0.25,
 				_road_mat, true, "concrete")
 		support.visible = false
 		support.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
@@ -439,6 +433,14 @@ func _build_mountain_highway(points: Array[Vector3]) -> void:
 				(start + finish) * 0.5 + Vector3.UP * 0.025,
 				_lane_mat, false, "concrete")
 		stripe.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
+
+
+func _build_mountain_entrance_apron() -> void:
+	## A broad, perfectly flat asphalt apron overlaps both the city roadway and
+	## the first mountain segment. With no exposed front face, cars and bikes can
+	## enter or reverse away without climbing a kerb-sized collision edge.
+	_box(Vector3(175.0, 0.18, 18.0), Vector3(522.5, -0.09, 300.0),
+			_road_mat, true, "concrete")
 
 
 func _add_highway_quad(surface: SurfaceTool, a: Vector3, b: Vector3,
