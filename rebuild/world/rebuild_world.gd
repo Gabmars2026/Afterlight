@@ -454,11 +454,18 @@ func _add_highway_quad(surface: SurfaceTool, a: Vector3, b: Vector3,
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
-	## Low barriers follow every short road section.  The previous three-section
-	## chords cut across switchback corners and formed the invisible blockade
-	## shown by the player.  Leave the first approach completely open.
+	## Low barriers follow the middle of straight road runs only.  Barriers close
+	## to a control-point bend can point along different tangents and overlap
+	## across the asphalt.  Wide, barrier-free turn zones prevent that geometry
+	## from ever trapping a pedestrian, bicycle, or car.
 	const ROAD_EDGE := 8.35
+	const SECTIONS_PER_RUN := 16
+	const TURN_CLEARANCE := 3
 	for index in range(8, points.size() - 1):
+		var section_in_run := index % SECTIONS_PER_RUN
+		if section_in_run < TURN_CLEARANCE \
+				or section_in_run >= SECTIONS_PER_RUN - TURN_CLEARANCE:
+			continue
 		var end_index := index + 1
 		var start: Vector3 = points[index]
 		var finish: Vector3 = points[end_index]
@@ -467,7 +474,9 @@ func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
 		if flat_direction.is_zero_approx():
 			continue
 		var right := Vector3(flat_direction.z, 0.0, -flat_direction.x)
-		var length := Vector2(direction.x, direction.z).length() + 0.15
+		# A small gap between pieces is intentional. It prevents adjacent collision
+		# boxes from forming a protruding wedge on shallow curves.
+		var length := maxf(Vector2(direction.x, direction.z).length() - 0.35, 0.5)
 		var midpoint := (start + finish) * 0.5
 		for side in [-1.0, 1.0]:
 			var wall := _box(Vector3(0.38, 0.62, length),
