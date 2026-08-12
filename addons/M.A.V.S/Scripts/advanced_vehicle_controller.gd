@@ -206,8 +206,10 @@ const speed_modifier : float = 3.6 # Modifies actuall speed to be more accurate 
 var gear : int = 0 # Displays current gear based on gear_ratio
 var can_reset : bool = true # Switch to allow player to reset vehicle and set cooldown to prevent spamming it
 var energy : float # Variable in which we store vehicle energy or fuel and exports it to progress bar in UI scene
-var camera_scene : PackedScene = load("res://addons/M.A.V.S/Scenes/cam_holder.tscn") # We Instantiate our vehicle main camera and add it to our vehicle as a child node
-var minimap : PackedScene = load("res://addons/M.A.V.S/Scenes/MinimapCamera.tscn") # We Instantiate our Minimap Scene and add it to our vehicle as a child node, this will create camera above our car and add necessary markers to id also adds smal display for our minimap
+var camera_scene : PackedScene = load("res://addons/M.A.V.S/Scenes/cam_holder.tscn") \
+		if ResourceLoader.exists("res://addons/M.A.V.S/Scenes/cam_holder.tscn") else null # Optional in Afterlight's mesh-only vehicle setup
+var minimap : PackedScene = load("res://addons/M.A.V.S/Scenes/MinimapCamera.tscn") \
+		if ResourceLoader.exists("res://addons/M.A.V.S/Scenes/MinimapCamera.tscn") else null # Optional in Afterlight's mesh-only vehicle setup
 var minimap_node : CanvasLayer # This lets us find the node that contains minimap since it is containing also our UI instead of having UI as a global scene
 var vehicle_camera : Node3D # This is a reference to the camera that is attached to the vehicle
 var mod_instance # Create an instance of the script

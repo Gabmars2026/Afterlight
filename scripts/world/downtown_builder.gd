@@ -1,24 +1,49 @@
 extends Node3D
-## Phase 22: NEON DISTRICT. A downtown plinth east of town with a dozen
-## glass towers (60-120 m), neon window strips, streetlights, an avenue
-## leading in from the crosstown road, and a street-level bar.
+## NEON DISTRICT. A dense downtown plinth east of town with enterable
+## towers, compact commercial blocks, connected streets and a bar.
 
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 
 const TOWER_SPECS := [
 	# [x, z, width, height, neon color]
-	[-48, -34, 16, 74, Color(0.2, 0.9, 1.0)],
-	[-20, -40, 18, 96, Color(1.0, 0.45, 0.75)],
-	[12, -36, 15, 68, Color(0.6, 1.0, 0.4)],
-	[40, -42, 20, 120, Color(0.3, 0.6, 1.0)],
-	[52, -14, 14, 62, Color(1.0, 0.7, 0.25)],
-	[-52, 16, 15, 82, Color(0.9, 0.4, 1.0)],
-	[-26, 30, 17, 104, Color(0.25, 1.0, 0.8)],
-	[6, 34, 14, 60, Color(1.0, 0.5, 0.3)],
-	[34, 28, 18, 88, Color(0.4, 0.8, 1.0)],
-	[54, 44, 15, 72, Color(1.0, 0.85, 0.3)],
-	[-8, -14, 12, 64, Color(0.7, 0.9, 1.0)],
-	[24, 12, 13, 66, Color(1.0, 0.35, 0.5)],
+	[-62, -46, 16, 74, Color(0.2, 0.9, 1.0)],
+	[-44, -46, 14, 96, Color(1.0, 0.45, 0.75)],
+	[-9, -46, 14, 68, Color(0.6, 1.0, 0.4)],
+	[9, -46, 14, 120, Color(0.3, 0.6, 1.0)],
+	[44, -46, 15, 82, Color(1.0, 0.7, 0.25)],
+	[62, -46, 14, 64, Color(0.9, 0.4, 1.0)],
+	[-62, 46, 15, 82, Color(0.25, 1.0, 0.8)],
+	[-44, 46, 14, 104, Color(1.0, 0.5, 0.3)],
+	[-9, 46, 14, 60, Color(0.4, 0.8, 1.0)],
+	[9, 46, 14, 88, Color(1.0, 0.85, 0.3)],
+	[44, 46, 15, 72, Color(0.7, 0.9, 1.0)],
+	[62, 46, 14, 66, Color(1.0, 0.35, 0.5)],
+]
+
+# Kenney City Kit Commercial 2.1. Entries are:
+# [PackedScene, source width, source height, source depth, world scale].
+# Source dimensions are retained here so each detailed model gets a simple,
+# dependable driving/parkour collider without expensive generated trimeshes.
+const CITY_ASSETS := [
+	[preload("res://assets/city_kenney/building-a.glb"), 0.884, 1.293, 0.940, 10.5],
+	[preload("res://assets/city_kenney/building-b.glb"), 0.970, 1.293, 0.940, 10.0],
+	[preload("res://assets/city_kenney/building-c.glb"), 0.884, 0.893, 1.090, 10.0],
+	[preload("res://assets/city_kenney/building-d.glb"), 0.840, 1.293, 0.900, 11.0],
+	[preload("res://assets/city_kenney/building-e.glb"), 1.640, 0.893, 1.008, 6.5],
+	[preload("res://assets/city_kenney/building-f.glb"), 0.840, 1.693, 1.030, 11.0],
+	[preload("res://assets/city_kenney/building-g.glb"), 0.970, 1.693, 0.922, 10.0],
+	[preload("res://assets/city_kenney/building-h.glb"), 0.884, 1.293, 1.008, 10.5],
+	[preload("res://assets/city_kenney/building-i.glb"), 1.240, 1.680, 1.302, 8.5],
+	[preload("res://assets/city_kenney/building-j.glb"), 2.084, 1.693, 1.340, 5.5],
+	[preload("res://assets/city_kenney/building-k.glb"), 2.084, 1.470, 0.942, 5.5],
+	[preload("res://assets/city_kenney/building-l.glb"), 1.370, 2.270, 1.402, 7.5],
+	[preload("res://assets/city_kenney/building-m.glb"), 1.240, 3.150, 1.242, 7.5],
+	[preload("res://assets/city_kenney/building-n.glb"), 2.320, 2.480, 1.820, 5.0],
+	[preload("res://assets/city_kenney/building-skyscraper-a.glb"), 1.360, 2.880, 1.360, 7.5],
+	[preload("res://assets/city_kenney/building-skyscraper-b.glb"), 1.360, 4.480, 1.360, 7.0],
+	[preload("res://assets/city_kenney/building-skyscraper-c.glb"), 1.280, 4.080, 1.388, 7.0],
+	[preload("res://assets/city_kenney/building-skyscraper-d.glb"), 1.280, 5.470, 1.388, 7.0],
+	[preload("res://assets/city_kenney/building-skyscraper-e.glb"), 1.295, 4.080, 1.242, 7.5],
 ]
 
 var _concrete: StandardMaterial3D
@@ -39,6 +64,7 @@ func _ready() -> void:
 	_glass_dark.metallic = 0.6
 	_build_plinth()
 	_build_towers()
+	_build_asset_blocks()
 	_build_bar()
 
 
@@ -81,6 +107,26 @@ func _neon(size: Vector3, pos: Vector3, color: Color, strength := 1.6) -> void:
 	add_child(mi)
 
 
+func _ramp(size: Vector3, pos: Vector3, rot_z: float) -> void:
+	## A single continuous driving surface. This replaces the old four-step
+	## entrance that caught the car's collision box at the district boundary.
+	var mi := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = size
+	bm.material = _asphalt
+	mi.mesh = bm
+	mi.position = pos
+	mi.rotation.z = rot_z
+	add_child(mi)
+	var sb := StaticBody3D.new()
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	cs.shape = shape
+	sb.add_child(cs)
+	mi.add_child(sb)
+
+
 func _build_plinth() -> void:
 	# Raised platform with skirt walls hiding the dune transition
 	_box(Vector3(150, 2, 150), Vector3(0, 0, 0), _concrete)
@@ -90,16 +136,20 @@ func _build_plinth() -> void:
 	for side in [[0.0, -75.0, 150.0, 0.4], [0.0, 75.0, 150.0, 0.4]]:
 		_box(Vector3(side[2], 20, side[3]), Vector3(side[0], -10, side[1]),
 				_concrete, Color(0.42, 0.42, 0.45))
-	# Avenue running east-west across the plinth, meeting the west steps
-	_box(Vector3(150, 0.1, 9), Vector3(0, 1.05, 0), _asphalt, Color.WHITE, false)
+	# A connected street grid with deliberate gaps between the building blocks.
+	_box(Vector3(150, 0.1, 12), Vector3(0, 1.05, 0), _asphalt, Color.WHITE, false)
+	for cross_x in [-26.0, 26.0]:
+		_box(Vector3(9, 0.1, 150), Vector3(cross_x, 1.05, 0),
+				_asphalt, Color.WHITE, false)
+	for side_z in [-30.0, 30.0]:
+		_box(Vector3(150, 0.1, 7), Vector3(0, 1.05, side_z),
+				_asphalt, Color(0.24, 0.24, 0.26), false)
 	for i in 6:
 		_box(Vector3(1.6, 0.12, 0.5), Vector3(-62.5 + i * 25.0, 1.06, 0),
 				_asphalt, Color(0.85, 0.8, 0.3), false)
-	# Approach road from the town gate + entry steps up the plinth
-	_box(Vector3(66, 1.04, 6), Vector3(-108, -0.5, 0), _asphalt)
-	for i in 4:
-		_box(Vector3(2.4, 0.25, 6), Vector3(-76.2 + i * 1.2,
-				0.16 + i * 0.25, 0), _concrete)
+	# Wide approach road from the town gate + seamless vehicle ramp.
+	_box(Vector3(66, 1.04, 10), Vector3(-108, -0.5, 0), _asphalt)
+	_ramp(Vector3(12, 0.4, 10), Vector3(-75, 0.335, 0), atan(1.03 / 12.0))
 	# Streetlights along the avenue
 	for i in 4:
 		var lx := -45.0 + i * 30.0
@@ -116,15 +166,67 @@ func _build_plinth() -> void:
 	add_child(lamp)
 
 
+func _build_asset_blocks() -> void:
+	## Compact street walls at z +/-14 make the avenue feel like downtown;
+	## a second row fills the skyline behind the enterable towers. Slots leave
+	## open corridors around the two north/south cross streets at x +/-26.
+	var slots := [-66.0, -52.0, -38.0, -13.0, 0.0, 13.0, 38.0, 52.0, 66.0]
+	var asset_idx := 0
+	for side in [-1.0, 1.0]:
+		for i in slots.size():
+			# THE LAST CALL bar occupies this south-side lot.
+			if side > 0.0 and i == 2:
+				continue
+			_place_city_asset(asset_idx % CITY_ASSETS.size(),
+					Vector3(slots[i], 1.1, side * 14.0),
+					0.0 if side < 0.0 else PI)
+			asset_idx += 1
+	var outer_slots := [-65.0, -51.0, -37.0, -12.0, 1.0, 14.0, 38.0, 52.0, 66.0]
+	for side in [-1.0, 1.0]:
+		for x in outer_slots:
+			_place_city_asset(asset_idx % CITY_ASSETS.size(),
+					Vector3(x, 1.1, side * 66.0),
+					0.0 if side < 0.0 else PI)
+			asset_idx += 1
+
+
+func _place_city_asset(catalog_index: int, pos: Vector3, yaw: float) -> void:
+	var spec: Array = CITY_ASSETS[catalog_index]
+	var packed: PackedScene = spec[0]
+	var source_width: float = spec[1]
+	var source_height: float = spec[2]
+	var source_depth: float = spec[3]
+	var model_scale: float = spec[4]
+	var lot := Node3D.new()
+	lot.name = "CityAsset_%02d" % get_tree().get_nodes_in_group("city_asset").size()
+	lot.position = pos
+	lot.rotation.y = yaw
+	lot.add_to_group("city_asset")
+	add_child(lot)
+	var model := packed.instantiate()
+	model.scale = Vector3.ONE * model_scale
+	lot.add_child(model)
+	var body := StaticBody3D.new()
+	body.name = "BuildingCollision"
+	var cs := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(source_width * model_scale * 0.94,
+			source_height * model_scale, source_depth * model_scale * 0.94)
+	cs.shape = shape
+	cs.position.y = source_height * model_scale * 0.5
+	body.add_child(cs)
+	lot.add_child(body)
+
+
 func _build_towers() -> void:
 	var idx := 0
 	for spec in TOWER_SPECS:
 		_tower(idx, spec)
 		idx += 1
 	# Antenna on the tallest tower
-	_box(Vector3(0.5, 16, 0.5), Vector3(40, 137, -42), _asphalt,
+	_box(Vector3(0.5, 16, 0.5), Vector3(9, 137, -46), _asphalt,
 			Color(0.6, 0.2, 0.2))
-	_neon(Vector3(0.9, 0.9, 0.9), Vector3(40, 145.5, -42),
+	_neon(Vector3(0.9, 0.9, 0.9), Vector3(9, 145.5, -46),
 			Color(1.0, 0.2, 0.2), 2.5)
 
 

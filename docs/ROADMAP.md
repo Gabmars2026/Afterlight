@@ -25,6 +25,12 @@ Full scope, hour budget, and honest tradeoffs: see `GAME_PLAN.md`.
 - [x] **PHASE 20 — Release build** — Windows Desktop export preset (single self-contained x86_64 .exe with embedded game data, v1.0.0 metadata); GitHub Actions release pipeline: pushing a version tag builds the .exe with official export templates and attaches `Afterlight-windows-x86_64.zip` to a GitHub Release automatically
 
 ## Post-release patches
+- **v1.19.0** - DOWNTOWN REBUILD: added 35 detailed CC0 Kenney commercial
+  buildings and skyscrapers in compact blocks, reorganized the 12 enterable
+  towers into a dense skyline, added cross streets and side streets, replaced
+  the stepped downtown entrance with a continuous vehicle ramp, moved all
+  GRAYSPINE collision cones out of the painted mountain-pass corridor, and
+  added curb/seam assistance plus fall recovery to the drivable car.
 - **v1.18.1** - ROAD CLEARANCE: full-town scan for structures standing on roads; market shop + storage shifted off the crosstown road, canal road rerouted between market and shop, road barricade removed, third stall/rubble/sign moved, parkour blocks off main street, plaza pedestal and gate wreck relocated, west-spur wreck moved aside.
 - **v1.18.0** - DESERT BLOOM: palm trees, two oases, bushes, rocks and 1400 grass tufts across the dunes; palm-lined NEON DISTRICT avenue; front-yard greenery in SUNSET FLATS; richer terrain colors; boxy vest/shorts removed from all characters (hats kept); deleted ~115 MB of unused addons and platform binaries.
 

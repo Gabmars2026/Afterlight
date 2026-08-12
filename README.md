@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: v1.1.0 — fully animated third-person character (CC0 mannequin, 46 animations).**
+**Current build: v1.19.0 — dense commercial downtown and clear vehicle routes.**
 
 **Download:** grab `Afterlight-windows-x86_64.zip` from the [Releases page](https://github.com/Gabmars2026/Afterlight/releases) — no Godot needed, just unzip and run `Afterlight.exe`. (Or keep playing from the editor with F5 as always.)
 
@@ -80,4 +80,5 @@ stamina, ammo).
 
 ## Credits
 
-All code, textures, and sounds in this repository are original/generated.
+- City Kit Commercial 2.1 by Kenney — CC0.
+- Third-party packs retain the licenses included beside their assets.

@@ -4,11 +4,13 @@ extends Node3D
 
 const MOUNTAINS := [
 	# [x, z, height, base radius, snow]
-	[-40.0, 285.0, 70.0, 95.0, false],
-	[60.0, 335.0, 100.0, 130.0, true],
-	[-115.0, 350.0, 62.0, 85.0, false],
-	[15.0, 405.0, 120.0, 155.0, true],
+	[-112.0, 285.0, 70.0, 76.0, false],
+	[128.0, 335.0, 100.0, 94.0, true],
+	[-158.0, 365.0, 62.0, 88.0, false],
+	[176.0, 425.0, 120.0, 122.0, true],
 ]
+
+const PASS_HALF_WIDTH := 28.0
 
 var _water: MeshInstance3D
 var _water_mat: StandardMaterial3D
@@ -91,6 +93,7 @@ func _build_mountains() -> void:
 		cone.material = rock
 		m.mesh = cone
 		m.position = Vector3(spec[0], h * 0.5 - 3.0, spec[1])
+		m.add_to_group("mountain_peak")
 		add_child(m)
 		# Climbable rock: real trimesh collision on the cone
 		var sb := StaticBody3D.new()
@@ -110,6 +113,19 @@ func _build_mountains() -> void:
 			cap.position = Vector3(spec[0], h - 3.0 - h * 0.12, spec[1])
 			cap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			add_child(cap)
+
+
+func driving_pass_clear() -> bool:
+	## The painted southbound road follows the center corridor. Keeping every
+	## collision cone outside it prevents the dark triangular mountain walls
+	## that previously crossed the asphalt and stopped vehicles.
+	for peak in get_tree().get_nodes_in_group("mountain_peak"):
+		if peak.get_parent() != self or not (peak is MeshInstance3D):
+			continue
+		var cone := peak.mesh as CylinderMesh
+		if cone and absf(peak.position.x) - cone.bottom_radius < PASS_HALF_WIDTH:
+			return false
+	return true
 
 
 func _process(delta: float) -> void:

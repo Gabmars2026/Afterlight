@@ -178,6 +178,8 @@ func _test_streaming() -> void:
 	_check(t0 != null, "towers are individual nodes")
 	_check(t0 != null and t0.get_child_count() >= 80,
 			"tower has 20 floors of interior")
+	_check(_zone.get_tree().get_nodes_in_group("city_asset").size() >= 30,
+			"downtown has dense detailed commercial blocks")
 	var rd := _zone.get_node_or_null("Residential")
 	_check(rd != null, "SUNSET FLATS district exists")
 	var homes := 0
@@ -213,6 +215,8 @@ func _test_streaming() -> void:
 					and c.mesh is CylinderMesh:
 				peaks += 1
 	_check(peaks >= 4, "climbable mountains have collision")
+	_check(fr != null and fr.has_method("driving_pass_clear")
+			and fr.driving_pass_clear(), "mountain driving pass stays clear")
 	var tcars := _zone.get_tree().get_nodes_in_group("traffic")
 	var modeled := 0
 	for tc in tcars:

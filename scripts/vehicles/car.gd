@@ -10,6 +10,8 @@ const ENGINE_ACCEL := 8.0
 const BRAKE := 22.0
 const DRAG := 3.0
 const STEER_RATE := 1.9
+const STEP_HEIGHT := 0.55
+const FALL_RECOVERY_Y := -25.0
 
 var prompt := "Press E to drive"
 
@@ -21,11 +23,14 @@ var _lights: Array = []
 var _grace := 0.0
 var _saved_layer := 0
 var _saved_mask := 0
+var _last_safe_transform: Transform3D
 
 
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("vehicle")
+	floor_snap_length = 0.85
+	floor_max_angle = deg_to_rad(50.0)
 	collision_layer = 1
 	collision_mask = 1 | 4
 	var col := CollisionShape3D.new()
@@ -45,6 +50,7 @@ func _ready() -> void:
 	_cam.rotation.x = -0.24
 	_cam.current = false
 	add_child(_cam)
+	_last_safe_transform = global_transform
 
 
 func _build_mesh() -> void:
@@ -127,6 +133,7 @@ func _physics_process(delta: float) -> void:
 	velocity.x = fwd.x * _speed
 	velocity.z = fwd.z * _speed
 	move_and_slide()
+	_try_step_over_road_seam(delta, fwd)
 	# Ram damage + wall scrub
 	for i in get_slide_collision_count():
 		var col := get_slide_collision(i)
@@ -136,6 +143,36 @@ func _physics_process(delta: float) -> void:
 			_speed *= 0.72
 		elif absf(col.get_normal().dot(fwd)) > 0.7:
 			_speed = move_toward(_speed, 0.0, 30.0 * delta)
+	if is_on_floor() and global_position.y > FALL_RECOVERY_Y:
+		_last_safe_transform = global_transform
+	elif global_position.y <= FALL_RECOVERY_Y:
+		global_transform = _last_safe_transform
+		velocity = Vector3.ZERO
+		_speed = 0.0
+		if driver != null and driver.has_signal("notify"):
+			driver.emit_signal("notify", "Vehicle recovered to the road")
+
+
+func _try_step_over_road_seam(delta: float, fwd: Vector3) -> void:
+	## CharacterBody vehicles need a small step assist for joined road pieces.
+	## It clears curb-sized lips but still fails the raised probe against walls.
+	if not is_on_floor() or absf(_speed) < 0.8:
+		return
+	var hit_front := false
+	for i in get_slide_collision_count():
+		if absf(get_slide_collision(i).get_normal().dot(fwd)) > 0.72:
+			hit_front = true
+			break
+	if not hit_front:
+		return
+	var up := Vector3.UP * STEP_HEIGHT
+	if test_move(global_transform, up):
+		return
+	var lifted := global_transform.translated(up)
+	var probe := fwd * maxf(absf(_speed) * delta, 0.35)
+	if not test_move(lifted, probe):
+		global_position += up
+		move_and_slide()
 
 
 func _drive(delta: float) -> void:
