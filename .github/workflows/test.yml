@@ -1,0 +1,17 @@
+name: Self-test
+on: [push, pull_request]
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Godot 4.7.1
+        run: |
+          curl -sL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q godot.zip
+          chmod +x Godot_v4.7.1-stable_linux.x86_64
+      - name: Import assets
+        run: ./Godot_v4.7.1-stable_linux.x86_64 --headless --path . --import || true
+      - name: Run self-test
+        run: ./Godot_v4.7.1-stable_linux.x86_64 --headless --path . -- --selftest
