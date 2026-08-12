@@ -812,9 +812,12 @@ func _build_prop_plaza(origin: Vector3) -> void:
 
 func _build_street_furniture() -> void:
 	for x in [-50.0, 50.0, 120.0, -120.0]:
-		_place_visual(ROAD_ROOT + "/light-curved-double.glb", Vector3(x, 0.12, 4.5), 0.0, 6.0)
+		# The asphalt is 20 m wide and the shoulder ends at 13 m. Keep the pole
+		# base beyond that edge while its curved lamps illuminate both lanes.
+		_place_visual(ROAD_ROOT + "/light-curved-double.glb",
+				Vector3(x, 0.12, 15.0), 0.0, 6.0)
 		var light := OmniLight3D.new()
-		light.position = Vector3(x, 6.0, 4.5)
+		light.position = Vector3(x, 6.0, 15.0)
 		light.light_color = Color(1.0, 0.88, 0.68)
 		light.light_energy = 0.7
 		light.omni_range = 18.0

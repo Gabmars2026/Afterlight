@@ -14,6 +14,7 @@ const AIM_ZOOM := -10.0
 var player: CharacterBody3D
 var _weapons: Array[Dictionary] = []
 var _current := -1
+var _holstered := false
 var _melee_slot := -1  # inventory slot of the equipped melee item (-1 = fists)
 var _cooldown := 0.0
 var _reload_left := 0.0
@@ -114,6 +115,19 @@ func _vm_box(parent: Node3D, size: Vector3, pos: Vector3, mat: Material) -> void
 	parent.add_child(mi)
 
 
+func _add_weapon_model(root: Node3D, path: String, model_scale: float,
+		model_position: Vector3, model_rotation: Vector3) -> void:
+	var packed := load(path) as PackedScene
+	if packed == null:
+		push_warning("Missing weapon model: " + path)
+		return
+	var model := packed.instantiate() as Node3D
+	model.scale = Vector3.ONE * model_scale
+	model.position = model_position
+	model.rotation = model_rotation
+	root.add_child(model)
+
+
 func _build_hands(root: Node3D, two_handed: bool) -> void:
 	var skin := _mat(Color(0.78, 0.6, 0.48))
 	var sleeve := _mat(Color(0.25, 0.28, 0.24))
@@ -127,10 +141,8 @@ func _build_hands(root: Node3D, two_handed: bool) -> void:
 func _build_pistol() -> void:
 	var root := Node3D.new()
 	add_child(root)
-	var gun := _mat(Color(0.16, 0.16, 0.18), 0.6)
-	var grip := _mat(Color(0.1, 0.1, 0.1))
-	_vm_box(root, Vector3(0.05, 0.09, 0.26), Vector3(0, 0, -0.08), gun)   # slide
-	_vm_box(root, Vector3(0.045, 0.12, 0.07), Vector3(0, -0.09, 0.02), grip)
+	_add_weapon_model(root, "res://assets/kenney/blaster_kit/pistol.glb",
+			0.42, Vector3(0.0, -0.06, -0.06), Vector3(0.0, PI, 0.0))
 	_build_hands(root, false)
 	var muzzle := Node3D.new()
 	muzzle.position = Vector3(0, 0.0, -0.22)
@@ -147,12 +159,8 @@ func _build_pistol() -> void:
 func _build_rifle() -> void:
 	var root := Node3D.new()
 	add_child(root)
-	var gun := _mat(Color(0.14, 0.15, 0.16), 0.6)
-	var furn := _mat(Color(0.23, 0.19, 0.14))
-	_vm_box(root, Vector3(0.055, 0.09, 0.5), Vector3(0, 0, -0.15), gun)    # receiver+barrel
-	_vm_box(root, Vector3(0.045, 0.07, 0.16), Vector3(0, -0.02, 0.2), furn)  # stock
-	_vm_box(root, Vector3(0.04, 0.13, 0.05), Vector3(0, -0.1, -0.02), gun)  # mag
-	_vm_box(root, Vector3(0.05, 0.06, 0.14), Vector3(0, -0.06, -0.25), furn)  # foregrip
+	_add_weapon_model(root, "res://assets/kenney/blaster_kit/rifle.glb",
+			0.44, Vector3(0.0, -0.08, -0.13), Vector3(0.0, PI, 0.0))
 	_build_hands(root, true)
 	var muzzle := Node3D.new()
 	muzzle.position = Vector3(0, 0.01, -0.42)
@@ -229,8 +237,11 @@ func equip_melee(slot: int) -> void:
 
 
 func _switch_to(idx: int) -> void:
-	if idx == _current or idx < 0 or idx >= _weapons.size():
+	if idx < 0 or idx >= _weapons.size():
 		return
+	if idx == _current and not _holstered:
+		return
+	_holstered = false
 	_current = idx
 	weapon_switched.emit(idx)
 	_reload_left = 0.0
@@ -247,6 +258,9 @@ func current_index() -> int:
 
 
 func _emit_ammo() -> void:
+	if _holstered:
+		ammo_changed.emit("HOLSTERED")
+		return
 	var w := _weapons[_current]
 	if w.get("melee", false):
 		if _melee_slot >= 0 and player.inventory.slots[_melee_slot] != null:
@@ -281,7 +295,7 @@ func _process(delta: float) -> void:
 	_recoil_back = lerpf(_recoil_back, 0.0, minf(1.0, delta * 12.0))
 	var target := _base_pos + Vector3(0, 0, _recoil_back)
 	var camera := get_parent() as Camera3D
-	if Input.is_action_pressed("aim") and _reload_left <= 0.0 \
+	if not _holstered and Input.is_action_pressed("aim") and _reload_left <= 0.0 \
 			and not _weapons[_current].get("melee", false):
 		target = Vector3(0.0, -0.22, -0.42 + _recoil_back)
 		camera.set("zoom_offset", AIM_ZOOM)
@@ -295,11 +309,25 @@ func _handle_combat_input() -> void:
 		return
 	var w := _weapons[_current]
 	if Input.is_action_just_pressed("weapon_cycle"):
-		var nxt := (_current + 1) % _weapons.size()
-		if nxt == 2:
-			equip_melee(_melee_slot if _melee_slot >= 0 else player.inventory.best_melee())
-		else:
-			_switch_to(nxt)
+		_holstered = not _holstered
+		for weapon in _weapons:
+			weapon["model"].visible = not _holstered \
+					and weapon == _weapons[_current]
+		_reload_left = 0.0
+		if not _holstered:
+			_handling.stream = _snd_equip
+			_handling.play()
+		_emit_ammo()
+		return
+	if _holstered:
+		if Input.is_action_just_pressed("weapon_1"):
+			_switch_to(0)
+		elif Input.is_action_just_pressed("weapon_2"):
+			_switch_to(1)
+		elif Input.is_action_just_pressed("weapon_3"):
+			_holstered = false
+			equip_melee(_melee_slot if _melee_slot >= 0 \
+					else player.inventory.best_melee())
 		return
 	if Input.is_action_just_pressed("weapon_1"):
 		_switch_to(0)
