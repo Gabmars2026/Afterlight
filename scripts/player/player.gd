@@ -828,7 +828,10 @@ func _update_safety(delta: float) -> void:
 	if is_on_floor() and _safe_timer <= 0.0 and global_position.y > -10.0:
 		_safe_timer = 0.5
 		_last_safe = global_position
-	if global_position.y < -30.0:
+	var beneath_mountain := global_position.x > 510.0 \
+			and absf(global_position.z) < 730.0 \
+			and global_position.y < -1.0 and global_position.y > -10.0
+	if global_position.y < -30.0 or beneath_mountain:
 		global_position = _last_safe + Vector3(0, 0.6, 0)
 		velocity = Vector3.ZERO
 		notify.emit("YOU CRAWL BACK TO SOLID GROUND")

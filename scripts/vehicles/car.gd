@@ -34,6 +34,7 @@ var _mouse_steer := 0.0
 var _wheel_meshes: Array[Dictionary] = []
 var _last_safe_position := Vector3.ZERO
 var _safe_sample_cooldown := 0.0
+var _allow_underground := false
 @export var body_size := Vector3(1.9, 1.3, 3.8)
 @export var camera_position := Vector3(0, 3.4, 7.8)
 @export_enum("Muscle", "NightSky", "Cleo V8", "GT30", "TGR") var visual_kind := 0
@@ -128,6 +129,9 @@ func teleport_vehicle(target: Vector3, target_yaw: float) -> void:
 	velocity = Vector3.ZERO
 	_visual_steer = 0.0
 	_mouse_steer = 0.0
+	# Garage interiors intentionally live below the city. Only portal-driven
+	# underground positions bypass the mountain under-surface rescue check.
+	_allow_underground = target.y < -1.0
 	if driver != null:
 		driver.global_position = target + Vector3.UP * 0.8
 
@@ -218,7 +222,10 @@ func _physics_process(delta: float) -> void:
 	# player trapped beneath the world: remember stable grounded positions and
 	# recover the complete vehicle/driver pair if it drops below the map.
 	_safe_sample_cooldown = maxf(0.0, _safe_sample_cooldown - delta)
-	if global_position.y < -8.0:
+	var beneath_mountain := global_position.x > 510.0 \
+			and absf(global_position.z) < 730.0 \
+			and global_position.y < -1.0 and not _allow_underground
+	if global_position.y < -8.0 or beneath_mountain:
 		_recover_from_fall()
 		return
 	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
@@ -267,6 +274,7 @@ func _recover_from_fall() -> void:
 	_visual_steer = 0.0
 	_mouse_steer = 0.0
 	_safe_sample_cooldown = 1.0
+	_allow_underground = false
 	if driver != null:
 		driver.global_position = global_position + Vector3.UP * 0.8
 		if driver.has_signal("notify"):
