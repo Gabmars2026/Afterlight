@@ -6,11 +6,13 @@ const PropLib := preload("res://scripts/world/prop_lib.gd")
 const SlidingDoor := preload("res://scripts/world/sliding_door.gd")
 const ElevatorPanel := preload("res://scripts/world/elevator_panel.gd")
 const BuildingPortal := preload("res://scripts/world/building_portal.gd")
+const VehicleGaragePortal := preload("res://scripts/world/vehicle_garage_portal.gd")
 
 const ROAD_ROOT := "res://assets/kenney/city_roads"
 const COMMERCIAL_ROOT := "res://assets/kenney/city_commercial"
 const INDUSTRIAL_ROOT := "res://assets/kenney/city_industrial"
 const SUBURBAN_ROOT := "res://assets/kenney/city_suburban"
+const DOWNTOWN_ROOT := "res://assets/quaternius/downtown_city"
 const FLOOR_HEIGHT := 3.6
 const DOOR_WIDTH := 1.9
 const DOOR_HEIGHT := 2.55
@@ -40,6 +42,9 @@ func build() -> void:
 			[-745.0, -505.0, -265.0, -25.0, 215.0,
 			455.0, 695.0, 815.0, 575.0, 335.0],
 			[-745.0, 815.0, 515.0], 8.0)
+	_build_district(DOWNTOWN_ROOT,
+			[-865.0, -625.0, -385.0],
+			[755.0], 5.5)
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
 
@@ -116,9 +121,11 @@ func _building_paths(root: String) -> Array[String]:
 	directory.list_dir_begin()
 	var filename := directory.get_next()
 	while not filename.is_empty():
+		var is_kenney_building := filename.begins_with("building") \
+				and not filename.begins_with("low-detail")
+		var is_downtown_building := filename.begins_with("b_")
 		if not directory.current_is_dir() and filename.ends_with(".glb") \
-				and filename.begins_with("building") \
-				and not filename.begins_with("low-detail"):
+				and (is_kenney_building or is_downtown_building):
 			result.append(root + "/" + filename)
 		filename = directory.get_next()
 	directory.list_dir_end()
@@ -264,6 +271,75 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 			Vector3(0, floor_count * FLOOR_HEIGHT, 0),
 			_road_mat, true, "concrete", interior)
 	_add_asset_door_portals(lot, interior, depth)
+	if path.begins_with(SUBURBAN_ROOT):
+		_add_suburban_garage(lot, interior, width, depth)
+
+
+func _add_suburban_garage(lot: Node3D, interior: Node3D,
+		width: float, depth: float) -> void:
+	## The Kenney houses use an authored garage door on the right of the facade.
+	## A transition preserves that exterior while providing a genuinely usable,
+	## car-sized bay beside the full house interior.
+	const GARAGE_WIDTH := 7.2
+	const GARAGE_DEPTH := 12.0
+	const GARAGE_HEIGHT := 3.4
+	var garage_x := width * 0.5 + GARAGE_WIDTH * 0.5 + 1.2
+	var garage := Node3D.new()
+	garage.name = "DriveableGarage"
+	garage.position = Vector3(garage_x, 0.0, 0.0)
+	interior.add_child(garage)
+	_box(Vector3(GARAGE_WIDTH, 0.24, GARAGE_DEPTH),
+			Vector3(0, 0.12, 0), _road_mat, true, "concrete", garage)
+	_box(Vector3(GARAGE_WIDTH, 0.28, GARAGE_DEPTH),
+			Vector3(0, GARAGE_HEIGHT, 0), _road_mat, true, "concrete", garage)
+	_box(Vector3(GARAGE_WIDTH, GARAGE_HEIGHT, 0.3),
+			Vector3(0, GARAGE_HEIGHT * 0.5, -GARAGE_DEPTH * 0.5),
+			_wall_mat, true, "concrete", garage)
+	_box(Vector3(0.3, GARAGE_HEIGHT, GARAGE_DEPTH),
+			Vector3(-GARAGE_WIDTH * 0.5, GARAGE_HEIGHT * 0.5, 0),
+			_wall_mat, true, "concrete", garage)
+	_box(Vector3(0.3, GARAGE_HEIGHT, GARAGE_DEPTH),
+			Vector3(GARAGE_WIDTH * 0.5, GARAGE_HEIGHT * 0.5, 0),
+			_wall_mat, true, "concrete", garage)
+	# Keep the inner front open so a parked car and its driver have clearance.
+	var inside_car_marker := Marker3D.new()
+	inside_car_marker.position = Vector3(0, 0.15, -1.5)
+	garage.add_child(inside_car_marker)
+	var outside_car_marker := Marker3D.new()
+	outside_car_marker.position = Vector3(width * 0.28, 0.15, depth * 0.5 + 5.0)
+	lot.add_child(outside_car_marker)
+	var exterior_entry := VehicleGaragePortal.new()
+	exterior_entry.destination = inside_car_marker
+	exterior_entry.destination_yaw = lot.global_rotation.y
+	exterior_entry.position = Vector3(width * 0.28, 1.25, depth * 0.5 + 0.9)
+	lot.add_child(exterior_entry)
+	var garage_exit := VehicleGaragePortal.new()
+	garage_exit.destination = outside_car_marker
+	garage_exit.destination_yaw = lot.global_rotation.y
+	garage_exit.position = Vector3(0, 1.25, GARAGE_DEPTH * 0.5 - 0.3)
+	garage.add_child(garage_exit)
+	# A person can leave the parked car and walk directly into the house.
+	var house_marker := Marker3D.new()
+	house_marker.position = Vector3(width * 0.5 - 2.0, 0.3, 0)
+	interior.add_child(house_marker)
+	var garage_marker := Marker3D.new()
+	garage_marker.position = Vector3(0, 0.3, -3.0)
+	garage.add_child(garage_marker)
+	var into_house := BuildingPortal.new()
+	into_house.prompt = "Press E to enter house"
+	into_house.destination = house_marker
+	into_house.position = Vector3(-GARAGE_WIDTH * 0.5 + 0.18, 1.3, -3.0)
+	garage.add_child(into_house)
+	var into_garage := BuildingPortal.new()
+	into_garage.prompt = "Press E to enter garage"
+	into_garage.destination = garage_marker
+	into_garage.position = Vector3(width * 0.5 - 0.18, 1.3, 0)
+	interior.add_child(into_garage)
+	var light := OmniLight3D.new()
+	light.position = Vector3(0, GARAGE_HEIGHT - 0.4, 0)
+	light.light_energy = 1.35
+	light.omni_range = 11.0
+	garage.add_child(light)
 
 
 func _build_exterior_collision(lot: Node3D, width: float, depth: float,

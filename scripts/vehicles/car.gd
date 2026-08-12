@@ -100,6 +100,18 @@ func get_prompt() -> String:
 	return "" if driver != null else prompt
 
 
+func teleport_vehicle(target: Vector3, target_yaw: float) -> void:
+	## Used by garage transitions. Resetting motion prevents a car from shooting
+	## through the back wall with the speed it had when entering.
+	global_position = target
+	global_rotation = Vector3(0.0, target_yaw, 0.0)
+	_speed = 0.0
+	velocity = Vector3.ZERO
+	_visual_steer = 0.0
+	if driver != null:
+		driver.global_position = target + Vector3.UP * 0.8
+
+
 func interact(user: Node) -> void:
 	if driver != null or not (user is Node3D):
 		return
