@@ -297,7 +297,12 @@ func _apply_impact_response(normal: Vector3, forward: Vector3) -> void:
 		return
 	var travel_sign := 1.0 if _speed >= 0.0 else -1.0
 	var travel_direction := forward * travel_sign
-	var alignment := clampf(absf(normal.dot(travel_direction)), 0.0, 1.0)
+	# Only react when velocity points into the surface. Using abs(dot) made the
+	# same obstacle bounce the vehicle again while reversing away from it.
+	var into_surface := -normal.dot(travel_direction)
+	if into_surface <= 0.05:
+		return
+	var alignment := clampf(into_surface, 0.0, 1.0)
 	if alignment > 0.72:
 		# A direct crash gives a short physical-feeling rebound instead of
 		# deleting all momentum while the body remains pressed into the wall.
@@ -314,6 +319,10 @@ func _drive(delta: float) -> void:
 	_update_driver_mount()
 	var throttle := Input.get_action_strength("move_forward") \
 			- Input.get_action_strength("move_back")
+	# Physical-key fallback keeps reverse available if an older project.godot has
+	# a stale move_back action with no S-key event.
+	if Input.is_physical_key_pressed(KEY_S):
+		throttle = -1.0
 	var keyboard_steer := Input.get_action_strength("move_left") \
 			- Input.get_action_strength("move_right")
 	var steer := _mouse_steer if absf(keyboard_steer) < 0.05 else keyboard_steer
