@@ -33,6 +33,7 @@ func build() -> void:
 			40.0, 70.0, 100.0, 130.0, 160.0],
 			[-158.0, 148.0, 178.0], 8.0)
 	_build_enterable_building(Vector3(18, 0.0, 34))
+	_build_enterable_house(Vector3(-13, 0.0, 28))
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
 
@@ -165,6 +166,48 @@ func _build_enterable_building(base: Vector3) -> void:
 	light.light_energy = 1.4
 	light.omni_range = 12.0
 	building.add_child(light)
+
+
+func _build_enterable_house(base: Vector3) -> void:
+	## A compact furnished starter house with a real doorway and usable door.
+	var house := Node3D.new()
+	house.name = "EnterableStarterHouse"
+	house.position = base
+	house.rotation.y = PI * 0.5  # Point the front door toward the nearby road.
+	add_child(house)
+	_box(Vector3(8, 0.25, 8), Vector3(0, 0.125, 0), _wall_mat, true, "wood", house)
+	_box(Vector3(8, 3.4, 0.3), Vector3(0, 1.7, -3.85), _wall_mat, true, "concrete", house)
+	_box(Vector3(0.3, 3.4, 8), Vector3(-3.85, 1.7, 0), _wall_mat, true, "concrete", house)
+	_box(Vector3(0.3, 3.4, 8), Vector3(3.85, 1.7, 0), _wall_mat, true, "concrete", house)
+	# Two front panels and a lintel leave a 1.8 x 2.5 metre entrance.
+	_box(Vector3(3.1, 3.4, 0.3), Vector3(-2.45, 1.7, 3.85), _wall_mat, true, "concrete", house)
+	_box(Vector3(3.1, 3.4, 0.3), Vector3(2.45, 1.7, 3.85), _wall_mat, true, "concrete", house)
+	_box(Vector3(1.8, 0.9, 0.3), Vector3(0, 2.95, 3.85), _wall_mat, true, "concrete", house)
+	_box(Vector3(8.5, 0.3, 8.5), Vector3(0, 3.55, 0), _road_mat, true, "wood", house)
+	var door := SlidingDoor.new()
+	door.slide_offset = Vector3(1.9, 0, 0)
+	var door_mesh := MeshInstance3D.new()
+	var door_box := BoxMesh.new()
+	door_box.size = Vector3(1.75, 2.5, 0.18)
+	door_box.material = _road_mat
+	door_mesh.mesh = door_box
+	door.add_child(door_mesh)
+	var door_shape := CollisionShape3D.new()
+	var door_collision := BoxShape3D.new()
+	door_collision.size = door_box.size
+	door_shape.shape = door_collision
+	door.add_child(door_shape)
+	door.position = Vector3(0, 1.25, 3.85)
+	house.add_child(door)
+	PropLib.place(house, "Table", Vector3(1.5, 0.25, -1.0), 0.0, 0.65)
+	PropLib.place(house, "Chair", Vector3(2.5, 0.25, -1.0), PI, 0.65)
+	PropLib.place(house, "Lamp", Vector3(-2.4, 0.25, -2.0), 0.0, 0.65)
+	var light := OmniLight3D.new()
+	light.position = Vector3(0, 2.7, 0)
+	light.light_color = Color(1.0, 0.78, 0.56)
+	light.light_energy = 1.2
+	light.omni_range = 8.0
+	house.add_child(light)
 
 
 func _build_prop_plaza(origin: Vector3) -> void:

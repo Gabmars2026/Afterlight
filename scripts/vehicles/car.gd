@@ -10,6 +10,10 @@ const ENGINE_ACCEL := 8.0
 const BRAKE := 22.0
 const DRAG := 3.0
 const STEER_RATE := 1.9
+const IMPACT_COOLDOWN := 0.18
+const HEAD_ON_BOUNCE := 0.22
+const WHEEL_RADIUS := 0.35
+const MAX_VISUAL_STEER := 0.48
 
 var prompt := "Press E to drive"
 
@@ -21,6 +25,10 @@ var _lights: Array = []
 var _grace := 0.0
 var _saved_layer := 0
 var _saved_mask := 0
+var _impact_cooldown := 0.0
+var _wheel_spin := 0.0
+var _visual_steer := 0.0
+var _wheel_meshes: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -68,6 +76,16 @@ func _build_visual() -> void:
 	visual.name = "Visual"
 	visual.position.y = 0.07  # collision box bottom
 	add_child(visual)
+	for child in visual.find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
+		if not mesh.has_meta("car_wheel"):
+			continue
+		var wheel_name := str(mesh.get_meta("car_wheel"))
+		_wheel_meshes.append({
+			"mesh": mesh,
+			"base_basis": mesh.basis,
+			"front": wheel_name.begins_with("LF_") or wheel_name.begins_with("RF_")
+		})
 
 
 func get_prompt() -> String:
@@ -92,23 +110,71 @@ func interact(user: Node) -> void:
 	_grace = 0.4
 
 
-func _exit_car() -> void:
-	var out := global_position + global_transform.basis.x * 2.2 + Vector3(0, 0.6, 0)
+func _exit_car() -> bool:
+	var out: Variant = _find_safe_exit()
+	if out == null:
+		if driver != null and driver.has_signal("notify"):
+			driver.emit_signal("notify", "NO SAFE SPACE TO EXIT")
+		return false
 	driver.process_mode = Node.PROCESS_MODE_INHERIT
 	driver.visible = true
 	driver.collision_layer = _saved_layer
 	driver.collision_mask = _saved_mask
 	driver.global_position = out
 	driver.velocity = Vector3.ZERO
+	# Parking brake: an empty car must not keep rolling after the player exits.
+	_speed = 0.0
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_visual_steer = 0.0
 	if driver.get("camera") is Camera3D:
 		(driver.get("camera") as Camera3D).make_current()
 	driver = null
 	_engine.stop()
 	for l in _lights:
 		l.light_energy = 0.0
+	return true
+
+
+func _find_safe_exit() -> Variant:
+	## Try both sides, then the rear and front. The old implementation always
+	## placed the player on the right, even if that position was inside a wall,
+	## another car, or solid scenery.
+	var directions := [global_transform.basis.x, -global_transform.basis.x,
+			global_transform.basis.z, -global_transform.basis.z]
+	var space := get_world_3d().direct_space_state
+	for direction: Vector3 in directions:
+		var candidate := global_position + direction.normalized() * 2.4
+		var floor_query := PhysicsRayQueryParameters3D.create(
+				candidate + Vector3.UP * 2.0, candidate + Vector3.DOWN * 3.0,
+				1 | 4)
+		floor_query.exclude = [get_rid(), driver.get_rid()]
+		var floor_hit := space.intersect_ray(floor_query)
+		if floor_hit.is_empty() or floor_hit.normal.y < 0.65:
+			continue
+		candidate.y = floor_hit.position.y + 0.05
+		if _driver_fits_at(candidate):
+			return candidate
+	return null
+
+
+func _driver_fits_at(candidate: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	for child in driver.get_children():
+		if not (child is CollisionShape3D) or child.shape == null or child.disabled:
+			continue
+		var query := PhysicsShapeQueryParameters3D.new()
+		query.shape = child.shape
+		query.transform = Transform3D(Basis.IDENTITY, candidate) * child.transform
+		query.collision_mask = 1 | 4
+		query.exclude = [get_rid(), driver.get_rid()]
+		if not space.intersect_shape(query, 1).is_empty():
+			return false
+	return true
 
 
 func _physics_process(delta: float) -> void:
+	_impact_cooldown = maxf(0.0, _impact_cooldown - delta)
 	if driver != null:
 		_grace = maxf(_grace - delta, 0.0)
 		if _grace <= 0.0 and (Input.is_action_just_pressed("interact")
@@ -117,7 +183,8 @@ func _physics_process(delta: float) -> void:
 		else:
 			_drive(delta)
 	else:
-		_speed = move_toward(_speed, 0.0, DRAG * delta)
+		_speed = move_toward(_speed, 0.0, BRAKE * delta)
+		_visual_steer = move_toward(_visual_steer, 0.0, 4.0 * delta)
 	# Gravity & motion (also lets an empty car settle on slopes)
 	if not is_on_floor():
 		velocity.y -= 22.0 * delta
@@ -126,16 +193,37 @@ func _physics_process(delta: float) -> void:
 	var fwd := -global_transform.basis.z
 	velocity.x = fwd.x * _speed
 	velocity.z = fwd.z * _speed
+	_animate_wheels(delta)
 	move_and_slide()
 	# Ram damage + wall scrub
 	for i in get_slide_collision_count():
 		var col := get_slide_collision(i)
 		var other := col.get_collider()
+		if _impact_cooldown > 0.0:
+			continue
 		if other != null and other.has_method("take_hit") and absf(_speed) > 5.0:
 			other.take_hit(int(absf(_speed) * 5.0), col.get_position())
-			_speed *= 0.72
-		elif absf(col.get_normal().dot(fwd)) > 0.7:
-			_speed = move_toward(_speed, 0.0, 30.0 * delta)
+			_speed *= 0.78
+			_impact_cooldown = IMPACT_COOLDOWN
+		else:
+			_apply_impact_response(col.get_normal(), fwd)
+
+
+func _apply_impact_response(normal: Vector3, forward: Vector3) -> void:
+	if absf(_speed) < 0.5:
+		return
+	var travel_sign := 1.0 if _speed >= 0.0 else -1.0
+	var travel_direction := forward * travel_sign
+	var alignment := clampf(absf(normal.dot(travel_direction)), 0.0, 1.0)
+	if alignment > 0.72:
+		# A direct crash gives a short physical-feeling rebound instead of
+		# deleting all momentum while the body remains pressed into the wall.
+		_speed = -travel_sign * clampf(absf(_speed) * HEAD_ON_BOUNCE, 0.8, 3.5)
+	else:
+		# move_and_slide() handles the sideways deflection. Retain most speed
+		# on a scrape and lose more as the impact approaches head-on.
+		_speed *= lerpf(0.96, 0.75, alignment / 0.72)
+	_impact_cooldown = IMPACT_COOLDOWN
 
 
 func _drive(delta: float) -> void:
@@ -145,6 +233,7 @@ func _drive(delta: float) -> void:
 			- Input.get_action_strength("move_back")
 	var steer := Input.get_action_strength("move_left") \
 			- Input.get_action_strength("move_right")
+	_visual_steer = move_toward(_visual_steer, steer * MAX_VISUAL_STEER, 4.5 * delta)
 	if throttle > 0.05:
 		if _speed < -0.5:
 			_speed = move_toward(_speed, 0.0, BRAKE * delta)
@@ -161,3 +250,14 @@ func _drive(delta: float) -> void:
 	var dir := 1.0 if _speed >= 0.0 else -1.0
 	rotation.y += steer * STEER_RATE * turn_authority * dir * delta
 	_engine.pitch_scale = 0.7 + absf(_speed) / MAX_FWD * 0.85
+
+
+func _animate_wheels(delta: float) -> void:
+	## Roll every tyre from actual vehicle speed and yaw only the front tyres.
+	_wheel_spin = fposmod(_wheel_spin + (_speed / WHEEL_RADIUS) * delta, TAU)
+	for wheel in _wheel_meshes:
+		var mesh := wheel["mesh"] as MeshInstance3D
+		var base: Basis = wheel["base_basis"]
+		var is_front: bool = wheel["front"]
+		var steer_basis := Basis(Vector3.UP, _visual_steer if is_front else 0.0)
+		mesh.basis = steer_basis * base * Basis(Vector3.RIGHT, _wheel_spin)
