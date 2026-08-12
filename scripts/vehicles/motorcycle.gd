@@ -62,3 +62,17 @@ func _add_bike_box(parent: Node3D, size: Vector3, pos: Vector3,
 	mesh_instance.mesh = mesh
 	mesh_instance.position = pos
 	parent.add_child(mesh_instance)
+
+
+func _animate_wheels(delta: float) -> void:
+	# The bike cylinders are turned 90 degrees from the source car wheels. Spin
+	# them around the vehicle's X axle before applying their base orientation;
+	# using the inherited post-multiply made them rotate sideways like propellers.
+	_wheel_spin = fposmod(_wheel_spin + (_speed / WHEEL_RADIUS) * delta, TAU)
+	for wheel in _wheel_meshes:
+		var mesh := wheel["mesh"] as MeshInstance3D
+		var base: Basis = wheel["base_basis"]
+		var is_front: bool = wheel["front"]
+		var steer_basis := Basis(Vector3.UP,
+				_visual_steer if is_front else 0.0)
+		mesh.basis = steer_basis * Basis(Vector3.RIGHT, _wheel_spin) * base

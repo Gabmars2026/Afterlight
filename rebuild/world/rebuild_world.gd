@@ -83,6 +83,10 @@ func _make_materials() -> void:
 	_mountain_mat = StandardMaterial3D.new()
 	_mountain_mat.albedo_color = Color(0.24, 0.31, 0.2)
 	_mountain_mat.roughness = 1.0
+	# The terrain is an open height-field rather than a sealed solid. Rendering
+	# both faces prevents the sky/void showing through when the camera reaches a
+	# steep bank or briefly clips below the surface.
+	_mountain_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_mountain_mat.uv1_triplanar = true
 	_mountain_mat.uv1_world_triplanar = true
 	_mountain_mat.uv1_scale = Vector3.ONE * 0.08
@@ -576,7 +580,7 @@ func _build_exterior_collision(lot: Node3D, width: float, depth: float,
 func _add_asset_door_portals(lot: Node3D, interior: Node3D,
 		width: float, depth: float) -> void:
 	var outside_marker := Marker3D.new()
-	outside_marker.position = Vector3(0, 0.3, depth * 0.5 + 1.35)
+	outside_marker.position = Vector3(0, 0.3, depth * 0.5 + 3.0)
 	lot.add_child(outside_marker)
 	var inside_marker := Marker3D.new()
 	inside_marker.position = Vector3(0, 0.3, depth * 0.5 - 1.25)
@@ -595,7 +599,13 @@ func _add_asset_door_portals(lot: Node3D, interior: Node3D,
 	var exit := BuildingPortal.new()
 	exit.prompt = "Press E to exit"
 	exit.destination = outside_marker
-	exit.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5 - 0.12)
+	# Large hospital and tower interiors made the old 1.8 m exit trigger nearly
+	# impossible to find. Cover the full front lobby and pull it away from the
+	# wall so imported façade geometry cannot hide or obstruct it.
+	exit.interaction_size = Vector3(maxf(width - 1.0, 8.0),
+			DOOR_HEIGHT + 0.8, 2.4)
+	exit.position = Vector3(0, (DOOR_HEIGHT + 0.8) * 0.5,
+			depth * 0.5 - 1.3)
 	interior.add_child(exit)
 
 
