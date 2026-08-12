@@ -58,24 +58,41 @@ func _make_materials() -> void:
 
 func _build_ground() -> void:
 	_box(Vector3(390, 2, 390), Vector3(0, -1, 0), _ground_mat, true, "sand")
-	# Flat collision-backed road beds prevent gaps between modular road meshes.
-	_box(Vector3(370, 0.12, 10), Vector3(0, 0.06, 10), _road_mat, true, "concrete")
-	_box(Vector3(10, 0.12, 370), Vector3(0, 0.06, 0), _road_mat, true, "concrete")
+	# Roads are visual overlays on the one continuous ground collider. Separate
+	# raised road colliders created tiny edges that could stop a moving car.
+	_box(Vector3(370, 0.02, 10), Vector3(0, 0.01, 10), _road_mat, false, "concrete")
+	_box(Vector3(10, 0.02, 370), Vector3(0, 0.01, 0), _road_mat, false, "concrete")
 	for z in [-62.0, -122.0, 70.0]:
-		_box(Vector3(370, 0.1, 8), Vector3(0, 0.05, z), _road_mat, true, "concrete")
+		_box(Vector3(370, 0.02, 8), Vector3(0, 0.01, z), _road_mat, false, "concrete")
+	_build_boundary_walls()
+
+
+func _build_boundary_walls() -> void:
+	# A visible perimeter keeps players and vehicles on the authored map.
+	const EDGE := 193.0
+	const WALL_HEIGHT := 8.0
+	const WALL_THICKNESS := 2.0
+	_box(Vector3(390, WALL_HEIGHT, WALL_THICKNESS),
+			Vector3(0, WALL_HEIGHT * 0.5, -EDGE), _wall_mat, true, "concrete")
+	_box(Vector3(390, WALL_HEIGHT, WALL_THICKNESS),
+			Vector3(0, WALL_HEIGHT * 0.5, EDGE), _wall_mat, true, "concrete")
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 386),
+			Vector3(-EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 386),
+			Vector3(EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
 
 
 func _build_road_grid() -> void:
-	# Kenney tiles sit just above the collision-backed road beds.
+	# Kenney tiles sit just above the continuous ground collider.
 	for x in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.12, 10), PI * 0.5, 10.0)
+		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.02, 10), PI * 0.5, 10.0)
 	for z in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(0, 0.12, z * 10.0), 0.0, 10.0)
+		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(0, 0.02, z * 10.0), 0.0, 10.0)
 	for z in [-60.0, -120.0, 70.0]:
 		for x in range(-18, 19):
-			_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.12, z), PI * 0.5, 10.0)
+			_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.02, z), PI * 0.5, 10.0)
 	for z in [-120.0, -60.0, 10.0, 70.0]:
-		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, 0.13, z), 0.0, 10.0)
+		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, 0.025, z), 0.0, 10.0)
 
 
 func _build_district(root: String, x_positions: Array,
