@@ -39,6 +39,7 @@ const EYE_STAND := 1.62
 const EYE_CROUCH := 1.05
 const EYE_CRAWL := 0.5
 const EYE_SLIDE := 0.72
+const BODY_FIT_FLOOR_EPSILON := 0.04
 const BODY_VISUAL_Y_OFFSET := 0.24
 
 const SPRINT_DRAIN_PER_SEC := 11.0
@@ -298,7 +299,9 @@ func _physics_process(delta: float) -> void:
 			and Input.is_action_just_pressed("crouch") and stamina.try_spend(SLIDE_COST):
 		_start_slide()
 	else:
-		if clearance < CROUCH_HEIGHT + 0.15 or not can_crouch:
+		# Only overhead clearance can force prone. The full capsule fit query can
+		# touch floor contact margins and must not lock the player in crawl.
+		if clearance < CROUCH_HEIGHT + 0.15:
 			stance = Stance.CRAWL          # ceiling too low: forced crawl
 		elif wants_crouch:
 			if stance == Stance.STAND:
@@ -634,7 +637,11 @@ func _body_fits_at(feet_position: Vector3, body_height: float) -> bool:
 	## A ray can miss beams and corners that would overlap the player's body.
 	var shape := CapsuleShape3D.new()
 	shape.radius = _capsule.radius
-	shape.height = body_height
+	# Keep the test capsule slightly inside the requested volume. A capsule
+	# placed exactly at foot level overlaps the floor's physics margin and
+	# falsely reports that standing/crouching is blocked on open ground.
+	shape.height = maxf(shape.radius * 2.0,
+			body_height - BODY_FIT_FLOOR_EPSILON * 2.0)
 	var query := PhysicsShapeQueryParameters3D.new()
 	query.shape = shape
 	query.transform = Transform3D(Basis.IDENTITY,
