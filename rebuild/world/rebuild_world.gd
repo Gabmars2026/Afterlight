@@ -302,9 +302,9 @@ func _mountain_road_control() -> Array[Vector3]:
 	# Begin well before the visible mountain entrance and below city grade. The
 	# thick highway therefore emerges through the ground as a gentle ramp instead
 	# of presenting a vertical collision edge that stops bikes and cars.
-	return [Vector3(480, -0.42, 300), Vector3(535, -0.28, 300),
-			Vector3(610, -0.08, 300),
-			Vector3(680, 4.0, 300), Vector3(730, 14.0, 220),
+	return [Vector3(480, 0.02, 300), Vector3(535, 0.03, 300),
+			Vector3(610, 0.18, 300),
+			Vector3(680, 4.25, 300), Vector3(730, 14.25, 220),
 			Vector3(680, 26.0, 130), Vector3(760, 40.0, 60),
 			Vector3(720, 55.0, -40), Vector3(800, 72.0, -110),
 			Vector3(770, 88.0, -200), Vector3(850, 105.0, -145),
@@ -367,28 +367,67 @@ func _build_mountain_switchback() -> void:
 
 
 func _build_mountain_highway(points: Array[Vector3]) -> void:
-	## Thick, overlapping sloped highway slabs remain visible above the carved
-	## terrain and provide reliable convex collision. This uses the proportions
-	## and dark asphalt style of Kenney City Kit Roads without forcing flat modular
-	## pieces onto a continuously climbing curve.
-	const HIGHWAY_WIDTH := 15.0
+	## Build one closed continuous mesh. Independent rotated boxes left triangular
+	## holes at every switchback and exposed collision faces that stopped vehicles.
+	const HALF_WIDTH := 7.5
+	const THICKNESS := 0.45
+	var left: Array[Vector3] = []
+	var right: Array[Vector3] = []
+	for index in points.size():
+		var previous := points[maxi(index - 1, 0)]
+		var following := points[mini(index + 1, points.size() - 1)]
+		var tangent := following - previous
+		tangent.y = 0.0
+		tangent = tangent.normalized()
+		var across := Vector3(tangent.z, 0.0, -tangent.x)
+		left.append(points[index] - across * HALF_WIDTH)
+		right.append(points[index] + across * HALF_WIDTH)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for index in points.size() - 1:
-		var start: Vector3 = points[index]
-		var finish: Vector3 = points[index + 1]
+		# Counter-clockwise winding keeps the drivable face and its collision normal
+		# pointing upward rather than rejecting a vehicle from the underside.
+		_add_highway_quad(surface, left[index], left[index + 1],
+				right[index + 1], right[index])
+		_add_highway_quad(surface, left[index + 1] - Vector3.UP * THICKNESS,
+				right[index + 1] - Vector3.UP * THICKNESS,
+				right[index] - Vector3.UP * THICKNESS,
+				left[index] - Vector3.UP * THICKNESS)
+		_add_highway_quad(surface, left[index + 1], left[index],
+				left[index] - Vector3.UP * THICKNESS,
+				left[index + 1] - Vector3.UP * THICKNESS)
+		_add_highway_quad(surface, right[index], right[index + 1],
+				right[index + 1] - Vector3.UP * THICKNESS,
+				right[index] - Vector3.UP * THICKNESS)
+	surface.generate_normals()
+	var mesh := surface.commit()
+	mesh.surface_set_material(0, _road_mat)
+	var highway := MeshInstance3D.new()
+	highway.name = "ContinuousMountainHighway"
+	highway.mesh = mesh
+	add_child(highway)
+	var body := StaticBody3D.new()
+	body.set_meta("surface", "concrete")
+	var collision := CollisionShape3D.new()
+	collision.shape = mesh.create_trimesh_shape()
+	body.add_child(collision)
+	highway.add_child(body)
+	# Centre markings sit just above the continuous road and do not collide.
+	for index in range(0, points.size() - 1, 4):
+		var finish_index := mini(index + 2, points.size() - 1)
+		var start := points[index]
+		var finish := points[finish_index]
 		var direction := finish - start
-		if direction.length() < 0.05:
-			continue
-		var basis := Basis.looking_at(direction.normalized(), Vector3.UP)
-		var highway := _box(Vector3(HIGHWAY_WIDTH, 0.5,
-				direction.length() + 1.2), (start + finish) * 0.5,
-				_road_mat, true, "concrete")
-		highway.basis = basis
-		# Dashed yellow centre markings make the route unmistakably a road.
-		if index % 4 < 2:
-			var stripe := _box(Vector3(0.28, 0.025, direction.length() * 0.72),
-					(start + finish) * 0.5 + Vector3.UP * 0.28,
-					_lane_mat, false, "concrete")
-			stripe.basis = basis
+		var stripe := _box(Vector3(0.28, 0.025, direction.length() * 0.76),
+				(start + finish) * 0.5 + Vector3.UP * 0.025,
+				_lane_mat, false, "concrete")
+		stripe.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
+
+
+func _add_highway_quad(surface: SurfaceTool, a: Vector3, b: Vector3,
+		c: Vector3, d: Vector3) -> void:
+	for vertex: Vector3 in [a, b, c, a, c, d]:
+		surface.add_vertex(vertex)
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
