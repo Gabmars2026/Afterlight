@@ -46,11 +46,11 @@ func build() -> void:
 	_build_district(SUBURBAN_ROOT,
 			[-745.0, -505.0, -265.0, -25.0, 215.0,
 			455.0, 695.0, 815.0, 575.0, 335.0],
-			[-745.0, 815.0, 515.0], 8.0)
+			[-745.0, 815.0, 515.0], 9.5)
 	_build_district(DOWNTOWN_ROOT,
 			[-865.0, -625.0, -385.0],
-			[755.0], 5.5)
-	_build_prop_plaza(Vector3(-30, 0.0, 86))
+			[755.0], 8.5)
+	_build_landmark_buildings()
 	_build_street_furniture()
 	_build_city_parks()
 
@@ -214,6 +214,17 @@ func _build_eastern_mountain() -> void:
 	# narrow seam between terrain and perimeter collision.
 	_box(Vector3(8.0, 10.0, 1080.0), Vector3(970.0, -5.0, 0.0),
 			_mountain_mat, true, "grass")
+	# The city ground collision ends at x=520. This thick, exactly adjoining
+	# approach pad guarantees that the bike/car always has support while entering
+	# the carved mountain corridor, even at high speed or low physics FPS.
+	_box(Vector3(210.0, 0.6, 82.0), Vector3(625.0, -0.3, 300.0),
+			_mountain_mat, true, "grass")
+	# Low barriers make the safe approach obvious and prevent a vehicle from
+	# slipping beneath the terrain skirts before the climb begins.
+	_box(Vector3(210.0, 0.9, 0.65), Vector3(625.0, 0.45, 341.0),
+			_wall_mat, true, "concrete")
+	_box(Vector3(210.0, 0.9, 0.65), Vector3(625.0, 0.45, 259.0),
+			_wall_mat, true, "concrete")
 	_build_mountain_switchback()
 
 
@@ -229,6 +240,14 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 	var foothill := _mountain_peak(world_x, world_z, 625.0, 15.0,
 			155.0, 470.0, 36.0)
 	var height := main_peak + north_peak * 0.68 + south_peak * 0.62 + foothill
+	# Cut a genuine ground-level entrance through the north-east foothill. The
+	# old height field crossed over this road like a roof, leaving a hidden
+	# collision seam that swallowed vehicles. Blend the banks back in only after
+	# the wide, flat approach has joined the first switchback.
+	var entrance_side := smoothstep(25.0, 42.0, absf(world_z - 300.0))
+	var entrance_depth := smoothstep(665.0, 735.0, world_x)
+	var entrance_mask := maxf(entrance_side, entrance_depth)
+	height *= entrance_mask
 	# Keep the outer eastern face filled with grass all the way to the boundary;
 	# tapering it down over 23 metres created an unwalkable cliff at the edge.
 	var edge_x := smoothstep(455.0, 610.0, world_x)
@@ -257,7 +276,8 @@ func _mountain_peak(world_x: float, world_z: float, centre_x: float,
 func _build_mountain_switchback() -> void:
 	## One continuous ribbon eliminates the raised collision lips that stopped
 	## CharacterBody3D cars at every old box-ramp connection.
-	var control: Array[Vector3] = [Vector3(555, 0, 300), Vector3(620, 0, 300),
+	var control: Array[Vector3] = [Vector3(520, 0, 300), Vector3(580, 0, 300),
+			Vector3(640, 0, 300),
 			Vector3(680, 0, 300),
 			Vector3(720, 0, 210), Vector3(675, 0, 120),
 			Vector3(755, 0, 55), Vector3(720, 0, -40),
@@ -335,6 +355,19 @@ func _build_district(root: String, x_positions: Array,
 		var pos := Vector3(x_positions[column], 0.0, z_positions[row])
 		var yaw := PI if row % 2 == 0 else 0.0
 		_build_enterable_lot(paths[index], pos, yaw, model_scale, index)
+
+
+func _build_landmark_buildings() -> void:
+	## Large CC0 landmarks fill previously empty blocks: a broad commercial
+	## centre, a high-capacity apartment tower, and an oversized family estate.
+	## They use the same full-footprint, furnished, multi-floor interiors as every
+	## other generated building, so their playable inside matches the exterior.
+	_build_enterable_lot(COMMERCIAL_ROOT + "/building-l.glb",
+			Vector3(35.0, 0.0, -85.0), PI, 14.0, 900)
+	_build_enterable_lot(DOWNTOWN_ROOT + "/b_large.glb",
+			Vector3(-805.0, 0.0, -85.0), 0.0, 11.0, 901)
+	_build_enterable_lot(SUBURBAN_ROOT + "/building-type-u.glb",
+			Vector3(-565.0, 0.0, 155.0), PI, 12.0, 902)
 
 
 func _building_paths(root: String) -> Array[String]:
@@ -797,17 +830,6 @@ func _add_floor_light(lot: Node3D, width: float, depth: float,
 	light.light_energy = 1.0
 	light.omni_range = maxf(width, depth)
 	lot.add_child(light)
-
-
-func _build_prop_plaza(origin: Vector3) -> void:
-	# Curated medieval assets stay reusable and visible without duplicating files.
-	var props := ["Barril", "Battle_Axe", "Chair", "Chope_A", "Chope_B", "Cup",
-			"Lamp", "Panel", "Pole", "Rock_1", "Rock_2", "Rock_3", "Seat",
-			"Shield", "Signal", "Stone", "Sword", "Table", "Wood_Axe",
-			"Wood_Plank_A", "Wood_Plank_B", "Wood_Trunk"]
-	for index in props.size():
-		var p := origin + Vector3((index % 6) * 4.0, 0.2, (index / 6) * 4.0)
-		PropLib.place(self, props[index], p, index * 0.37, 0.75)
 
 
 func _build_street_furniture() -> void:
