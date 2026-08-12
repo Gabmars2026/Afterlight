@@ -249,7 +249,9 @@ func _physics_process(delta: float) -> void:
 	velocity.z = fwd.z * _speed
 	_animate_wheels(delta)
 	move_and_slide()
-	if is_on_floor() and global_position.y > -0.5 \
+	var valid_surface_height := global_position.y > -0.5 \
+			or global_position.x <= 510.0 or _allow_underground
+	if is_on_floor() and valid_surface_height \
 			and _safe_sample_cooldown <= 0.0 and absf(velocity.y) < 3.0:
 		_last_safe_position = global_position
 		_safe_sample_cooldown = 0.35
@@ -268,6 +270,10 @@ func _physics_process(delta: float) -> void:
 
 
 func _recover_from_fall() -> void:
+	# Never recover to another point beneath the mountain. This fixed entrance
+	# fallback remains usable even if an earlier bad frame overwrote safe state.
+	if _last_safe_position.x > 510.0 and _last_safe_position.y < -0.5:
+		_last_safe_position = Vector3(500.0, 0.3, 300.0)
 	global_position = _last_safe_position + Vector3.UP * 1.2
 	_speed = 0.0
 	velocity = Vector3.ZERO

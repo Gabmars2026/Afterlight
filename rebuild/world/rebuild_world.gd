@@ -290,7 +290,39 @@ func _mountain_height(world_x: float, world_z: float) -> float:
 	# Sink the raw terrain edge below the flat city collider. It emerges gently
 	# after the overlap instead of presenting a vertical collision lip.
 	var approach_depth := (1.0 - edge_x) * 0.45
-	return (height + rock_detail) * edge_x * edge_z - approach_depth
+	var terrain_height := (height + rock_detail) * edge_x * edge_z - approach_depth
+	# Shape the terrain itself into a broad road bed. This prevents grass
+	# triangles from intersecting the paved surface or creating stair-like lips.
+	var road_sample := _mountain_road_sample(world_x, world_z)
+	var road_blend := smoothstep(8.0, 22.0, road_sample.x)
+	return lerpf(road_sample.y - 0.18, terrain_height, road_blend)
+
+
+func _mountain_road_control() -> Array[Vector3]:
+	return [Vector3(520, 0.1, 300), Vector3(600, 0.1, 300),
+			Vector3(680, 4.0, 300), Vector3(730, 14.0, 220),
+			Vector3(680, 26.0, 130), Vector3(760, 40.0, 60),
+			Vector3(720, 55.0, -40), Vector3(800, 72.0, -110),
+			Vector3(770, 88.0, -200), Vector3(850, 105.0, -145),
+			Vector3(845, 120.0, -55)]
+
+
+func _mountain_road_sample(world_x: float, world_z: float) -> Vector2:
+	var query := Vector2(world_x, world_z)
+	var control := _mountain_road_control()
+	var nearest_distance := INF
+	var nearest_height := 0.0
+	for index in control.size() - 1:
+		var a := Vector2(control[index].x, control[index].z)
+		var b := Vector2(control[index + 1].x, control[index + 1].z)
+		var segment := b - a
+		var t := clampf((query - a).dot(segment) / maxf(segment.length_squared(),
+				0.001), 0.0, 1.0)
+		var distance := query.distance_to(a + segment * t)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_height = lerpf(control[index].y, control[index + 1].y, t)
+	return Vector2(nearest_distance, nearest_height)
 
 
 func _mountain_peak(world_x: float, world_z: float, centre_x: float,
@@ -308,28 +340,20 @@ func _mountain_peak(world_x: float, world_z: float, centre_x: float,
 func _build_mountain_switchback() -> void:
 	## One continuous ribbon eliminates the raised collision lips that stopped
 	## CharacterBody3D cars at every old box-ramp connection.
-	var control: Array[Vector3] = [Vector3(520, 0, 300), Vector3(580, 0, 300),
-			Vector3(640, 0, 300),
-			Vector3(680, 0, 300),
-			Vector3(720, 0, 210), Vector3(675, 0, 120),
-			Vector3(755, 0, 55), Vector3(720, 0, -40),
-			Vector3(800, 0, -105), Vector3(770, 0, -200),
-			Vector3(850, 0, -145), Vector3(845, 0, -55)]
+	var control := _mountain_road_control()
 	var centreline: Array[Vector3] = []
 	for index in control.size() - 1:
 		for section in 16:
 			var point := control[index].lerp(control[index + 1],
 					float(section) / 16.0)
-			point.y = _mountain_height(point.x, point.z) + 0.08
 			centreline.append(point)
 	var final_point := control[control.size() - 1]
-	final_point.y = _mountain_height(final_point.x, final_point.z) + 0.08
 	centreline.append(final_point)
 	_build_road_ribbon(centreline)
 	_build_mountain_guard_walls(centreline)
 	_build_mountain_route_map(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
-	var summit_y := _mountain_height(845.0, -55.0) + 0.08
+	var summit_y := 120.0
 	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
 			_road_mat, false, "concrete")
 
@@ -373,8 +397,14 @@ func _build_road_ribbon(points: Array[Vector3]) -> void:
 	road.name = "ContinuousMountainRoad"
 	road.mesh = mesh
 	add_child(road)
-	# Do not add a second collision sheet. Cars and players travel on the single
-	# continuous terrain collision immediately beneath this visual road ribbon.
+	# The road is now the authoritative smooth driving collision. The surrounding
+	# terrain is carved slightly below it, eliminating triangle seams and steps.
+	var body := StaticBody3D.new()
+	body.set_meta("surface", "concrete")
+	var collision := CollisionShape3D.new()
+	collision.shape = mesh.create_trimesh_shape()
+	body.add_child(collision)
+	road.add_child(body)
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
@@ -393,21 +423,20 @@ func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
 		var right := Vector3(flat_direction.z, 0.0, -flat_direction.x)
 		var length := Vector2(direction.x, direction.z).length() + 0.8
 		var midpoint := (start + finish) * 0.5
-		var yaw := atan2(flat_direction.x, flat_direction.z)
 		for side in [-1.0, 1.0]:
 			var wall := _box(Vector3(0.55, 0.85, length),
 					midpoint + right * ROAD_EDGE + Vector3(0, 0.48, 0),
 					_wall_mat, true, "concrete")
-			wall.rotation.y = yaw
+			wall.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
 
 
 func _build_mountain_route_map(mountain_points: Array[Vector3]) -> void:
 	## A cyan breadcrumb route begins at the city centre, follows existing roads,
 	## joins the mountain entrance, and continues to the summit. Because it is
 	## world geometry, the same route is visible both while travelling and on M.
-	var city_route: Array[Vector3] = [Vector3(0, 0.055, 0),
-			Vector3(0, 0.055, 240), Vector3(480, 0.055, 240),
-			Vector3(520, 0.055, 300)]
+	var city_route: Array[Vector3] = [Vector3(0, 0.015, 0),
+			Vector3(0, 0.015, 240), Vector3(480, 0.015, 240),
+			Vector3(520, 0.015, 300)]
 	_build_route_segments(city_route, 0.7)
 	_build_route_segments(mountain_points, 0.65)
 	# The last diagonal is an actual paved connector, not only a painted guide.
@@ -431,10 +460,10 @@ func _build_route_segments(points: Array[Vector3], width: float) -> void:
 		var flat_length := Vector2(direction.x, direction.z).length()
 		if flat_length < 0.05:
 			continue
-		var marker := _box(Vector3(width, 0.035, flat_length),
-				(start + finish) * 0.5 + Vector3(0, 0.055, 0),
+		var marker := _box(Vector3(width, 0.012, direction.length()),
+				(start + finish) * 0.5 + Vector3(0, 0.012, 0),
 				_route_mat, false, "concrete")
-		marker.rotation.y = atan2(direction.x, direction.z)
+		marker.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
 
 
 func _add_route_sign(pos: Vector3, text: String) -> void:
