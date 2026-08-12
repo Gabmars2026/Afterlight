@@ -20,15 +20,27 @@ func _ready() -> void:
 func _physics_process(_delta: float) -> void:
 	var hit: Node = null
 	if is_colliding():
-		var collider := get_collider()
-		if collider is Node and (collider as Node).is_in_group("interactable"):
-			hit = collider
+		hit = find_interactable(get_collider())
 	if hit != _focused:
 		_focused = hit
 		if _focused != null and _focused.has_method("get_prompt"):
 			focus_changed.emit(_focused.get_prompt())
 		else:
 			focus_changed.emit("")
+
+
+func find_interactable(collider: Object) -> Node:
+	## Imported models often put collision on a child of the actual usable
+	## object. Walk upward instead of requiring the group on every child.
+	var node := collider as Node
+	var levels := 0
+	while node != null and levels < 8:
+		if node.is_in_group("interactable") \
+				and node.has_method("get_prompt") and node.has_method("interact"):
+			return node
+		node = node.get_parent()
+		levels += 1
+	return null
 
 
 func try_interact(user: Node) -> void:

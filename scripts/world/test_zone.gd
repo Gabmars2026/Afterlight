@@ -331,8 +331,9 @@ func _build_course() -> void:
 	_box(Vector3(2.6, 0.75, 0.45), Vector3(0, 0.375, -3), _grid_mat, Color(0.95, 0.6, 0.4))
 
 	# --- Grass patch (grass footsteps) ---
-	_sign("GRASS", Vector3(-24, 1.6, 4))
-	_box(Vector3(12, 0.12, 12), Vector3(-24, 0.06, 8), _grid_mat, Color(0.35, 0.62, 0.3), "grass")
+	# Keep the test lawn out of the parking approach and main cross-street.
+	_sign("GRASS", Vector3(-36, 1.6, -42))
+	_box(Vector3(12, 0.12, 12), Vector3(-36, 0.06, -36), _grid_mat, Color(0.35, 0.62, 0.3), "grass")
 
 	# --- Crawl vent (hold CTRL, then keep walking in) ---
 	_sign("CRAWL VENT: crouch, walk in", Vector3(-20, 2.0, -4))

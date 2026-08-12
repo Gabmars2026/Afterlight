@@ -23,7 +23,7 @@ func _ready() -> void:
 
 func _on_body(body: Node3D) -> void:
 	if body is Player:
-		body.set_audio_environment(bus_name)
+		body.enter_audio_environment(get_instance_id(), bus_name)
 		_outside_db.clear()
 		for amb in ambience:
 			_outside_db.append(amb.volume_db)
@@ -33,7 +33,7 @@ func _on_body(body: Node3D) -> void:
 
 func _off_body(body: Node3D) -> void:
 	if body is Player:
-		body.set_audio_environment("Master")
+		body.exit_audio_environment(get_instance_id())
 		for i in ambience.size():
 			if i < _outside_db.size():
 				var tw := create_tween()

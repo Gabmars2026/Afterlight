@@ -24,10 +24,13 @@ static func build(scene_path: String) -> Node3D:
 	return root
 
 
-static func _collect(node: Node, xf: Transform3D, root: Node3D) -> void:
+static func _collect(node: Node, xf: Transform3D, root: Node3D,
+		wheel_name: String = "") -> void:
 	var local := xf
 	if node is Node3D:
 		local = xf * (node as Node3D).transform
+	if node is VehicleWheel3D:
+		wheel_name = str(node.name)
 	if node is MeshInstance3D and (node as MeshInstance3D).mesh:
 		var src: MeshInstance3D = node
 		var mi := MeshInstance3D.new()
@@ -38,6 +41,8 @@ static func _collect(node: Node, xf: Transform3D, root: Node3D) -> void:
 		if src.material_override:
 			mi.material_override = src.material_override
 		mi.transform = local
+		if not wheel_name.is_empty():
+			mi.set_meta("car_wheel", wheel_name)
 		root.add_child(mi)
 	for child in node.get_children():
-		_collect(child, local, root)
+		_collect(child, local, root, wheel_name)

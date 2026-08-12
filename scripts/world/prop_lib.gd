@@ -22,11 +22,15 @@ static func place(parent: Node, prop: String, pos: Vector3, yrot := 0.0,
 		return null
 	var inst: Node3D = packed.instantiate()
 	inst.scale = Vector3.ONE * scl
+	# Imported prop pivots are not consistently at the feet. Treat the supplied
+	# Y coordinate as the floor and offset the actual lowest mesh point to it.
+	# This grounds chairs, tables and every other shared prop without per-model
+	# magic numbers.
+	var aabb := _bounds_for(path, inst)
 	var root: Node3D
 	if collide:
 		var body := StaticBody3D.new()
 		body.add_child(inst)
-		var aabb := _bounds_for(path, inst)
 		var shape := CollisionShape3D.new()
 		var box := BoxShape3D.new()
 		box.size = aabb.size * scl
@@ -37,7 +41,7 @@ static func place(parent: Node, prop: String, pos: Vector3, yrot := 0.0,
 		root = body
 	else:
 		root = inst
-	root.position = pos
+	root.position = pos - Vector3.UP * aabb.position.y * scl
 	root.rotation = Vector3(xrot, yrot, 0.0)
 	root.add_to_group("prop")
 	parent.add_child(root)

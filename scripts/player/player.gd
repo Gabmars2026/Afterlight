@@ -20,8 +20,11 @@ const CROUCH_SPEED := 2.4
 const CRAWL_SPEED := 1.4
 const SLIDE_START_SPEED := 9.2
 const JUMP_VELOCITY := 4.8
+const COYOTE_TIME := 0.12
+const JUMP_BUFFER_TIME := 0.12
 const VAULT_VELOCITY := 4.3
 const LADDER_CLIMB_SPEED := 3.0
+const LADDER_REGRAB_DELAY := 0.3
 const ACCEL_GROUND := 11.0
 const ACCEL_AIR := 3.0
 const MOUSE_SENSITIVITY := 0.0022
@@ -36,6 +39,10 @@ const EYE_STAND := 1.62
 const EYE_CROUCH := 1.05
 const EYE_CRAWL := 0.5
 const EYE_SLIDE := 0.72
+const BODY_FIT_FLOOR_EPSILON := 0.04
+# Quaternius models are authored with their soles at y ~= 0. The previous
+# mannequin needed +0.24 m, which made the replacement character hover.
+const BODY_VISUAL_Y_OFFSET := 0.0
 
 const SPRINT_DRAIN_PER_SEC := 11.0
 const JUMP_COST := 8.0
@@ -70,10 +77,13 @@ var _capsule: CapsuleShape3D
 var _slide_time_left := 0.0
 var _slide_dir := Vector3.ZERO
 var _was_on_floor := true
+var _coyote_left := 0.0
+var _jump_buffer_left := 0.0
 var _last_fall_speed := 0.0
 var _step_distance := 0.0
 var _floor_surface := "concrete"
 var _ladders := 0
+var _ladder_regrab_left := 0.0
 var _climb_dist := 0.0
 var _mantling := false
 var _mantle_from := Vector3.ZERO
@@ -89,6 +99,7 @@ var _third_person := true
 var _boom := 0.0
 var _tp_weapons: Array[Node3D] = []
 var _anim: AnimationPlayer
+var _body_skeleton: Skeleton3D
 var _anim_state := ""
 var _tp_parts: Array[Node3D] = []
 var _last_safe := Vector3(0, 0.5, 8)
@@ -96,6 +107,8 @@ var _safe_timer := 0.0
 var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
+var _audio_environments: Array[Dictionary] = []
+var _look_pitch := 0.0
 
 var is_hanging := false
 var _ledge_y := 0.0
@@ -111,6 +124,7 @@ var _snd_roll: AudioStreamPlayer
 
 
 func _ready() -> void:
+	set_process_input(true)
 	_gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 	collision_layer = 2
 	collision_mask = 1 | 4
@@ -189,31 +203,39 @@ func _ready() -> void:
 	stamina.exhausted_changed.connect(_on_exhausted)
 
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_look_pitch = head.rotation.x
 
 
 func _input(event: InputEvent) -> void:
 	## Mouse look lives in _input (not _unhandled_input) so UI elements can
 	## never swallow mouse motion while the cursor is captured.
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
-			and not get_tree().paused:
-		var sens := MOUSE_SENSITIVITY * GameSettings.mouse_sensitivity
-		var y_dir := 1.0 if GameSettings.invert_y else -1.0
-		rotate_y(-event.relative.x * sens)
-		head.rotate_x(event.relative.y * sens * y_dir)
-		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-85.0), deg_to_rad(85.0))
-
-
-func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED \
 			and not get_tree().paused and not ui_lock:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("interact"):
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and not get_tree().paused and not ui_lock:
+		var sens := MOUSE_SENSITIVITY * GameSettings.mouse_sensitivity
+		var y_dir := 1.0 if GameSettings.invert_y else -1.0
+		rotation.y -= event.relative.x * sens
+		_look_pitch = clampf(_look_pitch + event.relative.y * sens * y_dir,
+				deg_to_rad(-85.0), deg_to_rad(85.0))
+		head.rotation.x = _look_pitch
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
 		interaction.try_interact(self)
 
 
 func _physics_process(delta: float) -> void:
 	_update_heartbeat(delta)
+	_jump_buffer_left = maxf(0.0, _jump_buffer_left - delta)
+	_ladder_regrab_left = maxf(0.0, _ladder_regrab_left - delta)
+	if Input.is_action_just_pressed("jump"):
+		_jump_buffer_left = JUMP_BUFFER_TIME
 	if _dead:
 		# Dead: no control, just settle to the ground
 		if not is_on_floor():
@@ -239,6 +261,10 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var on_floor := is_on_floor()
+	if on_floor:
+		_coyote_left = COYOTE_TIME
+	else:
+		_coyote_left = maxf(0.0, _coyote_left - delta)
 
 	# --- Gravity and landing ---
 	if not on_floor:
@@ -267,6 +293,8 @@ func _physics_process(delta: float) -> void:
 	var sprint_held := Input.is_action_pressed("sprint")
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	var clearance := _clearance()
+	var can_stand := _body_fits_at(global_position, STAND_HEIGHT)
+	var can_crouch := _body_fits_at(global_position, CROUCH_HEIGHT)
 
 	if is_sliding:
 		_update_slide(delta)
@@ -274,6 +302,8 @@ func _physics_process(delta: float) -> void:
 			and Input.is_action_just_pressed("crouch") and stamina.try_spend(SLIDE_COST):
 		_start_slide()
 	else:
+		# Only overhead clearance can force prone. The full capsule fit query can
+		# touch floor contact margins and must not lock the player in crawl.
 		if clearance < CROUCH_HEIGHT + 0.15:
 			stance = Stance.CRAWL          # ceiling too low: forced crawl
 		elif wants_crouch:
@@ -281,13 +311,13 @@ func _physics_process(delta: float) -> void:
 				stance = Stance.CROUCH
 			if stance == Stance.CROUCH and on_floor and _low_gap_ahead():
 				stance = Stance.CRAWL      # crouched at a low opening: go prone
-			elif stance == Stance.CRAWL and clearance >= CROUCH_HEIGHT + 0.15 \
+			elif stance == Stance.CRAWL and can_crouch \
 					and not _low_gap_ahead():
 				stance = Stance.CROUCH
 		else:
-			if clearance >= STAND_HEIGHT + 0.1:
+			if can_stand:
 				stance = Stance.STAND      # room to stand
-			elif stance == Stance.CRAWL and clearance >= CROUCH_HEIGHT + 0.15:
+			elif stance == Stance.CRAWL and can_crouch:
 				stance = Stance.CROUCH     # room to at least crouch
 
 	_update_collider(delta)
@@ -320,12 +350,15 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, target_vel.x, accel * delta * target_speed)
 		velocity.z = move_toward(velocity.z, target_vel.z, accel * delta * target_speed)
 
-		# Jump: works from stand, crouch or crawl (stands you up first)
-		if on_floor and Input.is_action_just_pressed("jump") \
-				and (stance == Stance.STAND or _clearance() >= STAND_HEIGHT + 0.1) \
+		# Buffered/coyote jump: a slightly early or late press still responds.
+		# Works from stand, crouch or crawl when there is room to stand.
+		if _jump_buffer_left > 0.0 and _coyote_left > 0.0 \
+				and (stance == Stance.STAND or can_stand) \
 				and stamina.try_spend(JUMP_COST):
 			stance = Stance.STAND
 			velocity.y = JUMP_VELOCITY
+			_jump_buffer_left = 0.0
+			_coyote_left = 0.0
 			footsteps.play_step(_floor_surface, false, false)
 
 		# Wall jump: airborne, pressing into a wall, alternate walls to climb
@@ -455,7 +488,8 @@ func _update_slide(delta: float) -> void:
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	if _slide_time_left <= 0.0 or hspeed < 2.2 or not is_on_floor():
 		is_sliding = false
-		if not Input.is_action_pressed("crouch") and _clearance() >= STAND_HEIGHT + 0.1:
+		if not Input.is_action_pressed("crouch") \
+				and _body_fits_at(global_position, STAND_HEIGHT):
 			stance = Stance.STAND
 
 
@@ -508,8 +542,11 @@ func _try_mantle() -> void:
 	var rise: float = top.position.y - global_position.y
 	if rise < 0.4 or rise > 1.8:
 		return
+	var destination: Vector3 = top.position + Vector3(0, 0.05, 0)
+	if not _body_fits_at(destination, STAND_HEIGHT):
+		return
 	_mantle_from = global_position
-	_mantle_to = top.position + Vector3(0, 0.05, 0)
+	_mantle_to = destination
 	_mantle_t = 0.0
 	_mantling = true
 	velocity = Vector3.ZERO
@@ -534,6 +571,8 @@ func _update_mantle(delta: float) -> void:
 # ---------------------------------------------------------------- ladders
 
 func enter_ladder() -> void:
+	if _ladder_regrab_left > 0.0:
+		return
 	_ladders += 1
 
 
@@ -552,6 +591,8 @@ func _ladder_move(delta: float) -> void:
 		var away := transform.basis.z
 		away.y = 0.0
 		velocity = away.normalized() * 3.0 + Vector3(0, 2.0, 0)
+		_ladders = 0
+		_ladder_regrab_left = LADDER_REGRAB_DELAY
 	_climb_dist += absf(velocity.y) * delta
 	if _climb_dist >= 0.75:
 		_climb_dist = 0.0
@@ -561,11 +602,56 @@ func _ladder_move(delta: float) -> void:
 
 # ---------------------------------------------------------------- audio/world
 
+func enter_audio_environment(zone_id: int, bus_name: String) -> void:
+	## Keep a stack so leaving one of two overlapping rooms does not
+	## incorrectly reset audio to outdoors while still inside the other.
+	exit_audio_environment(zone_id)
+	_audio_environments.append({"id": zone_id, "bus": bus_name})
+	_apply_audio_environment()
+
+
+func exit_audio_environment(zone_id: int) -> void:
+	for i in range(_audio_environments.size() - 1, -1, -1):
+		if _audio_environments[i]["id"] == zone_id:
+			_audio_environments.remove_at(i)
+	_apply_audio_environment()
+
+
 func set_audio_environment(bus_name: String) -> void:
-	## Called by InteriorZone: "Interior"/"Tunnel" = reverberant buses.
+	## Backward-compatible direct setter for older world objects.
+	_set_audio_bus(bus_name)
+
+
+func _apply_audio_environment() -> void:
+	var bus_name: String = "Master"
+	if not _audio_environments.is_empty():
+		bus_name = String(_audio_environments.back()["bus"])
+	_set_audio_bus(bus_name)
+
+
+func _set_audio_bus(bus_name: String) -> void:
 	footsteps.set_bus(bus_name)
 	if weapons:
 		weapons.set_bus(bus_name)
+
+
+func _body_fits_at(feet_position: Vector3, body_height: float) -> bool:
+	## Full capsule query used before scripted moves such as mantling.
+	## A ray can miss beams and corners that would overlap the player's body.
+	var shape := CapsuleShape3D.new()
+	shape.radius = _capsule.radius
+	# Keep the test capsule slightly inside the requested volume. A capsule
+	# placed exactly at foot level overlaps the floor's physics margin and
+	# falsely reports that standing/crouching is blocked on open ground.
+	shape.height = maxf(shape.radius * 2.0,
+			body_height - BODY_FIT_FLOOR_EPSILON * 2.0)
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY,
+			feet_position + Vector3.UP * body_height * 0.5)
+	query.collision_mask = collision_mask
+	query.exclude = [get_rid()]
+	return get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _update_floor_surface() -> void:
@@ -740,13 +826,51 @@ func _update_safety(delta: float) -> void:
 	## Remember the last solid ground; if you ever fall out of the world,
 	## climb back instead of falling forever.
 	_safe_timer -= delta
-	if is_on_floor() and _safe_timer <= 0.0 and global_position.y > -10.0:
+	var valid_surface_height := global_position.y > -0.5 \
+			or global_position.x <= 510.0
+	if is_on_floor() and _safe_timer <= 0.0 and valid_surface_height:
 		_safe_timer = 0.5
 		_last_safe = global_position
-	if global_position.y < -30.0:
+	var beneath_mountain := global_position.x > 510.0 \
+			and absf(global_position.z) < 730.0 \
+			and global_position.y < -1.0 and global_position.y > -10.0
+	if global_position.y < -30.0 or beneath_mountain or _has_mountain_overhead():
+		if _last_safe.x > 510.0 and _last_safe.y < -0.5:
+			_last_safe = Vector3(500.0, 0.3, 300.0)
+		# A position can be grounded yet still be inside the mountain shell. Never
+		# reuse a mountain-region sample after the overhead test detects that case.
+		if _last_safe.x > 510.0 and _has_mountain_overhead_at(_last_safe):
+			_last_safe = Vector3(500.0, 0.3, 300.0)
 		global_position = _last_safe + Vector3(0, 0.6, 0)
 		velocity = Vector3.ZERO
 		notify.emit("YOU CRAWL BACK TO SOLID GROUND")
+
+
+func _has_mountain_overhead() -> bool:
+	return _has_mountain_overhead_at(global_position)
+
+
+func _has_mountain_overhead_at(position: Vector3) -> bool:
+	## The old Y-only test missed pockets inside the mountain that are above sea
+	## level. A vertical ray finds the terrain shell overhead while remaining
+	## clear when the player is standing on its exterior surface.
+	if position.x <= 520.0 or absf(position.z) >= 720.0:
+		return false
+	# The summit highway intentionally passes through terrain cuts. A concrete
+	# road immediately below is safe ground, even when mountain mesh is overhead.
+	var down_query := PhysicsRayQueryParameters3D.create(
+			position + Vector3.UP * 0.25, position + Vector3.DOWN * 3.0, 1)
+	down_query.exclude = [get_rid()]
+	var floor_hit := get_world_3d().direct_space_state.intersect_ray(down_query)
+	if not floor_hit.is_empty():
+		var floor_collider: Object = floor_hit.get("collider")
+		if floor_collider != null and floor_collider.has_meta("surface") \
+				and str(floor_collider.get_meta("surface")) == "concrete":
+			return false
+	var query := PhysicsRayQueryParameters3D.create(
+			position + Vector3.UP * 0.35, position + Vector3.UP * 240.0, 1)
+	query.exclude = [get_rid()]
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
 
 
 func _update_view(delta: float) -> void:
@@ -780,35 +904,24 @@ func _update_view(delta: float) -> void:
 
 
 func _build_body() -> void:
-	## Third-person body: CC0 rigged mannequin with 46 animations
-	## (res://Godot/AnimationLibrary_Godot_Standard.glb). Driven by
-	## _update_body() from velocity/stance; weapons ride the right hand bone.
+	## Third-person body: fully clothed CC0 Quaternius character.
 	_body = Node3D.new()
 	add_child(_body)
-	var rig_scene: PackedScene = load("res://Godot/AnimationLibrary_Godot_Standard.glb")
+	var rig_scene: PackedScene = load("res://assets/characters/quaternius_modular_men/glTF/Casual_Hoodie.gltf")
 	var rig := rig_scene.instantiate() as Node3D
+	rig.position.y = BODY_VISUAL_Y_OFFSET
 	rig.rotation.y = PI  # model faces +Z; the player moves toward -Z
 	_body.add_child(rig)
-	_anim = rig.get_node("AnimationPlayer")
-	# The importer strips the "_Loop" suffix and marks those clips looping
-	_anim.play("Idle")
-	_anim_state = "Idle"
-	# Survivor tint so the dummy reads as a person, not a showroom prop
+	_anim = rig.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_configure_body_animation_loops()
+	_play_body_animation("Idle_Neutral", 0.0)
+	_anim_state = "Idle_Neutral"
 	var skel: Skeleton3D = rig.find_child("Skeleton3D", true, false)
-	var mann: MeshInstance3D = skel.get_node_or_null("Mannequin")
-	if mann:
-		var tint := StandardMaterial3D.new()
-		tint.albedo_color = Color(0.28, 0.37, 0.33)  # ranger green
-		tint.roughness = 0.9
-		mann.material_override = tint
-	# v1.17.0: signature outfit - rust jacket, dark pants, olive cap
-	var OutfitLib := load("res://scripts/world/outfit_lib.gd")
-	OutfitLib.dress(skel, Color(0.62, 0.28, 0.16), Color(0.16, 0.18, 0.16),
-			OutfitLib.HAT_CAP, Color(0.3, 0.36, 0.24))
+	_body_skeleton = skel
 	# Weapon models attached to the right hand bone
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)
-	att.bone_name = "DEF-hand.R"
+	att.bone_name = "Wrist.R"
 	var holder := Node3D.new()
 	holder.position = Vector3(0, 0.07, 0.02)
 	holder.rotation = Vector3(PI / 2, 0, 0)
@@ -976,6 +1089,19 @@ func _sync_tp_weapon() -> void:
 		_tp_weapons[i].visible = _third_person and i == cur
 
 
+func set_vehicle_pose(vehicle_kind: String) -> void:
+	## Keep the imported rig stable while normal player processing is disabled.
+	## Its bone axes differ between exports, so pose it with a verified imported
+	## animation rather than arbitrary rotations that stretch the limbs.
+	if _body_skeleton == null or _anim == null:
+		return
+	if vehicle_kind == "motorcycle":
+		_play_body_animation("Idle_Neutral", 0.0)
+		# The parent is disabled immediately after mounting, so sample the requested
+		# pose now instead of waiting for an AnimationPlayer process frame.
+		_anim.advance(0.0)
+
+
 func _update_body(delta: float) -> void:
 	# Feet stay planted at the node origin; crouch/crawl posture comes from
 	# the rig's Crouch animations instead of sinking the whole mesh.
@@ -984,36 +1110,36 @@ func _update_body(delta: float) -> void:
 	if _anim == null or not _third_person:
 		return
 	# One-shot actions (shoot/reload/swing) finish before locomotion resumes
-	if _anim_state in ["Pistol_Shoot", "Pistol_Reload", "Sword_Attack", "Punch_Cross"] \
+	if _anim_state in ["Gun_Shoot", "Idle_Gun_Shoot", "Interact", "Sword_Slash", "Punch_Right"] \
 			and _anim.is_playing():
 		return
 	var hspeed := Vector2(velocity.x, velocity.z).length()
 	var next := ""
 	var anim_scale := 1.0
 	if not is_on_floor():
-		next = "Jump"
+		next = "Idle_Neutral"
 	elif stance != Stance.STAND:
-		next = "Crouch_Fwd" if hspeed > 0.3 else "Crouch_Idle"
+		next = "Walk" if hspeed > 0.3 else "Idle_Neutral"
 		if hspeed > 0.3:
 			anim_scale = clampf(hspeed / CROUCH_SPEED, 0.7, 1.4)
 	elif hspeed > (WALK_SPEED + SPRINT_SPEED) * 0.5:
-		next = "Sprint"
+		next = "Run"
 		anim_scale = clampf(hspeed / SPRINT_SPEED, 0.8, 1.3)
 	elif hspeed > WALK_SPEED * 0.72:
-		next = "Jog_Fwd"
+		next = "Run"
 		anim_scale = clampf(hspeed / WALK_SPEED, 0.8, 1.35)
 	elif hspeed > 0.3:
 		next = "Walk"
 		anim_scale = clampf(hspeed / (WALK_SPEED * 0.6), 0.7, 1.4)
 	elif weapons != null and weapons.current_index() == 2:
-		next = "Sword_Idle"
+		next = "Idle_Sword"
 	elif weapons != null and weapons.current_index() >= 0:
-		next = "Pistol_Idle"
+		next = "Idle_Gun"
 	else:
-		next = "Idle"
+		next = "Idle_Neutral"
 	if next != _anim_state:
 		_anim_state = next
-		_anim.play(next, 0.25)
+		_play_body_animation(next, 0.25)
 	_anim.speed_scale = anim_scale
 
 
@@ -1023,6 +1149,48 @@ func play_action_anim(anim_name: String) -> void:
 		return
 	if Vector2(velocity.x, velocity.z).length() > 1.2 or not is_on_floor():
 		return
-	_anim_state = anim_name
+	var mapped := {
+		"Pistol_Shoot": "Gun_Shoot",
+		"Pistol_Reload": "Interact",
+		"Sword_Attack": "Sword_Slash",
+		"Punch_Cross": "Punch_Right",
+	}.get(anim_name, anim_name) as String
+	if not _anim.has_animation(mapped):
+		if _find_body_animation(mapped) == &"":
+			return
+	_anim_state = mapped
 	_anim.speed_scale = 1.0
-	_anim.play(anim_name, 0.1)
+	_play_body_animation(mapped, 0.1)
+
+
+func _play_body_animation(animation_name: String, blend := 0.2) -> void:
+	var resolved := _find_body_animation(animation_name)
+	if resolved != &"":
+		_anim.play(resolved, blend)
+
+
+func _find_body_animation(animation_name: String) -> StringName:
+	## Godot may prefix imported glTF clips with a library/model name.
+	if _anim == null:
+		return &""
+	if _anim.has_animation(animation_name):
+		return StringName(animation_name)
+	for available in _anim.get_animation_list():
+		var full_name := String(available)
+		if full_name.ends_with("/" + animation_name) \
+				or full_name.ends_with("|" + animation_name) \
+				or full_name.ends_with(":" + animation_name):
+			return available
+	return &""
+
+
+func _configure_body_animation_loops() -> void:
+	# These glTF clips do not carry Godot's conventional "_Loop" suffix, so
+	# mark locomotion explicitly or it plays once and the character glides.
+	var looping_animations: Array[String] = ["Idle", "Idle_Neutral",
+			"Idle_Gun", "Idle_Sword", "Walk", "Run", "Run_Back",
+			"Run_Left", "Run_Right"]
+	for animation_name in looping_animations:
+		var resolved := _find_body_animation(animation_name)
+		if resolved != &"":
+			_anim.get_animation(resolved).loop_mode = Animation.LOOP_LINEAR
