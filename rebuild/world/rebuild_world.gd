@@ -132,31 +132,45 @@ func _build_boundary_walls() -> void:
 func _build_road_grid() -> void:
 	# One continuous, flush road grid replaces overlapping GLB road tiles. The
 	# old tiles produced the scattered white lane fragments shown by the user.
+	# The city ends where the eastern mountain begins.  Clipping east-west roads
+	# here prevents the grid from continuing beneath and beside the dedicated
+	# summit highway as the large, unused paved branches seen in-game.
+	const CITY_MIN_X := -950.0
+	const CITY_MAX_X := 500.0
+	const CITY_ROAD_LENGTH := CITY_MAX_X - CITY_MIN_X
+	const CITY_ROAD_CENTRE_X := (CITY_MIN_X + CITY_MAX_X) * 0.5
 	for coordinate in range(-840, 841, 120):
 		# Flush visuals have no collision sheet, so feet and tyres remain on the
 		# single ground collider instead of catching raised road edges.
-		_box(Vector3(1900, 0.018, 20), Vector3(0, 0.009, coordinate),
+		_box(Vector3(CITY_ROAD_LENGTH, 0.018, 20),
+				Vector3(CITY_ROAD_CENTRE_X, 0.009, coordinate),
 				_road_mat, false, "concrete")
-		_box(Vector3(20, 0.018, 1900), Vector3(coordinate, 0.009, 0),
-				_road_mat, false, "concrete")
+		if coordinate <= 480:
+			_box(Vector3(20, 0.018, 1900), Vector3(coordinate, 0.009, 0),
+					_road_mat, false, "concrete")
 		# Pale shoulders define a safe pedestrian edge without becoming curbs.
 		for shoulder in [-11.5, 11.5]:
-			_box(Vector3(1900, 0.012, 3.0),
-					Vector3(0, 0.006, coordinate + shoulder),
+			_box(Vector3(CITY_ROAD_LENGTH, 0.012, 3.0),
+					Vector3(CITY_ROAD_CENTRE_X, 0.006, coordinate + shoulder),
 					_sidewalk_mat, false, "concrete")
-			_box(Vector3(3.0, 0.012, 1900),
-					Vector3(coordinate + shoulder, 0.006, 0),
-					_sidewalk_mat, false, "concrete")
+			if coordinate <= 480:
+				_box(Vector3(3.0, 0.012, 1900),
+						Vector3(coordinate + shoulder, 0.006, 0),
+						_sidewalk_mat, false, "concrete")
 		# Short dashed yellow center lines keep intersections open and make the
 		# large grid legible from both a car and the expanded map.
 		for dash in range(-900, 901, 24):
-			_box(Vector3(11.0, 0.022, 0.22),
-					Vector3(dash, 0.012, coordinate), _lane_mat, false, "concrete")
-			_box(Vector3(0.22, 0.022, 11.0),
-					Vector3(coordinate, 0.012, dash), _lane_mat, false, "concrete")
+			if dash <= CITY_MAX_X:
+				_box(Vector3(11.0, 0.022, 0.22),
+						Vector3(dash, 0.012, coordinate), _lane_mat, false, "concrete")
+			if coordinate <= 480:
+				_box(Vector3(0.22, 0.022, 11.0),
+						Vector3(coordinate, 0.012, dash), _lane_mat, false, "concrete")
 	# Clean square junctions cover shoulder/marking overlaps and guarantee that
 	# every side road visually meets the main road without a sand-colored seam.
 	for intersection_x in range(-840, 841, 120):
+		if intersection_x > 480:
+			continue
 		for intersection_z in range(-840, 841, 120):
 			_box(Vector3(26.0, 0.02, 26.0),
 					Vector3(intersection_x, 0.024, intersection_z),
