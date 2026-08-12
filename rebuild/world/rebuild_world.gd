@@ -4,11 +4,17 @@ extends Node3D
 
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 const SlidingDoor := preload("res://scripts/world/sliding_door.gd")
+const ElevatorPanel := preload("res://scripts/world/elevator_panel.gd")
 
 const ROAD_ROOT := "res://assets/kenney/city_roads"
 const COMMERCIAL_ROOT := "res://assets/kenney/city_commercial"
 const INDUSTRIAL_ROOT := "res://assets/kenney/city_industrial"
 const SUBURBAN_ROOT := "res://assets/kenney/city_suburban"
+const FLOOR_HEIGHT := 3.6
+const DOOR_WIDTH := 1.9
+const DOOR_HEIGHT := 2.55
+const STAIR_WIDTH := 1.75
+const STAIR_STEPS := 12
 
 var _ground_mat: StandardMaterial3D
 var _wall_mat: StandardMaterial3D
@@ -212,50 +218,78 @@ func _build_enterable_house(base: Vector3) -> void:
 
 func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 		model_scale: float, lot_index: int) -> void:
-	## Every generated building gets a physical, furnished ground-floor lobby.
-	## The original Kenney model becomes the upper facade so the skyline keeps
-	## its downloaded art without blocking the walkable interior.
+	## Every generated building gets real floors, stairs, elevator controls,
+	## furniture and enough clearance for the 1.8 m player capsule.
 	var packed := load(path) as PackedScene
 	if packed == null:
 		push_warning("Missing rebuild model: %s" % path)
 		return
 	var upper := packed.instantiate() as Node3D
-	upper.scale = Vector3.ONE * model_scale
 	var bounds := _bounds_for(path, upper)
 	var width := clampf(bounds.size.x * model_scale, 7.5, 13.0)
 	var depth := clampf(bounds.size.z * model_scale, 7.5, 12.0)
-	const LOBBY_HEIGHT := 3.6
-	const DOOR_WIDTH := 1.9
-	const DOOR_HEIGHT := 2.55
+	var authored_height := maxf(bounds.size.y * model_scale, FLOOR_HEIGHT)
+	var floor_count := clampi(int(ceil(authored_height / FLOOR_HEIGHT)), 1, 6)
 	var lot := Node3D.new()
 	lot.name = "EnterableBuilding_%02d" % lot_index
 	lot.position = pos
 	lot.rotation.y = yaw
 	add_child(lot)
-	_box(Vector3(width, 0.25, depth), Vector3(0, 0.125, 0),
-			_wall_mat, true, "wood", lot)
-	_box(Vector3(width, LOBBY_HEIGHT, 0.3),
-			Vector3(0, LOBBY_HEIGHT * 0.5, -depth * 0.5),
+	_build_floor_slab(lot, width, depth, 0.0, false)
+	for floor_index in floor_count:
+		_build_floor_shell(lot, width, depth, floor_index, floor_index == 0)
+		_furnish_floor(lot, width, depth, floor_index, lot_index)
+		_add_floor_light(lot, width, depth, floor_index)
+		if floor_count > 1:
+			_add_elevator_panel(lot, width, depth, floor_index, floor_count)
+		if floor_index < floor_count - 1:
+			_build_stair_flight(lot, width, depth, floor_index)
+			_build_floor_slab(lot, width, depth,
+					(floor_index + 1) * FLOOR_HEIGHT, true)
+	# A solid roof closes the top floor. The original asset is retained as a
+	# smaller rooftop silhouette instead of blocking the playable rooms.
+	_box(Vector3(width + 0.35, 0.3, depth + 0.35),
+			Vector3(0, floor_count * FLOOR_HEIGHT, 0),
+			_road_mat, true, "concrete", lot)
+	var roof_scale := model_scale * 0.28
+	upper.scale = Vector3.ONE * roof_scale
+	upper.position = Vector3(
+			-(bounds.position.x + bounds.size.x * 0.5) * roof_scale,
+			floor_count * FLOOR_HEIGHT + 0.15 - bounds.position.y * roof_scale,
+			-(bounds.position.z + bounds.size.z * 0.5) * roof_scale)
+	lot.add_child(upper)
+
+
+func _build_floor_shell(lot: Node3D, width: float, depth: float,
+		floor_index: int, entrance: bool) -> void:
+	var floor_y := floor_index * FLOOR_HEIGHT
+	var wall_y := floor_y + 0.22 + FLOOR_HEIGHT * 0.5
+	_box(Vector3(width, FLOOR_HEIGHT, 0.3), Vector3(0, wall_y, -depth * 0.5),
 			_wall_mat, true, "concrete", lot)
-	_box(Vector3(0.3, LOBBY_HEIGHT, depth),
-			Vector3(-width * 0.5, LOBBY_HEIGHT * 0.5, 0),
+	_box(Vector3(0.3, FLOOR_HEIGHT, depth), Vector3(-width * 0.5, wall_y, 0),
 			_wall_mat, true, "concrete", lot)
-	_box(Vector3(0.3, LOBBY_HEIGHT, depth),
-			Vector3(width * 0.5, LOBBY_HEIGHT * 0.5, 0),
+	_box(Vector3(0.3, FLOOR_HEIGHT, depth), Vector3(width * 0.5, wall_y, 0),
 			_wall_mat, true, "concrete", lot)
+	if not entrance:
+		_box(Vector3(width, FLOOR_HEIGHT, 0.3), Vector3(0, wall_y, depth * 0.5),
+				_wall_mat, true, "concrete", lot)
+		return
 	var side_width := (width - DOOR_WIDTH) * 0.5
 	var side_offset := (DOOR_WIDTH + side_width) * 0.5
-	_box(Vector3(side_width, LOBBY_HEIGHT, 0.3),
-			Vector3(-side_offset, LOBBY_HEIGHT * 0.5, depth * 0.5),
+	_box(Vector3(side_width, FLOOR_HEIGHT, 0.3),
+			Vector3(-side_offset, wall_y, depth * 0.5),
 			_wall_mat, true, "concrete", lot)
-	_box(Vector3(side_width, LOBBY_HEIGHT, 0.3),
-			Vector3(side_offset, LOBBY_HEIGHT * 0.5, depth * 0.5),
+	_box(Vector3(side_width, FLOOR_HEIGHT, 0.3),
+			Vector3(side_offset, wall_y, depth * 0.5),
 			_wall_mat, true, "concrete", lot)
-	_box(Vector3(DOOR_WIDTH, LOBBY_HEIGHT - DOOR_HEIGHT, 0.3),
-			Vector3(0, DOOR_HEIGHT + (LOBBY_HEIGHT - DOOR_HEIGHT) * 0.5,
-			depth * 0.5), _wall_mat, true, "concrete", lot)
-	_box(Vector3(width + 0.35, 0.3, depth + 0.35),
-			Vector3(0, LOBBY_HEIGHT, 0), _road_mat, true, "concrete", lot)
+	_box(Vector3(DOOR_WIDTH, FLOOR_HEIGHT - DOOR_HEIGHT, 0.3),
+			Vector3(0, floor_y + 0.22 + DOOR_HEIGHT
+			+ (FLOOR_HEIGHT - DOOR_HEIGHT) * 0.5, depth * 0.5),
+			_wall_mat, true, "concrete", lot)
+	_add_building_door(lot, depth, floor_y)
+
+
+func _add_building_door(lot: Node3D, depth: float, floor_y: float) -> void:
 	var door := SlidingDoor.new()
 	door.slide_offset = Vector3(DOOR_WIDTH + 0.15, 0, 0)
 	var door_mesh := MeshInstance3D.new()
@@ -269,20 +303,79 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	door_collision.size = door_box.size
 	door_shape.shape = door_collision
 	door.add_child(door_shape)
-	door.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5)
+	door.position = Vector3(0, floor_y + 0.22 + DOOR_HEIGHT * 0.5, depth * 0.5)
 	lot.add_child(door)
-	# Centre the original model and rest its lowest point on the lobby roof.
-	upper.position = Vector3(
-			-(bounds.position.x + bounds.size.x * 0.5) * model_scale,
-			LOBBY_HEIGHT - bounds.position.y * model_scale,
-			-(bounds.position.z + bounds.size.z * 0.5) * model_scale)
-	lot.add_child(upper)
-	PropLib.place(lot, "Table", Vector3(width * 0.2, 0.25, -depth * 0.15),
-			lot_index * 0.3, 0.55)
-	PropLib.place(lot, "Chair", Vector3(-width * 0.2, 0.25, -depth * 0.15),
-			PI + lot_index * 0.2, 0.55)
+
+
+func _build_floor_slab(lot: Node3D, width: float, depth: float,
+		floor_y: float, stair_opening: bool) -> void:
+	if not stair_opening:
+		_box(Vector3(width, 0.22, depth), Vector3(0, floor_y + 0.11, 0),
+				_wall_mat, true, "wood", lot)
+		return
+	var open_width := STAIR_WIDTH + 0.25
+	var open_depth := minf(5.0, depth - 1.0)
+	var right_strip := 0.3
+	var main_width := width - open_width - right_strip
+	_box(Vector3(main_width, 0.22, depth),
+			Vector3(-width * 0.5 + main_width * 0.5, floor_y + 0.11, 0),
+			_wall_mat, true, "wood", lot)
+	_box(Vector3(right_strip, 0.22, depth),
+			Vector3(width * 0.5 - right_strip * 0.5, floor_y + 0.11, 0),
+			_wall_mat, true, "wood", lot)
+	var end_depth := (depth - open_depth) * 0.5
+	var open_x := width * 0.5 - right_strip - open_width * 0.5
+	_box(Vector3(open_width, 0.22, end_depth),
+			Vector3(open_x, floor_y + 0.11, -depth * 0.5 + end_depth * 0.5),
+			_wall_mat, true, "wood", lot)
+	_box(Vector3(open_width, 0.22, end_depth),
+			Vector3(open_x, floor_y + 0.11, depth * 0.5 - end_depth * 0.5),
+			_wall_mat, true, "wood", lot)
+
+
+func _build_stair_flight(lot: Node3D, width: float, depth: float,
+		floor_index: int) -> void:
+	var run_length := minf(5.0, depth - 1.0)
+	var tread := run_length / STAIR_STEPS
+	var rise := FLOOR_HEIGHT / STAIR_STEPS
+	var stair_x := width * 0.5 - 0.3 - (STAIR_WIDTH + 0.25) * 0.5
+	var base_y := floor_index * FLOOR_HEIGHT + 0.22
+	for step_index in STAIR_STEPS:
+		_box(Vector3(STAIR_WIDTH, rise, tread + 0.04),
+				Vector3(stair_x,
+				base_y + rise * (step_index + 0.5),
+				-run_length * 0.5 + tread * (step_index + 0.5)),
+				_road_mat, true, "concrete", lot)
+
+
+func _add_elevator_panel(lot: Node3D, width: float, depth: float,
+		floor_index: int, floor_count: int) -> void:
+	var panel := ElevatorPanel.new()
+	var target_floor := (floor_index + 1) % floor_count
+	panel.destination_floor = target_floor + 1
+	panel.target_local_position = Vector3(0, target_floor * FLOOR_HEIGHT + 0.3, 0)
+	panel.position = Vector3(-width * 0.5 + 0.24,
+			floor_index * FLOOR_HEIGHT + 1.25, depth * 0.5 - 1.1)
+	lot.add_child(panel)
+
+
+func _furnish_floor(lot: Node3D, width: float, depth: float,
+		floor_index: int, lot_index: int) -> void:
+	var y := floor_index * FLOOR_HEIGHT + 0.25
+	var turn := lot_index * 0.31 + floor_index * 0.47
+	PropLib.place(lot, "Table", Vector3(-width * 0.18, y, -depth * 0.18),
+			turn, 0.55)
+	PropLib.place(lot, "Chair", Vector3(-width * 0.28, y, depth * 0.08),
+			PI + turn, 0.55)
+	var accent := ["Lamp", "Barril", "Seat", "Wood_Plank_A"][floor_index % 4]
+	PropLib.place(lot, accent, Vector3(width * 0.05, y, -depth * 0.3),
+			-turn, 0.5)
+
+
+func _add_floor_light(lot: Node3D, width: float, depth: float,
+		floor_index: int) -> void:
 	var light := OmniLight3D.new()
-	light.position = Vector3(0, 2.8, 0)
+	light.position = Vector3(0, floor_index * FLOOR_HEIGHT + 2.8, 0)
 	light.light_color = Color(1.0, 0.8, 0.62)
 	light.light_energy = 1.0
 	light.omni_range = maxf(width, depth)
