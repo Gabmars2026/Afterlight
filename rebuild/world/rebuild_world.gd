@@ -187,8 +187,10 @@ func _build_street_furniture() -> void:
 		light.light_energy = 0.7
 		light.omni_range = 18.0
 		add_child(light)
-	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb", Vector3(4, 0.12, 17), PI, 6.0)
-	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(10, 0.12, 17), 0.0, 4.0)
+	# Keep large furniture beyond the five-metre road edge and out of the
+	# intersection sightline. The sign faces traffic from the east shoulder.
+	_place_visual(ROAD_ROOT + "/sign-highway-wide.glb", Vector3(18, 0.02, 28), PI, 6.0)
+	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(12, 0.02, 25), 0.0, 4.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.12, 44), 0.0, 7.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
 
