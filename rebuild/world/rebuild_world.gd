@@ -5,6 +5,7 @@ extends Node3D
 const PropLib := preload("res://scripts/world/prop_lib.gd")
 const SlidingDoor := preload("res://scripts/world/sliding_door.gd")
 const ElevatorPanel := preload("res://scripts/world/elevator_panel.gd")
+const BuildingPortal := preload("res://scripts/world/building_portal.gd")
 
 const ROAD_ROOT := "res://assets/kenney/city_roads"
 const COMMERCIAL_ROOT := "res://assets/kenney/city_commercial"
@@ -218,14 +219,14 @@ func _build_enterable_house(base: Vector3) -> void:
 
 func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 		model_scale: float, lot_index: int) -> void:
-	## Every generated building gets real floors, stairs, elevator controls,
-	## furniture and enough clearance for the 1.8 m player capsule.
+	## Preserve the asset-authored exterior at ground level. Its designed front
+	## door is the interaction point for a separate, correctly scaled interior.
 	var packed := load(path) as PackedScene
 	if packed == null:
 		push_warning("Missing rebuild model: %s" % path)
 		return
-	var upper := packed.instantiate() as Node3D
-	var bounds := _bounds_for(path, upper)
+	var exterior := packed.instantiate() as Node3D
+	var bounds := _bounds_for(path, exterior)
 	var width := clampf(bounds.size.x * model_scale, 7.5, 13.0)
 	var depth := clampf(bounds.size.z * model_scale, 7.5, 12.0)
 	var authored_height := maxf(bounds.size.y * model_scale, FLOOR_HEIGHT)
@@ -235,29 +236,92 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	lot.position = pos
 	lot.rotation.y = yaw
 	add_child(lot)
-	_build_floor_slab(lot, width, depth, 0.0, false)
+	# Use the original building at its intended size and rest its lowest mesh
+	# point on the terrain. Previously this model was a tiny rooftop ornament.
+	exterior.scale = Vector3.ONE * model_scale
+	exterior.position = Vector3(
+		-(bounds.position.x + bounds.size.x * 0.5) * model_scale,
+		-bounds.position.y * model_scale,
+		-(bounds.position.z + bounds.size.z * 0.5) * model_scale)
+	lot.add_child(exterior)
+	_build_exterior_collision(lot, width, depth, authored_height)
+
+	# Interior rooms live below their matching lot. Door portals make the
+	# transition while the exterior remains visually faithful to the asset.
+	var interior := Node3D.new()
+	interior.name = "PlayableInterior"
+	interior.position.y = -24.0
+	lot.add_child(interior)
+	_build_floor_slab(interior, width, depth, 0.0, false)
 	for floor_index in floor_count:
-		_build_floor_shell(lot, width, depth, floor_index, floor_index == 0)
-		_furnish_floor(lot, width, depth, floor_index, lot_index)
-		_add_floor_light(lot, width, depth, floor_index)
+		_build_floor_shell(interior, width, depth, floor_index, floor_index == 0)
+		_furnish_floor(interior, width, depth, floor_index, lot_index)
+		_add_floor_light(interior, width, depth, floor_index)
 		if floor_count > 1:
-			_add_elevator_panel(lot, width, depth, floor_index, floor_count)
+			_add_elevator_panel(interior, width, depth, floor_index, floor_count)
 		if floor_index < floor_count - 1:
-			_build_stair_flight(lot, width, depth, floor_index)
-			_build_floor_slab(lot, width, depth,
+			_build_stair_flight(interior, width, depth, floor_index)
+			_build_floor_slab(interior, width, depth,
 					(floor_index + 1) * FLOOR_HEIGHT, true)
-	# A solid roof closes the top floor. The original asset is retained as a
-	# smaller rooftop silhouette instead of blocking the playable rooms.
+	# A solid ceiling closes the top interior floor.
 	_box(Vector3(width + 0.35, 0.3, depth + 0.35),
 			Vector3(0, floor_count * FLOOR_HEIGHT, 0),
-			_road_mat, true, "concrete", lot)
-	var roof_scale := model_scale * 0.28
-	upper.scale = Vector3.ONE * roof_scale
-	upper.position = Vector3(
-			-(bounds.position.x + bounds.size.x * 0.5) * roof_scale,
-			floor_count * FLOOR_HEIGHT + 0.15 - bounds.position.y * roof_scale,
-			-(bounds.position.z + bounds.size.z * 0.5) * roof_scale)
-	lot.add_child(upper)
+			_road_mat, true, "concrete", interior)
+	_add_asset_door_portals(lot, interior, depth)
+
+
+func _build_exterior_collision(lot: Node3D, width: float, depth: float,
+		height: float) -> void:
+	# Invisible collision follows the authored shell and leaves the designed
+	# centered front door clear for its interaction portal.
+	var collision_height := maxf(height, DOOR_HEIGHT + 0.5)
+	_collision_box(lot, Vector3(width, collision_height, 0.35),
+			Vector3(0, collision_height * 0.5, -depth * 0.5))
+	_collision_box(lot, Vector3(0.35, collision_height, depth),
+			Vector3(-width * 0.5, collision_height * 0.5, 0))
+	_collision_box(lot, Vector3(0.35, collision_height, depth),
+			Vector3(width * 0.5, collision_height * 0.5, 0))
+	var side_width := (width - DOOR_WIDTH) * 0.5
+	var side_offset := (DOOR_WIDTH + side_width) * 0.5
+	_collision_box(lot, Vector3(side_width, collision_height, 0.35),
+			Vector3(-side_offset, collision_height * 0.5, depth * 0.5))
+	_collision_box(lot, Vector3(side_width, collision_height, 0.35),
+			Vector3(side_offset, collision_height * 0.5, depth * 0.5))
+	_collision_box(lot, Vector3(DOOR_WIDTH, collision_height - DOOR_HEIGHT, 0.35),
+			Vector3(0, DOOR_HEIGHT + (collision_height - DOOR_HEIGHT) * 0.5,
+			depth * 0.5))
+
+
+func _add_asset_door_portals(lot: Node3D, interior: Node3D,
+		depth: float) -> void:
+	var outside_marker := Marker3D.new()
+	outside_marker.position = Vector3(0, 0.3, depth * 0.5 + 1.35)
+	lot.add_child(outside_marker)
+	var inside_marker := Marker3D.new()
+	inside_marker.position = Vector3(0, 0.3, depth * 0.5 - 1.25)
+	interior.add_child(inside_marker)
+	var enter := BuildingPortal.new()
+	enter.prompt = "Press E to enter"
+	enter.destination = inside_marker
+	enter.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5 + 0.12)
+	lot.add_child(enter)
+	var exit := BuildingPortal.new()
+	exit.prompt = "Press E to exit"
+	exit.destination = outside_marker
+	exit.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5 - 0.12)
+	interior.add_child(exit)
+
+
+func _collision_box(parent: Node3D, size: Vector3, pos: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.set_meta("surface", "concrete")
+	body.position = pos
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	parent.add_child(body)
 
 
 func _build_floor_shell(lot: Node3D, width: float, depth: float,
