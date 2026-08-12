@@ -176,9 +176,12 @@ func _setup_input() -> void:
 
 
 func _add_key(action: String, key: Key) -> void:
-	if InputMap.has_action(action):
-		return
-	InputMap.add_action(action)
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	for existing in InputMap.action_get_events(action):
+		if existing is InputEventKey \
+				and (existing as InputEventKey).physical_keycode == key:
+			return
 	var event := InputEventKey.new()
 	event.physical_keycode = key
 	InputMap.action_add_event(action, event)
