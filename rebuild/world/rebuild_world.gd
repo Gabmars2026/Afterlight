@@ -74,6 +74,9 @@ func _make_materials() -> void:
 	# street than the old tan cobble grid.
 	_road_mat.albedo_color = Color(0.105, 0.115, 0.13)
 	_road_mat.roughness = 0.88
+	# Procedural highway triangles must remain visible from either winding while
+	# climbing, banking, or viewed from a low chase camera.
+	_road_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_road_mat.uv1_triplanar = true
 	_road_mat.uv1_world_triplanar = true
 	_lane_mat = StandardMaterial3D.new()
@@ -412,6 +415,20 @@ func _build_mountain_highway(points: Array[Vector3]) -> void:
 	collision.shape = mesh.create_trimesh_shape()
 	body.add_child(collision)
 	highway.add_child(body)
+	# A second, slightly buried collision deck is made from overlapping sloped
+	# boxes. The visible mesh stays seamless, while these supports prevent a bike
+	# from ever finding a one-triangle hole or catching a raised box face.
+	for index in points.size() - 1:
+		var start := points[index]
+		var finish := points[index + 1]
+		var direction := finish - start
+		if direction.length() < 0.05:
+			continue
+		var support := _box(Vector3(14.6, 0.55, direction.length() + 1.4),
+				(start + finish) * 0.5 - Vector3.UP * 0.48,
+				_road_mat, true, "concrete")
+		support.visible = false
+		support.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
 	# Centre markings sit just above the continuous road and do not collide.
 	for index in range(0, points.size() - 1, 4):
 		var finish_index := mini(index + 2, points.size() - 1)
