@@ -99,6 +99,7 @@ var _third_person := true
 var _boom := 0.0
 var _tp_weapons: Array[Node3D] = []
 var _anim: AnimationPlayer
+var _body_skeleton: Skeleton3D
 var _anim_state := ""
 var _tp_parts: Array[Node3D] = []
 var _last_safe := Vector3(0, 0.5, 8)
@@ -885,6 +886,7 @@ func _build_body() -> void:
 	_play_body_animation("Idle_Neutral", 0.0)
 	_anim_state = "Idle_Neutral"
 	var skel: Skeleton3D = rig.find_child("Skeleton3D", true, false)
+	_body_skeleton = skel
 	# Weapon models attached to the right hand bone
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)
@@ -1054,6 +1056,39 @@ func _sync_tp_weapon() -> void:
 	var cur := weapons.current_index()
 	for i in _tp_weapons.size():
 		_tp_weapons[i].visible = _third_person and i == cur
+
+
+func set_vehicle_pose(vehicle_kind: String) -> void:
+	## Vehicles call this even while normal player processing is disabled. A bike
+	## needs an unmistakable seated silhouette rather than the standing idle pose.
+	if _body_skeleton == null:
+		return
+	var riding := vehicle_kind == "motorcycle"
+	for bone_name in ["Hips", "UpperLeg.L", "UpperLeg.R", "LowerLeg.L",
+			"LowerLeg.R", "UpperArm.L", "UpperArm.R", "LowerArm.L",
+			"LowerArm.R"]:
+		var bone := _body_skeleton.find_bone(bone_name)
+		if bone >= 0:
+			_body_skeleton.set_bone_pose_rotation(bone, Quaternion.IDENTITY)
+	if not riding:
+		return
+	# Bend at hips/knees and reach toward the handlebar. These are local skeletal
+	# rotations and therefore remain correct while the whole rider turns with it.
+	_set_pose_bone("Hips", Vector3.RIGHT, -0.22)
+	_set_pose_bone("UpperLeg.L", Vector3.RIGHT, -1.22)
+	_set_pose_bone("UpperLeg.R", Vector3.RIGHT, -1.22)
+	_set_pose_bone("LowerLeg.L", Vector3.RIGHT, 1.48)
+	_set_pose_bone("LowerLeg.R", Vector3.RIGHT, 1.48)
+	_set_pose_bone("UpperArm.L", Vector3.RIGHT, -0.78)
+	_set_pose_bone("UpperArm.R", Vector3.RIGHT, -0.78)
+	_set_pose_bone("LowerArm.L", Vector3.RIGHT, -0.72)
+	_set_pose_bone("LowerArm.R", Vector3.RIGHT, -0.72)
+
+
+func _set_pose_bone(bone_name: String, axis: Vector3, angle: float) -> void:
+	var bone := _body_skeleton.find_bone(bone_name)
+	if bone >= 0:
+		_body_skeleton.set_bone_pose_rotation(bone, Quaternion(axis, angle))
 
 
 func _update_body(delta: float) -> void:
