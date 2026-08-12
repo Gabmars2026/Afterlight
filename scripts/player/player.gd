@@ -1059,36 +1059,16 @@ func _sync_tp_weapon() -> void:
 
 
 func set_vehicle_pose(vehicle_kind: String) -> void:
-	## Vehicles call this even while normal player processing is disabled. A bike
-	## needs an unmistakable seated silhouette rather than the standing idle pose.
-	if _body_skeleton == null:
+	## Keep the imported rig stable while normal player processing is disabled.
+	## Its bone axes differ between exports, so pose it with a verified imported
+	## animation rather than arbitrary rotations that stretch the limbs.
+	if _body_skeleton == null or _anim == null:
 		return
-	var riding := vehicle_kind == "motorcycle"
-	for bone_name in ["Hips", "UpperLeg.L", "UpperLeg.R", "LowerLeg.L",
-			"LowerLeg.R", "UpperArm.L", "UpperArm.R", "LowerArm.L",
-			"LowerArm.R"]:
-		var bone := _body_skeleton.find_bone(bone_name)
-		if bone >= 0:
-			_body_skeleton.set_bone_pose_rotation(bone, Quaternion.IDENTITY)
-	if not riding:
-		return
-	# Bend at hips/knees and reach toward the handlebar. These are local skeletal
-	# rotations and therefore remain correct while the whole rider turns with it.
-	_set_pose_bone("Hips", Vector3.RIGHT, -0.22)
-	_set_pose_bone("UpperLeg.L", Vector3.RIGHT, -1.22)
-	_set_pose_bone("UpperLeg.R", Vector3.RIGHT, -1.22)
-	_set_pose_bone("LowerLeg.L", Vector3.RIGHT, 1.48)
-	_set_pose_bone("LowerLeg.R", Vector3.RIGHT, 1.48)
-	_set_pose_bone("UpperArm.L", Vector3.RIGHT, -0.78)
-	_set_pose_bone("UpperArm.R", Vector3.RIGHT, -0.78)
-	_set_pose_bone("LowerArm.L", Vector3.RIGHT, -0.72)
-	_set_pose_bone("LowerArm.R", Vector3.RIGHT, -0.72)
-
-
-func _set_pose_bone(bone_name: String, axis: Vector3, angle: float) -> void:
-	var bone := _body_skeleton.find_bone(bone_name)
-	if bone >= 0:
-		_body_skeleton.set_bone_pose_rotation(bone, Quaternion(axis, angle))
+	if vehicle_kind == "motorcycle":
+		_play_body_animation("Idle_Neutral", 0.0)
+		# The parent is disabled immediately after mounting, so sample the requested
+		# pose now instead of waiting for an AnimationPlayer process frame.
+		_anim.advance(0.0)
 
 
 func _update_body(delta: float) -> void:
