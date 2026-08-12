@@ -306,6 +306,17 @@ func _has_mountain_overhead_at(position: Vector3) -> bool:
 	## recovery without affecting garages, which explicitly allow underground.
 	if position.x <= 520.0 or absf(position.z) >= 720.0:
 		return false
+	# Do not rescue vehicles that are correctly supported by the mountain road.
+	# Its route intentionally has terrain above portions of the switchback.
+	var down_query := PhysicsRayQueryParameters3D.create(
+			position + Vector3.UP * 0.4, position + Vector3.DOWN * 4.0, 1)
+	down_query.exclude = [get_rid()]
+	var floor_hit := get_world_3d().direct_space_state.intersect_ray(down_query)
+	if not floor_hit.is_empty():
+		var floor_collider: Object = floor_hit.get("collider")
+		if floor_collider != null and floor_collider.has_meta("surface") \
+				and str(floor_collider.get_meta("surface")) == "concrete":
+			return false
 	var query := PhysicsRayQueryParameters3D.create(
 			position + Vector3.UP * 1.0, position + Vector3.UP * 260.0, 1)
 	query.exclude = [get_rid()]
