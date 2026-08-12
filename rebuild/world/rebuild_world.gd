@@ -20,11 +20,20 @@ func build() -> void:
 	_make_materials()
 	_build_ground()
 	_build_road_grid()
-	_build_district(COMMERCIAL_ROOT, Vector3(-58, 1.02, -76), 5, 27.0, 30.0, 9.0)
-	_build_district(INDUSTRIAL_ROOT, Vector3(72, 1.02, -58), 5, 27.0, 30.0, 8.0)
-	_build_district(SUBURBAN_ROOT, Vector3(-174, 1.02, -52), 5, 27.0, 30.0, 8.0)
-	_build_enterable_building(Vector3(18, 1.0, 34))
-	_build_prop_plaza(Vector3(-30, 1.0, 86))
+	# Building centers are deliberately kept outside the x=0 and horizontal
+	# road corridors. Each row occupies the middle of a city block.
+	_build_district(COMMERCIAL_ROOT,
+			[-28.0, -58.0, -88.0, -118.0, -148.0],
+			[-92.0, -28.0, 40.0, 104.0], 9.0)
+	_build_district(INDUSTRIAL_ROOT,
+			[28.0, 58.0, 88.0, 118.0, 148.0],
+			[-92.0, -28.0, 40.0, 104.0], 8.0)
+	_build_district(SUBURBAN_ROOT,
+			[-160.0, -130.0, -100.0, -70.0, -40.0,
+			40.0, 70.0, 100.0, 130.0, 160.0],
+			[-158.0, 148.0, 178.0], 8.0)
+	_build_enterable_building(Vector3(18, 0.0, 34))
+	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
 
 
@@ -69,13 +78,16 @@ func _build_road_grid() -> void:
 		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, 0.13, z), 0.0, 10.0)
 
 
-func _build_district(root: String, origin: Vector3, columns: int,
-		x_spacing: float, z_spacing: float, model_scale: float) -> void:
+func _build_district(root: String, x_positions: Array,
+		z_positions: Array, model_scale: float) -> void:
 	var paths := _building_paths(root)
 	for index in paths.size():
-		var column := index % columns
-		var row := index / columns
-		var pos := origin + Vector3(column * x_spacing, 0, row * z_spacing)
+		var column := index % x_positions.size()
+		var row := index / x_positions.size()
+		if row >= z_positions.size():
+			push_warning("Not enough rebuild lots for %s" % root)
+			break
+		var pos := Vector3(x_positions[column], 0.0, z_positions[row])
 		var yaw := PI if row % 2 == 0 else 0.0
 		_place_collidable_model(paths[index], pos, yaw, model_scale, "concrete")
 
@@ -183,14 +195,16 @@ func _place_collidable_model(path: String, pos: Vector3, yaw: float,
 	if packed == null:
 		push_warning("Missing rebuild model: %s" % path)
 		return
-	var body := StaticBody3D.new()
-	body.position = pos
-	body.rotation.y = yaw
-	body.set_meta("surface", surface)
 	var model := packed.instantiate() as Node3D
 	model.scale = Vector3.ONE * model_scale
-	body.add_child(model)
 	var bounds := _bounds_for(path, model)
+	var body := StaticBody3D.new()
+	# Align the lowest mesh vertex to the terrain instead of assuming every
+	# asset has the same origin. This removes the one-metre floating offset.
+	body.position = Vector3(pos.x, pos.y - bounds.position.y * model_scale, pos.z)
+	body.rotation.y = yaw
+	body.set_meta("surface", surface)
+	body.add_child(model)
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
 	shape.size = bounds.size * model_scale
