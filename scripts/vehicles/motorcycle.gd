@@ -4,7 +4,7 @@ extends "res://scripts/vehicles/car.gd"
 ## providing its own narrow two-wheel visual.
 
 var _rider_visual: Node3D
-var _rider_limbs: Dictionary = {}
+var _rider_animation: AnimationPlayer
 var _frame_material: StandardMaterial3D
 
 
@@ -116,29 +116,24 @@ func _pose_tube(tube: MeshInstance3D, start: Vector3, finish: Vector3) -> void:
 
 
 func _build_cyclist(bike: Node3D) -> void:
-	_rider_visual = Node3D.new()
-	_rider_visual.name = "AnimatedCyclist"
+	# Reuse the same clothed CC0 Quaternius human as the on-foot player instead
+	# of assembling a torso, head and limbs from boxes.  The running cycle gives
+	# the legs a convincing continuous pedal motion at gameplay distance.
+	var rider_scene := load("res://assets/characters/quaternius_modular_men/glTF/Casual_Hoodie.gltf") as PackedScene
+	if rider_scene == null:
+		push_warning("Bicycle rider model could not be loaded")
+		return
+	_rider_visual = rider_scene.instantiate() as Node3D
+	_rider_visual.name = "AnimatedHumanCyclist"
 	_rider_visual.visible = false
+	_rider_visual.position = Vector3(0.0, 0.56, 0.12)
+	_rider_visual.rotation = Vector3(-0.16, PI, 0.0)
 	bike.add_child(_rider_visual)
-	var hoodie := StandardMaterial3D.new()
-	hoodie.albedo_color = Color(0.22, 0.12, 0.38)
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.62, 0.42, 0.28)
-	_add_bike_box(_rider_visual, Vector3(0.46, 0.62, 0.3),
-			Vector3(0, 1.52, 0.2), hoodie)
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 0.17
-	sphere.height = 0.34
-	sphere.material = skin
-	head.mesh = sphere
-	head.position = Vector3(0, 1.98, 0.1)
-	_rider_visual.add_child(head)
-	for limb in ["thigh_l", "shin_l", "thigh_r", "shin_r",
-			"arm_l", "forearm_l", "arm_r", "forearm_r"]:
-		var material: Material = hoodie if limb.begins_with("arm") else skin
-		_rider_limbs[limb] = _add_tube(_rider_visual, Vector3.ZERO,
-				Vector3.UP, 0.065, material)
+	_rider_animation = _rider_visual.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _rider_animation != null and _rider_animation.has_animation("Run"):
+		var run := _rider_animation.get_animation("Run")
+		run.loop_mode = Animation.LOOP_LINEAR
+		_rider_animation.play("Run")
 	_update_cyclist_pose()
 
 
@@ -146,30 +141,9 @@ func _update_cyclist_pose() -> void:
 	if _rider_visual == null:
 		return
 	_rider_visual.visible = driver != null
-	var pedal_left := Vector3(-0.2, 0.46 + sin(_wheel_spin) * 0.18,
-			cos(_wheel_spin) * 0.18)
-	var pedal_right := Vector3(0.2, 0.46 - sin(_wheel_spin) * 0.18,
-			-cos(_wheel_spin) * 0.18)
-	var hip_l := Vector3(-0.15, 1.34, 0.28)
-	var hip_r := Vector3(0.15, 1.34, 0.28)
-	_pose_leg("l", hip_l, pedal_left)
-	_pose_leg("r", hip_r, pedal_right)
-	var hand_l := Vector3(-0.34, 1.16, -0.72)
-	var hand_r := Vector3(0.34, 1.16, -0.72)
-	_pose_arm("l", Vector3(-0.22, 1.72, 0.08), hand_l)
-	_pose_arm("r", Vector3(0.22, 1.72, 0.08), hand_r)
-
-
-func _pose_leg(side: String, hip: Vector3, foot: Vector3) -> void:
-	var knee := (hip + foot) * 0.5 + Vector3(0, 0.05, -0.28)
-	_pose_tube(_rider_limbs["thigh_" + side], hip, knee)
-	_pose_tube(_rider_limbs["shin_" + side], knee, foot)
-
-
-func _pose_arm(side: String, shoulder: Vector3, hand: Vector3) -> void:
-	var elbow := (shoulder + hand) * 0.5 + Vector3(0, -0.12, 0.05)
-	_pose_tube(_rider_limbs["arm_" + side], shoulder, elbow)
-	_pose_tube(_rider_limbs["forearm_" + side], elbow, hand)
+	if _rider_animation != null:
+		_rider_animation.speed_scale = clampf(absf(_speed) / 5.0, 0.35, 1.8) \
+				if driver != null else 0.0
 
 
 func _animate_wheels(delta: float) -> void:
