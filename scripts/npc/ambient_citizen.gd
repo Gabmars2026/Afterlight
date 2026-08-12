@@ -40,6 +40,8 @@ func _physics_process(delta: float) -> void:
 			direction = direction.normalized()
 			velocity.x = direction.x * walk_speed
 			velocity.z = direction.z * walk_speed
+			# The Quaternius character faces local +Z. Point +Z along travel so
+			# pedestrians no longer moonwalk backwards through the city.
 			rotation.y = lerp_angle(rotation.y, atan2(direction.x, direction.z), 7.0 * delta)
 			_play("Walk")
 	move_and_slide()
@@ -65,9 +67,14 @@ func _build_model() -> void:
 		push_warning("Citizen model could not load: %s" % model_path)
 		return
 	var model := scene.instantiate() as Node3D
-	model.rotation.y = PI
+	model.rotation.y = 0.0
 	add_child(model)
 	_anim = model.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	var looping_animations: Array[String] = ["Idle", "Idle_Neutral", "Walk", "Run"]
+	for animation_name in looping_animations:
+		var resolved := _find_animation(animation_name)
+		if resolved != &"":
+			_anim.get_animation(resolved).loop_mode = Animation.LOOP_LINEAR
 	_play("Idle_Neutral")
 
 
@@ -78,7 +85,21 @@ func _choose_target() -> void:
 
 
 func _play(animation_name: String) -> void:
-	if _anim == null or _anim.current_animation == animation_name:
+	if _anim == null:
 		return
+	var resolved := _find_animation(animation_name)
+	if resolved == &"" or _anim.current_animation == resolved:
+		return
+	_anim.play(resolved, 0.2)
+
+
+func _find_animation(animation_name: String) -> StringName:
 	if _anim.has_animation(animation_name):
-		_anim.play(animation_name, 0.2)
+		return StringName(animation_name)
+	for available in _anim.get_animation_list():
+		var full_name := String(available)
+		if full_name.ends_with("/" + animation_name) \
+				or full_name.ends_with("|" + animation_name) \
+				or full_name.ends_with(":" + animation_name):
+			return available
+	return &""

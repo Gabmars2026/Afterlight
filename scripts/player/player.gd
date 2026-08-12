@@ -40,7 +40,9 @@ const EYE_CROUCH := 1.05
 const EYE_CRAWL := 0.5
 const EYE_SLIDE := 0.72
 const BODY_FIT_FLOOR_EPSILON := 0.04
-const BODY_VISUAL_Y_OFFSET := 0.24
+# Quaternius models are authored with their soles at y ~= 0. The previous
+# mannequin needed +0.24 m, which made the replacement character hover.
+const BODY_VISUAL_Y_OFFSET := 0.0
 
 const SPRINT_DRAIN_PER_SEC := 11.0
 const JUMP_COST := 8.0
@@ -872,7 +874,8 @@ func _build_body() -> void:
 	rig.rotation.y = PI  # model faces +Z; the player moves toward -Z
 	_body.add_child(rig)
 	_anim = rig.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	_anim.play("Idle_Neutral")
+	_configure_body_animation_loops()
+	_play_body_animation("Idle_Neutral", 0.0)
 	_anim_state = "Idle_Neutral"
 	var skel: Skeleton3D = rig.find_child("Skeleton3D", true, false)
 	# Weapon models attached to the right hand bone
@@ -1083,7 +1086,7 @@ func _update_body(delta: float) -> void:
 		next = "Idle_Neutral"
 	if next != _anim_state:
 		_anim_state = next
-		_anim.play(next, 0.25)
+		_play_body_animation(next, 0.25)
 	_anim.speed_scale = anim_scale
 
 
@@ -1100,7 +1103,41 @@ func play_action_anim(anim_name: String) -> void:
 		"Punch_Cross": "Punch_Right",
 	}.get(anim_name, anim_name) as String
 	if not _anim.has_animation(mapped):
-		return
+		if _find_body_animation(mapped) == &"":
+			return
 	_anim_state = mapped
 	_anim.speed_scale = 1.0
-	_anim.play(mapped, 0.1)
+	_play_body_animation(mapped, 0.1)
+
+
+func _play_body_animation(animation_name: String, blend := 0.2) -> void:
+	var resolved := _find_body_animation(animation_name)
+	if resolved != &"":
+		_anim.play(resolved, blend)
+
+
+func _find_body_animation(animation_name: String) -> StringName:
+	## Godot may prefix imported glTF clips with a library/model name.
+	if _anim == null:
+		return &""
+	if _anim.has_animation(animation_name):
+		return StringName(animation_name)
+	for available in _anim.get_animation_list():
+		var full_name := String(available)
+		if full_name.ends_with("/" + animation_name) \
+				or full_name.ends_with("|" + animation_name) \
+				or full_name.ends_with(":" + animation_name):
+			return available
+	return &""
+
+
+func _configure_body_animation_loops() -> void:
+	# These glTF clips do not carry Godot's conventional "_Loop" suffix, so
+	# mark locomotion explicitly or it plays once and the character glides.
+	var looping_animations: Array[String] = ["Idle", "Idle_Neutral",
+			"Idle_Gun", "Idle_Sword", "Walk", "Run", "Run_Back",
+			"Run_Left", "Run_Right"]
+	for animation_name in looping_animations:
+		var resolved := _find_body_animation(animation_name)
+		if resolved != &"":
+			_anim.get_animation(resolved).loop_mode = Animation.LOOP_LINEAR
