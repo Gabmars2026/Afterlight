@@ -103,6 +103,7 @@ var _heart_cd := 0.0
 var _dead := false
 var _body: Node3D
 var _audio_environments: Array[Dictionary] = []
+var _look_pitch := 0.0
 
 var is_hanging := false
 var _ledge_y := 0.0
@@ -118,6 +119,7 @@ var _snd_roll: AudioStreamPlayer
 
 
 func _ready() -> void:
+	set_process_input(true)
 	_gravity = ProjectSettings.get_setting("physics/3d/default_gravity")
 	collision_layer = 2
 	collision_mask = 1 | 4
@@ -196,26 +198,30 @@ func _ready() -> void:
 	stamina.exhausted_changed.connect(_on_exhausted)
 
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_look_pitch = head.rotation.x
 
 
 func _input(event: InputEvent) -> void:
 	## Mouse look lives in _input (not _unhandled_input) so UI elements can
 	## never swallow mouse motion while the cursor is captured.
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
-			and not get_tree().paused:
-		var sens := MOUSE_SENSITIVITY * GameSettings.mouse_sensitivity
-		var y_dir := 1.0 if GameSettings.invert_y else -1.0
-		rotate_y(-event.relative.x * sens)
-		head.rotate_x(event.relative.y * sens * y_dir)
-		head.rotation.x = clampf(head.rotation.x, deg_to_rad(-85.0), deg_to_rad(85.0))
-
-
-func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED \
 			and not get_tree().paused and not ui_lock:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	elif event.is_action_pressed("interact"):
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and not get_tree().paused and not ui_lock:
+		var sens := MOUSE_SENSITIVITY * GameSettings.mouse_sensitivity
+		var y_dir := 1.0 if GameSettings.invert_y else -1.0
+		rotation.y -= event.relative.x * sens
+		_look_pitch = clampf(_look_pitch + event.relative.y * sens * y_dir,
+				deg_to_rad(-85.0), deg_to_rad(85.0))
+		head.rotation.x = _look_pitch
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("interact"):
 		interaction.try_interact(self)
 
 
