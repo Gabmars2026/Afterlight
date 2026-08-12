@@ -10,6 +10,18 @@ func _init() -> void:
 	prompt = "Press E to ride"
 
 
+func _show_driver_while_mounted() -> bool:
+	# A motorcycle has no cabin: keep the player's clothed third-person body on
+	# the bike instead of inheriting the car controller's hidden driver.
+	return true
+
+
+func _driver_mount_offset() -> Vector3:
+	# The player node is foot-anchored. Placing that anchor just above the chassis
+	# makes the legs straddle the bike while keeping the torso behind the bars.
+	return Vector3(0.0, 0.34, 0.18)
+
+
 func _build_visual() -> void:
 	var bike := Node3D.new()
 	bike.name = "MotorcycleVisual"
