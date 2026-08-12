@@ -146,6 +146,8 @@ func interact(user: Node) -> void:
 	driver.collision_mask = 0
 	driver.visible = _show_driver_while_mounted()
 	driver.process_mode = Node.PROCESS_MODE_DISABLED
+	if driver.has_method("set_vehicle_pose"):
+		driver.set_vehicle_pose(_vehicle_pose_kind())
 	_update_driver_mount()
 	_cam.make_current()
 	_engine.pitch_scale = 0.7
@@ -162,6 +164,8 @@ func _exit_car() -> bool:
 			driver.emit_signal("notify", "NO SAFE SPACE TO EXIT")
 		return false
 	driver.process_mode = Node.PROCESS_MODE_INHERIT
+	if driver.has_method("set_vehicle_pose"):
+		driver.set_vehicle_pose("")
 	driver.visible = true
 	driver.collision_layer = _saved_layer
 	driver.collision_mask = _saved_mask
@@ -338,6 +342,10 @@ func _show_driver_while_mounted() -> bool:
 	## Cars hide the player inside their enclosed cabin. Open vehicles override
 	## this and keep the third-person character visible.
 	return false
+
+
+func _vehicle_pose_kind() -> String:
+	return "car"
 
 
 func _driver_mount_offset() -> Vector3:
