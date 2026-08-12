@@ -23,7 +23,9 @@ func _vehicle_pose_kind() -> String:
 func _driver_mount_offset() -> Vector3:
 	# The player node is foot-anchored. Placing that anchor just above the chassis
 	# makes the legs straddle the bike while keeping the torso behind the bars.
-	return Vector3(0.0, 0.58, 0.28)
+	# Lower the intact character so the hips meet the seat. This is intentionally
+	# conservative until a motorcycle-specific seated animation is imported.
+	return Vector3(0.0, -0.12, 0.3)
 
 
 func _build_visual() -> void:
