@@ -41,11 +41,15 @@ func build() -> void:
 			[-160.0, -130.0, -100.0, -70.0, -40.0,
 			40.0, 70.0, 100.0, 130.0, 160.0],
 			[-158.0, 148.0, 178.0], 8.0)
-	_build_enterable_building(Vector3(18, 0.0, 34))
-	_build_enterable_house(Vector3(-13, 0.0, 28))
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
-	_build_mountain_destination()
+	# Six driveable mountain destinations ring the enlarged world.
+	_build_mountain_destination(Vector3(300, 0, -100), -PI * 0.5, "East Ridge")
+	_build_mountain_destination(Vector3(-300, 0, 120), PI * 0.5, "West Ridge")
+	_build_mountain_destination(Vector3(90, 0, -300), 0.0, "North Peak")
+	_build_mountain_destination(Vector3(-90, 0, 300), PI, "South Peak")
+	_build_mountain_destination(Vector3(430, 0, 390), PI * 0.75, "Southeast Peak")
+	_build_mountain_destination(Vector3(-430, 0, -390), -PI * 0.25, "Northwest Peak")
 
 
 func _make_materials() -> void:
@@ -74,7 +78,7 @@ func _make_materials() -> void:
 
 
 func _build_ground() -> void:
-	_box(Vector3(650, 2, 650), Vector3(0, -1, 0), _ground_mat, true, "sand")
+	_box(Vector3(1950, 2, 1950), Vector3(0, -1, 0), _ground_mat, true, "sand")
 	# Roads are visual overlays on the one continuous ground collider. Separate
 	# raised road colliders created tiny edges that could stop a moving car.
 	_box(Vector3(370, 0.02, 10), Vector3(0, 0.01, 10), _road_mat, false, "concrete")
@@ -86,30 +90,32 @@ func _build_ground() -> void:
 
 func _build_boundary_walls() -> void:
 	# A visible perimeter keeps players and vehicles on the authored map.
-	const EDGE := 323.0
+	const EDGE := 973.0
 	const WALL_HEIGHT := 8.0
 	const WALL_THICKNESS := 2.0
-	_box(Vector3(650, WALL_HEIGHT, WALL_THICKNESS),
+	_box(Vector3(1950, WALL_HEIGHT, WALL_THICKNESS),
 			Vector3(0, WALL_HEIGHT * 0.5, -EDGE), _wall_mat, true, "concrete")
-	_box(Vector3(650, WALL_HEIGHT, WALL_THICKNESS),
+	_box(Vector3(1950, WALL_HEIGHT, WALL_THICKNESS),
 			Vector3(0, WALL_HEIGHT * 0.5, EDGE), _wall_mat, true, "concrete")
-	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 646),
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 1946),
 			Vector3(-EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
-	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 646),
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 1946),
 			Vector3(EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
 
 
 func _build_road_grid() -> void:
-	# Kenney tiles sit just above the continuous ground collider.
+	# Verified GLB bounds are y=0.00..0.02; at 10x scale that is 0.20 m.
+	# Sink the tile so its top aligns with the 0.02 m road overlay.
+	const ROAD_MODEL_Y := -0.18
 	for x in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.02, 10), PI * 0.5, 10.0)
+		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, ROAD_MODEL_Y, 10), PI * 0.5, 10.0)
 	for z in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(0, 0.02, z * 10.0), 0.0, 10.0)
+		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(0, ROAD_MODEL_Y, z * 10.0), 0.0, 10.0)
 	for z in [-60.0, -120.0, 70.0]:
 		for x in range(-18, 19):
-			_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, 0.02, z), PI * 0.5, 10.0)
+			_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, ROAD_MODEL_Y, z), PI * 0.5, 10.0)
 	for z in [-120.0, -60.0, 10.0, 70.0]:
-		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, 0.025, z), 0.0, 10.0)
+		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, ROAD_MODEL_Y, z), 0.0, 10.0)
 
 
 func _build_district(root: String, x_positions: Array,
@@ -236,9 +242,10 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 		return
 	var exterior := packed.instantiate() as Node3D
 	var bounds := _bounds_for(path, exterior)
-	var width := clampf(bounds.size.x * model_scale, 7.5, 13.0)
-	var depth := clampf(bounds.size.z * model_scale, 7.5, 12.0)
-	var authored_height := maxf(bounds.size.y * model_scale, FLOOR_HEIGHT)
+	var exterior_scale := model_scale * 1.65
+	var width := clampf(bounds.size.x * exterior_scale, 16.0, 26.0)
+	var depth := clampf(bounds.size.z * exterior_scale, 15.0, 24.0)
+	var authored_height := maxf(bounds.size.y * exterior_scale, FLOOR_HEIGHT)
 	var floor_count := clampi(int(ceil(authored_height / FLOOR_HEIGHT)), 1, 6)
 	var lot := Node3D.new()
 	lot.name = "EnterableBuilding_%02d" % lot_index
@@ -247,11 +254,11 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	add_child(lot)
 	# Use the original building at its intended size and rest its lowest mesh
 	# point on the terrain. Previously this model was a tiny rooftop ornament.
-	exterior.scale = Vector3.ONE * model_scale
+	exterior.scale = Vector3.ONE * exterior_scale
 	exterior.position = Vector3(
-		-(bounds.position.x + bounds.size.x * 0.5) * model_scale,
-		-bounds.position.y * model_scale,
-		-(bounds.position.z + bounds.size.z * 0.5) * model_scale)
+		-(bounds.position.x + bounds.size.x * 0.5) * exterior_scale,
+		-bounds.position.y * exterior_scale,
+		-(bounds.position.z + bounds.size.z * 0.5) * exterior_scale)
 	lot.add_child(exterior)
 	_build_exterior_collision(lot, width, depth, authored_height)
 
@@ -264,6 +271,7 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	_build_floor_slab(interior, width, depth, 0.0, false)
 	for floor_index in floor_count:
 		_build_floor_shell(interior, width, depth, floor_index, floor_index == 0)
+		_build_room_partitions(interior, width, depth, floor_index)
 		_furnish_floor(interior, width, depth, floor_index, lot_index)
 		_add_floor_light(interior, width, depth, floor_index)
 		if floor_count > 1:
@@ -362,6 +370,34 @@ func _build_floor_shell(lot: Node3D, width: float, depth: float,
 	_add_building_door(lot, depth, floor_y)
 
 
+func _build_room_partitions(lot: Node3D, width: float, depth: float,
+		floor_index: int) -> void:
+	## Four proper rooms per floor around a three-metre central hallway. Wall
+	## gaps form open doorways so rooms remain navigable without extra prompts.
+	var floor_y := floor_index * FLOOR_HEIGHT
+	var wall_y := floor_y + 0.22 + FLOOR_HEIGHT * 0.5
+	const HALL_HALF := 1.65
+	const ROOM_DOOR := 1.5
+	var segment := (depth - ROOM_DOOR * 2.0) / 3.0
+	var hall_walls: Array[float] = [-HALL_HALF, HALL_HALF]
+	for x in hall_walls:
+		for segment_index in 3:
+			var z := -depth * 0.5 + segment * 0.5 \
+					+ segment_index * (segment + ROOM_DOOR)
+			_box(Vector3(0.22, FLOOR_HEIGHT, segment), Vector3(x, wall_y, z),
+					_wall_mat, true, "concrete", lot)
+	# Divide the left and right wings into front/back rooms. The hallway itself
+	# remains open from the entrance to the stairs and elevator.
+	var wing_width := width * 0.5 - HALL_HALF
+	_box(Vector3(wing_width, FLOOR_HEIGHT, 0.22),
+			Vector3(-HALL_HALF - wing_width * 0.5, wall_y, 0),
+			_wall_mat, true, "concrete", lot)
+	var right_divider_width := maxf(0.5, wing_width - STAIR_WIDTH - 1.0)
+	_box(Vector3(right_divider_width, FLOOR_HEIGHT, 0.22),
+			Vector3(HALL_HALF + right_divider_width * 0.5, wall_y, 0),
+			_wall_mat, true, "concrete", lot)
+
+
 func _add_building_door(lot: Node3D, depth: float, floor_y: float) -> void:
 	var door := SlidingDoor.new()
 	door.slide_offset = Vector3(DOOR_WIDTH + 0.15, 0, 0)
@@ -436,14 +472,20 @@ func _furnish_floor(lot: Node3D, width: float, depth: float,
 		floor_index: int, lot_index: int) -> void:
 	var y := floor_index * FLOOR_HEIGHT + 0.25
 	var turn := lot_index * 0.31 + floor_index * 0.47
-	PropLib.place(lot, "Table", Vector3(-width * 0.18, y, -depth * 0.18),
-			turn, 0.55)
-	PropLib.place(lot, "Chair", Vector3(-width * 0.28, y, depth * 0.08),
-			PI + turn, 0.55)
+	# One furniture group in each room makes every floor read as a real building
+	# rather than a single oversized empty chamber.
+	var room_positions: Array[Vector3] = [Vector3(-width * 0.3, y, -depth * 0.25),
+			Vector3(width * 0.3, y, -depth * 0.25),
+			Vector3(-width * 0.3, y, depth * 0.25),
+			Vector3(width * 0.3, y, depth * 0.25)]
+	for room_pos in room_positions:
+		PropLib.place(lot, "Table", room_pos, turn, 0.55)
+		PropLib.place(lot, "Chair", room_pos + Vector3(1.15, 0, 0.7),
+				PI + turn, 0.55)
 	# Explicit type is required because indexing an untyped literal Array
 	# returns Variant and strict GDScript cannot infer `:=` from it.
 	var accent: String = ["Lamp", "Barril", "Seat", "Wood_Plank_A"][floor_index % 4]
-	PropLib.place(lot, accent, Vector3(width * 0.05, y, -depth * 0.3),
+	PropLib.place(lot, accent, Vector3(width * 0.28, y, depth * 0.32),
 			-turn, 0.5)
 
 
@@ -487,16 +529,17 @@ func _build_street_furniture() -> void:
 	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
 
 
-func _build_mountain_destination() -> void:
-	## A landmark beyond the east side of the city. Kenney cliff assets create
-	## the rock silhouette; the authored trail collision guarantees that the
-	## player can run continuously from foothill to summit.
-	const MOUNTAIN_X := 245.0
-	const SUMMIT_Z := -178.0
-	const RUN := 102.0
+func _build_mountain_destination(origin: Vector3, yaw: float,
+		mountain_name: String) -> void:
+	## Reusable GTA-style mountain: a car-width approach, gentle ramp and broad
+	## summit. Rotating the root lets the same reliable route ring the map.
+	const SUMMIT_Z := -150.0
+	const RUN := 150.0
 	const RISE := 32.0
 	var mountain := Node3D.new()
-	mountain.name = "EastRidgeMountain"
+	mountain.name = mountain_name.validate_node_name()
+	mountain.position = origin
+	mountain.rotation.y = yaw
 	add_child(mountain)
 
 	var mass := MeshInstance3D.new()
@@ -508,44 +551,42 @@ func _build_mountain_destination() -> void:
 	cone.rings = 6
 	cone.material = _mountain_mat
 	mass.mesh = cone
-	mass.position = Vector3(MOUNTAIN_X, RISE * 0.5, SUMMIT_Z)
+	mass.position = Vector3(0, RISE * 0.5, SUMMIT_Z)
 	mountain.add_child(mass)
 
-	_box(Vector3(70, 0.08, 8), Vector3(210, 0.04, -75),
-			_trail_mat, false, "rock", mountain)
-	_box(Vector3(8, 0.08, 22), Vector3(MOUNTAIN_X, 0.04, -64),
+	# The flat approach begins 90 metres toward the city.
+	_box(Vector3(12, 0.08, 90), Vector3(0, 0.04, 45),
 			_trail_mat, false, "rock", mountain)
 
-	# Broad 18-degree trail, comfortably under the player's maximum floor
-	# angle. Raised stone edges keep players from slipping off the sides.
+	# Roughly 12 degrees: walkable and gentle enough for the player car.
 	var ramp_root := Node3D.new()
-	ramp_root.position = Vector3(MOUNTAIN_X, RISE * 0.5, -127.0)
+	ramp_root.position = Vector3(0, RISE * 0.5, SUMMIT_Z * 0.5)
 	ramp_root.rotation.x = asin(RISE / RUN)
 	mountain.add_child(ramp_root)
-	_box(Vector3(8, 0.45, RUN), Vector3.ZERO,
+	_box(Vector3(12, 0.45, RUN), Vector3.ZERO,
 			_trail_mat, true, "rock", ramp_root)
-	_box(Vector3(0.65, 1.15, RUN), Vector3(-4.3, 0.55, 0),
+	_box(Vector3(0.65, 1.15, RUN), Vector3(-6.3, 0.55, 0),
 			_mountain_mat, true, "rock", ramp_root)
-	_box(Vector3(0.65, 1.15, RUN), Vector3(4.3, 0.55, 0),
+	_box(Vector3(0.65, 1.15, RUN), Vector3(6.3, 0.55, 0),
 			_mountain_mat, true, "rock", ramp_root)
 
-	_box(Vector3(25, 0.6, 22), Vector3(MOUNTAIN_X, RISE - 0.2, SUMMIT_Z),
+	_box(Vector3(30, 0.6, 28), Vector3(0, RISE - 0.2, SUMMIT_Z),
 			_trail_mat, true, "rock", mountain)
 	var decorations: Array = [
-		["cliff_large_rock.glb", Vector3(190, 1.5, -165), 0.3, 11.0],
-		["cliff_cornerLarge_rock.glb", Vector3(205, 3.0, -205), 1.1, 12.0],
-		["cliff_diagonal_rock.glb", Vector3(282, 2.0, -156), 2.3, 10.0],
-		["cliff_top_rock.glb", Vector3(274, 9.0, -205), 3.2, 11.0],
-		["cliff_steps_rock.glb", Vector3(222, 7.0, -194), 0.7, 8.0],
-		["rock_largeA.glb", Vector3(233, RISE, -184), 0.4, 3.2],
-		["rock_largeB.glb", Vector3(257, RISE, -183), 1.8, 3.0],
-		["rock_tallA.glb", Vector3(239, RISE, -187), 2.4, 2.5],
-		["rock_tallB.glb", Vector3(263, 4.0, -116), 0.8, 5.0],
+		["cliff_large_rock.glb", Vector3(-55, 1.5, -138), 0.3, 11.0],
+		["cliff_cornerLarge_rock.glb", Vector3(-40, 3.0, -185), 1.1, 12.0],
+		["cliff_diagonal_rock.glb", Vector3(42, 2.0, -132), 2.3, 10.0],
+		["cliff_top_rock.glb", Vector3(35, 9.0, -185), 3.2, 11.0],
+		["cliff_steps_rock.glb", Vector3(-23, 7.0, -174), 0.7, 8.0],
+		["rock_largeA.glb", Vector3(-12, RISE, -155), 0.4, 3.2],
+		["rock_largeB.glb", Vector3(12, RISE, -154), 1.8, 3.0],
+		["rock_tallA.glb", Vector3(-8, RISE, -160), 2.4, 2.5],
+		["rock_tallB.glb", Vector3(18, 4.0, -78), 0.8, 5.0],
 	]
 	for data in decorations:
-		_place_mountain_asset(mountain, String(data[0]), data[1],
+		_place_mountain_asset(mountain, String(data[0]), Vector3(data[1]),
 				float(data[2]), float(data[3]))
-	PropLib.place(mountain, "Pole", Vector3(MOUNTAIN_X, RISE + 0.3, SUMMIT_Z),
+	PropLib.place(mountain, "Pole", Vector3(0, RISE + 0.3, SUMMIT_Z),
 			0.0, 2.2)
 
 

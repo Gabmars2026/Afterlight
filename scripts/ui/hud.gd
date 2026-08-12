@@ -34,8 +34,8 @@ var _map_marker: Polygon2D
 var _map_quest_dot: Polygon2D
 var _map_open := false
 var _map_size := Vector2(560, 560)
-var _map_zoom_meters := 390.0
-const MAP_WORLD_METERS := 390.0 # Three times the previous 130 m coverage.
+var _map_zoom_meters := 1950.0
+const MAP_WORLD_METERS := 1950.0
 const MAP_MIN_ZOOM := 45.0
 const MAP_ZOOM_STEP := 1.18
 var _fps_accum := 0.0
