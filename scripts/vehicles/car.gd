@@ -227,10 +227,15 @@ func _physics_process(delta: float) -> void:
 	# player trapped beneath the world: remember stable grounded positions and
 	# recover the complete vehicle/driver pair if it drops below the map.
 	_safe_sample_cooldown = maxf(0.0, _safe_sample_cooldown - delta)
+	var manual_recovery: bool = driver != null \
+			and Input.is_action_just_pressed("unstuck")
 	var beneath_mountain := global_position.x > 510.0 \
 			and absf(global_position.z) < 730.0 \
 			and global_position.y < -1.0 and not _allow_underground
-	if global_position.y < -8.0 or beneath_mountain \
+	var trapped_beside_road: bool = not _allow_underground \
+			and _mountain_trap_recovery_needed()
+	if manual_recovery or global_position.y < -8.0 or beneath_mountain \
+			or trapped_beside_road \
 			or (not _allow_underground and _has_mountain_overhead()):
 		_recover_from_fall()
 		return
@@ -278,12 +283,21 @@ func _physics_process(delta: float) -> void:
 func _recover_from_fall() -> void:
 	# Never recover to another point beneath the mountain. This fixed entrance
 	# fallback remains usable even if an earlier bad frame overwrote safe state.
-	if _last_safe_position.x > 510.0 and _last_safe_position.y < -0.5:
-		_last_safe_position = Vector3(500.0, 0.3, 300.0)
-	if _last_safe_position.x > 510.0 \
-			and _has_mountain_overhead_at(_last_safe_position):
-		_last_safe_position = Vector3(500.0, 0.3, 300.0)
-	global_position = _last_safe_position + Vector3.UP * 1.2
+	var rebuild_world: Node = get_tree().get_first_node_in_group("rebuild_world")
+	var use_mountain_road: bool = rebuild_world != null \
+			and rebuild_world.has_method("mountain_road_recovery_transform") \
+			and global_position.x > 500.0
+	if use_mountain_road:
+		global_transform = rebuild_world.mountain_road_recovery_transform(
+				global_position)
+		_last_safe_position = global_position
+	else:
+		if _last_safe_position.x > 510.0 and _last_safe_position.y < -0.5:
+			_last_safe_position = Vector3(500.0, 0.3, 300.0)
+		if _last_safe_position.x > 510.0 \
+				and _has_mountain_overhead_at(_last_safe_position):
+			_last_safe_position = Vector3(500.0, 0.3, 300.0)
+		global_position = _last_safe_position + Vector3.UP * 1.2
 	_speed = 0.0
 	velocity = Vector3.ZERO
 	_visual_steer = 0.0
@@ -293,7 +307,15 @@ func _recover_from_fall() -> void:
 	if driver != null:
 		_update_driver_mount()
 		if driver.has_signal("notify"):
-			driver.emit_signal("notify", "VEHICLE RECOVERED TO SAFE GROUND")
+			driver.emit_signal("notify", "VEHICLE RECOVERED TO MOUNTAIN ROAD" \
+					if use_mountain_road else "VEHICLE RECOVERED TO SAFE GROUND")
+
+
+func _mountain_trap_recovery_needed() -> bool:
+	var rebuild_world: Node = get_tree().get_first_node_in_group("rebuild_world")
+	return rebuild_world != null \
+			and rebuild_world.has_method("mountain_trap_recovery_needed") \
+			and rebuild_world.mountain_trap_recovery_needed(global_position)
 
 
 func _has_mountain_overhead() -> bool:

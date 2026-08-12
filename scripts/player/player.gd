@@ -834,7 +834,23 @@ func _update_safety(delta: float) -> void:
 	var beneath_mountain := global_position.x > 510.0 \
 			and absf(global_position.z) < 730.0 \
 			and global_position.y < -1.0 and global_position.y > -10.0
-	if global_position.y < -30.0 or beneath_mountain or _has_mountain_overhead():
+	var rebuild_world: Node = get_tree().get_first_node_in_group("rebuild_world")
+	var trapped_beside_road: bool = rebuild_world != null \
+			and rebuild_world.has_method("mountain_trap_recovery_needed") \
+			and rebuild_world.mountain_trap_recovery_needed(global_position)
+	var manual_recovery: bool = Input.is_action_just_pressed("unstuck")
+	if manual_recovery or global_position.y < -30.0 or beneath_mountain \
+			or trapped_beside_road or _has_mountain_overhead():
+		if rebuild_world != null \
+				and rebuild_world.has_method("mountain_road_recovery_transform") \
+				and global_position.x > 500.0:
+			var rescue: Transform3D = rebuild_world.mountain_road_recovery_transform(
+					global_position)
+			global_position = rescue.origin
+			_last_safe = global_position
+			velocity = Vector3.ZERO
+			notify.emit("RETURNED TO THE MOUNTAIN ROAD")
+			return
 		if _last_safe.x > 510.0 and _last_safe.y < -0.5:
 			_last_safe = Vector3(500.0, 0.3, 300.0)
 		# A position can be grounded yet still be inside the mountain shell. Never

@@ -56,7 +56,7 @@ func _spawn_player() -> void:
 	player.notify.connect(hud.toast)
 	player.inventory.changed.connect(hud.refresh_inventory)
 	player.inventory.changed.connect(func() -> void: player.weapons._emit_ammo())
-	hud.set_quest("CLEAN REBUILD: explore the new districts and workshop")
+	hud.set_quest("CLEAN REBUILD: explore — press U if you get stuck")
 
 
 func _spawn_vehicle() -> void:
@@ -171,6 +171,7 @@ func _setup_input() -> void:
 	_add_key("weapon_3", KEY_3)
 	_add_key("debug_stats", KEY_F3)
 	_add_key("toggle_view", KEY_V)
+	_add_key("unstuck", KEY_U)
 	_add_mouse("fire", MOUSE_BUTTON_LEFT)
 	_add_mouse("aim", MOUSE_BUTTON_RIGHT)
 

@@ -2,7 +2,7 @@
 
 An original open-world first-person survival/action game built in Godot 4.x.
 
-**Current build: v1.1.0 — fully animated third-person character (CC0 mannequin, 46 animations).**
+**Current build: v1.18.2 — clean rebuild with mountain-road trap recovery.**
 
 **Download:** grab `Afterlight-windows-x86_64.zip` from the [Releases page](https://github.com/Gabmars2026/Afterlight/releases) — no Godot needed, just unzip and run `Afterlight.exe`. (Or keep playing from the editor with F5 as always.)
 
@@ -32,6 +32,7 @@ An original open-world first-person survival/action game built in Godot 4.x.
 | Right mouse (melee out) | Heavy swing (slow, 2.2x damage) |
 | Tab | Inventory + crafting — click items to use, recipes to craft |
 | E | Interact (doors, switches, crates, generator) |
+| U | Recover yourself and a mounted vehicle when stuck |
 | Space (mid-air at a wall) | Wall jump |
 | A / D (while hanging) | Shimmy along ledge |
 | Space / W (while hanging) | Climb up |

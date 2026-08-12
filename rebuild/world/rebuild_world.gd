@@ -31,6 +31,7 @@ var _model_bounds: Dictionary = {}
 
 
 func build() -> void:
+	add_to_group("rebuild_world")
 	_make_materials()
 	_build_ground()
 	_build_road_grid()
@@ -464,35 +465,93 @@ func _add_highway_quad(surface: SurfaceTool, a: Vector3, b: Vector3,
 
 
 func _build_mountain_guard_walls(points: Array[Vector3]) -> void:
-	## Low barriers follow the middle of straight road runs only.  Barriers close
-	## to a control-point bend can point along different tangents and overlap
-	## across the asphalt.  Wide, barrier-free turn zones prevent that geometry
-	## from ever trapping a pedestrian, bicycle, or car.
-	const ROAD_EDGE := 8.35
-	const SECTIONS_PER_RUN := 16
-	const TURN_CLEARANCE := 3
-	for index in range(8, points.size() - 1):
-		var section_in_run := index % SECTIONS_PER_RUN
-		if section_in_run < TURN_CLEARANCE \
-				or section_in_run >= SECTIONS_PER_RUN - TURN_CLEARANCE:
-			continue
-		var end_index := index + 1
-		var start: Vector3 = points[index]
-		var finish: Vector3 = points[end_index]
-		var direction := finish - start
-		var flat_direction := Vector3(direction.x, 0.0, direction.z).normalized()
-		if flat_direction.is_zero_approx():
-			continue
-		var right := Vector3(flat_direction.z, 0.0, -flat_direction.x)
-		# A small gap between pieces is intentional. It prevents adjacent collision
-		# boxes from forming a protruding wedge on shallow curves.
-		var length := maxf(Vector2(direction.x, direction.z).length() - 0.35, 0.5)
-		var midpoint := (start + finish) * 0.5
-		for side in [-1.0, 1.0]:
-			var wall := _box(Vector3(0.38, 0.62, length),
-					midpoint + right * ROAD_EDGE + Vector3(0, 0.48, 0),
-					_wall_mat, true, "concrete")
-			wall.basis = Basis.looking_at(direction.normalized(), Vector3.UP)
+	## One joined guard mesh protects the complete switchback, including every
+	## hairpin. The previous box barriers were omitted around turns to avoid
+	## overlap wedges; those openings let bikes fall onto the dark catch shelf.
+	const ROAD_EDGE := 7.45
+	const RAIL_HEIGHT := 0.9
+	const FIRST_PROTECTED_POINT := 8
+	var edge_points: Array[Array] = [[], []]
+	for index in points.size():
+		var previous := points[maxi(index - 1, 0)]
+		var following := points[mini(index + 1, points.size() - 1)]
+		var tangent := following - previous
+		tangent.y = 0.0
+		tangent = Vector3.FORWARD if tangent.is_zero_approx() \
+				else tangent.normalized()
+		var across := Vector3(tangent.z, 0.0, -tangent.x)
+		edge_points[0].append(points[index] - across * ROAD_EDGE)
+		edge_points[1].append(points[index] + across * ROAD_EDGE)
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for side in 2:
+		var edge: Array = edge_points[side]
+		for index in range(FIRST_PROTECTED_POINT, points.size() - 1):
+			var low_a: Vector3 = edge[index] - Vector3.UP * 0.08
+			var low_b: Vector3 = edge[index + 1] - Vector3.UP * 0.08
+			var high_a := low_a + Vector3.UP * RAIL_HEIGHT
+			var high_b := low_b + Vector3.UP * RAIL_HEIGHT
+			_add_highway_quad(surface, low_a, low_b, high_b, high_a)
+			_add_highway_quad(surface, high_a, high_b, low_b, low_a)
+	surface.generate_normals()
+	var mesh := surface.commit()
+	mesh.surface_set_material(0, _wall_mat)
+	var rails := MeshInstance3D.new()
+	rails.name = "ContinuousMountainSafetyRails"
+	rails.mesh = mesh
+	add_child(rails)
+	var body := StaticBody3D.new()
+	body.name = "ContinuousMountainSafetyRailCollision"
+	body.set_meta("surface", "concrete")
+	var collision := CollisionShape3D.new()
+	collision.shape = mesh.create_trimesh_shape()
+	body.add_child(collision)
+	rails.add_child(body)
+
+
+func mountain_trap_recovery_needed(position: Vector3) -> bool:
+	## A body can be grounded yet still be stranded on the under-road shelf or a
+	## steep cut. Compare it with the closest highway centre to catch that case.
+	if position.x <= 500.0 or absf(position.z) >= 730.0:
+		return false
+	var nearest: Dictionary = _nearest_mountain_road(position)
+	var road_position: Vector3 = nearest["position"]
+	var horizontal_distance: float = Vector2(position.x, position.z).distance_to(
+			Vector2(road_position.x, road_position.z))
+	return horizontal_distance < 52.0 and position.y < road_position.y - 1.0
+
+
+func mountain_road_recovery_transform(position: Vector3) -> Transform3D:
+	## Return a safe centre-lane pose above collision, facing along the road.
+	var nearest: Dictionary = _nearest_mountain_road(position)
+	var road_position: Vector3 = nearest["position"]
+	var direction: Vector3 = nearest["direction"]
+	var yaw: float = atan2(-direction.x, -direction.z)
+	return Transform3D(Basis(Vector3.UP, yaw),
+			road_position + Vector3.UP * 1.25)
+
+
+func _nearest_mountain_road(position: Vector3) -> Dictionary:
+	var control := _mountain_road_control()
+	var query := Vector2(position.x, position.z)
+	var best_distance := INF
+	var best_position: Vector3 = control[0]
+	var best_direction := (control[1] - control[0]).normalized()
+	for index in control.size() - 1:
+		var start: Vector3 = control[index]
+		var finish: Vector3 = control[index + 1]
+		var start_2d := Vector2(start.x, start.z)
+		var finish_2d := Vector2(finish.x, finish.z)
+		var segment: Vector2 = finish_2d - start_2d
+		var amount: float = clampf((query - start_2d).dot(segment) \
+				/ maxf(segment.length_squared(), 0.001), 0.0, 1.0)
+		var candidate_2d: Vector2 = start_2d + segment * amount
+		var distance: float = query.distance_to(candidate_2d)
+		if distance < best_distance:
+			best_distance = distance
+			best_position = start.lerp(finish, amount)
+			best_direction = (finish - start).normalized()
+	return {"position": best_position, "direction": best_direction}
 
 
 func _build_mountain_route_map(_mountain_points: Array[Vector3]) -> void:
