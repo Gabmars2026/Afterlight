@@ -20,6 +20,8 @@ const STAIR_STEPS := 12
 var _ground_mat: StandardMaterial3D
 var _wall_mat: StandardMaterial3D
 var _road_mat: StandardMaterial3D
+var _mountain_mat: StandardMaterial3D
+var _trail_mat: StandardMaterial3D
 var _model_bounds: Dictionary = {}
 
 
@@ -43,6 +45,7 @@ func build() -> void:
 	_build_enterable_house(Vector3(-13, 0.0, 28))
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
+	_build_mountain_destination()
 
 
 func _make_materials() -> void:
@@ -62,10 +65,16 @@ func _make_materials() -> void:
 	_road_mat.roughness = 0.96
 	_road_mat.uv1_triplanar = true
 	_road_mat.uv1_world_triplanar = true
+	_mountain_mat = StandardMaterial3D.new()
+	_mountain_mat.albedo_color = Color(0.28, 0.24, 0.19)
+	_mountain_mat.roughness = 1.0
+	_trail_mat = StandardMaterial3D.new()
+	_trail_mat.albedo_color = Color(0.34, 0.29, 0.22)
+	_trail_mat.roughness = 1.0
 
 
 func _build_ground() -> void:
-	_box(Vector3(390, 2, 390), Vector3(0, -1, 0), _ground_mat, true, "sand")
+	_box(Vector3(650, 2, 650), Vector3(0, -1, 0), _ground_mat, true, "sand")
 	# Roads are visual overlays on the one continuous ground collider. Separate
 	# raised road colliders created tiny edges that could stop a moving car.
 	_box(Vector3(370, 0.02, 10), Vector3(0, 0.01, 10), _road_mat, false, "concrete")
@@ -77,16 +86,16 @@ func _build_ground() -> void:
 
 func _build_boundary_walls() -> void:
 	# A visible perimeter keeps players and vehicles on the authored map.
-	const EDGE := 193.0
+	const EDGE := 323.0
 	const WALL_HEIGHT := 8.0
 	const WALL_THICKNESS := 2.0
-	_box(Vector3(390, WALL_HEIGHT, WALL_THICKNESS),
+	_box(Vector3(650, WALL_HEIGHT, WALL_THICKNESS),
 			Vector3(0, WALL_HEIGHT * 0.5, -EDGE), _wall_mat, true, "concrete")
-	_box(Vector3(390, WALL_HEIGHT, WALL_THICKNESS),
+	_box(Vector3(650, WALL_HEIGHT, WALL_THICKNESS),
 			Vector3(0, WALL_HEIGHT * 0.5, EDGE), _wall_mat, true, "concrete")
-	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 386),
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 646),
 			Vector3(-EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
-	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 386),
+	_box(Vector3(WALL_THICKNESS, WALL_HEIGHT, 646),
 			Vector3(EDGE, WALL_HEIGHT * 0.5, 0), _wall_mat, true, "concrete")
 
 
@@ -476,6 +485,81 @@ func _build_street_furniture() -> void:
 	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(12, 0.02, 25), 0.0, 4.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.12, 44), 0.0, 7.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
+
+
+func _build_mountain_destination() -> void:
+	## A landmark beyond the east side of the city. Kenney cliff assets create
+	## the rock silhouette; the authored trail collision guarantees that the
+	## player can run continuously from foothill to summit.
+	const MOUNTAIN_X := 245.0
+	const SUMMIT_Z := -178.0
+	const RUN := 102.0
+	const RISE := 32.0
+	var mountain := Node3D.new()
+	mountain.name = "EastRidgeMountain"
+	add_child(mountain)
+
+	var mass := MeshInstance3D.new()
+	var cone := CylinderMesh.new()
+	cone.top_radius = 16.0
+	cone.bottom_radius = 61.0
+	cone.height = RISE
+	cone.radial_segments = 12
+	cone.rings = 6
+	cone.material = _mountain_mat
+	mass.mesh = cone
+	mass.position = Vector3(MOUNTAIN_X, RISE * 0.5, SUMMIT_Z)
+	mountain.add_child(mass)
+
+	_box(Vector3(70, 0.08, 8), Vector3(210, 0.04, -75),
+			_trail_mat, false, "rock", mountain)
+	_box(Vector3(8, 0.08, 22), Vector3(MOUNTAIN_X, 0.04, -64),
+			_trail_mat, false, "rock", mountain)
+
+	# Broad 18-degree trail, comfortably under the player's maximum floor
+	# angle. Raised stone edges keep players from slipping off the sides.
+	var ramp_root := Node3D.new()
+	ramp_root.position = Vector3(MOUNTAIN_X, RISE * 0.5, -127.0)
+	ramp_root.rotation.x = asin(RISE / RUN)
+	mountain.add_child(ramp_root)
+	_box(Vector3(8, 0.45, RUN), Vector3.ZERO,
+			_trail_mat, true, "rock", ramp_root)
+	_box(Vector3(0.65, 1.15, RUN), Vector3(-4.3, 0.55, 0),
+			_mountain_mat, true, "rock", ramp_root)
+	_box(Vector3(0.65, 1.15, RUN), Vector3(4.3, 0.55, 0),
+			_mountain_mat, true, "rock", ramp_root)
+
+	_box(Vector3(25, 0.6, 22), Vector3(MOUNTAIN_X, RISE - 0.2, SUMMIT_Z),
+			_trail_mat, true, "rock", mountain)
+	var decorations: Array = [
+		["cliff_large_rock.glb", Vector3(190, 1.5, -165), 0.3, 11.0],
+		["cliff_cornerLarge_rock.glb", Vector3(205, 3.0, -205), 1.1, 12.0],
+		["cliff_diagonal_rock.glb", Vector3(282, 2.0, -156), 2.3, 10.0],
+		["cliff_top_rock.glb", Vector3(274, 9.0, -205), 3.2, 11.0],
+		["cliff_steps_rock.glb", Vector3(222, 7.0, -194), 0.7, 8.0],
+		["rock_largeA.glb", Vector3(233, RISE, -184), 0.4, 3.2],
+		["rock_largeB.glb", Vector3(257, RISE, -183), 1.8, 3.0],
+		["rock_tallA.glb", Vector3(239, RISE, -187), 2.4, 2.5],
+		["rock_tallB.glb", Vector3(263, 4.0, -116), 0.8, 5.0],
+	]
+	for data in decorations:
+		_place_mountain_asset(mountain, String(data[0]), data[1],
+				float(data[2]), float(data[3]))
+	PropLib.place(mountain, "Pole", Vector3(MOUNTAIN_X, RISE + 0.3, SUMMIT_Z),
+			0.0, 2.2)
+
+
+func _place_mountain_asset(parent: Node3D, filename: String,
+		pos: Vector3, yaw: float, asset_scale: float) -> void:
+	var packed := load("res://assets/kenney/nature_mountain/" + filename) as PackedScene
+	if packed == null:
+		push_warning("Missing mountain asset: %s" % filename)
+		return
+	var model := packed.instantiate() as Node3D
+	model.position = pos
+	model.rotation.y = yaw
+	model.scale = Vector3.ONE * asset_scale
+	parent.add_child(model)
 
 
 func _place_visual(path: String, pos: Vector3, yaw: float, model_scale: float) -> Node3D:
