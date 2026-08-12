@@ -111,12 +111,12 @@ func _build_road_grid() -> void:
 func _build_eastern_mountain() -> void:
 	## A continuous, walkable ridge frames the city like GTA's edge mountains.
 	## It occupies the otherwise empty eastern strip, clear of authored lots.
-	const GRID_X := 25
-	const GRID_Z := 31
-	const MIN_X := 610.0
+	const GRID_X := 41
+	const GRID_Z := 51
+	const MIN_X := 580.0
 	const MAX_X := 968.0
-	const MIN_Z := -255.0
-	const MAX_Z := 255.0
+	const MIN_Z := -390.0
+	const MAX_Z := 390.0
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -129,7 +129,12 @@ func _build_eastern_mountain() -> void:
 			var world_x := lerpf(MIN_X, MAX_X, x_ratio)
 			var height := _mountain_height(world_x, world_z)
 			vertices.append(Vector3(world_x, height, world_z))
-			normals.append(Vector3.UP)
+			var sample := 2.0
+			var slope_x := _mountain_height(world_x - sample, world_z) \
+					- _mountain_height(world_x + sample, world_z)
+			var slope_z := _mountain_height(world_x, world_z - sample) \
+					- _mountain_height(world_x, world_z + sample)
+			normals.append(Vector3(slope_x, sample * 2.0, slope_z).normalized())
 			uvs.append(Vector2(x_ratio * 8.0, z_ratio * 8.0))
 	for z_index in GRID_Z - 1:
 		for x_index in GRID_X - 1:
@@ -161,27 +166,61 @@ func _build_eastern_mountain() -> void:
 
 
 func _mountain_height(world_x: float, world_z: float) -> float:
-	var rise := smoothstep(610.0, 925.0, world_x)
-	var edge_falloff := 1.0 - pow(absf(world_z) / 275.0, 2.0)
-	edge_falloff = clampf(edge_falloff, 0.0, 1.0)
-	var broad_ridge := rise * edge_falloff * 142.0
-	var natural_breakup := sin(world_z * 0.032) * 8.0 * rise \
-			+ sin((world_x + world_z) * 0.055) * 4.0 * rise
-	return maxf(0.0, broad_ridge + natural_breakup)
+	# Several overlapping elliptical peaks form a massive foothill-to-summit
+	# silhouette rather than one symmetric ramp or cone.
+	var main_peak := _mountain_peak(world_x, world_z, 845.0, -45.0,
+			176.0, 235.0, 166.0)
+	var north_peak := _mountain_peak(world_x, world_z, 815.0, 185.0,
+			148.0, 175.0, 128.0)
+	var south_peak := _mountain_peak(world_x, world_z, 875.0, -245.0,
+			132.0, 165.0, 112.0)
+	var foothill := _mountain_peak(world_x, world_z, 690.0, 15.0,
+			100.0, 300.0, 54.0)
+	var height := main_peak + north_peak * 0.68 + south_peak * 0.62 + foothill
+	var edge_x := smoothstep(580.0, 640.0, world_x) \
+			* (1.0 - smoothstep(940.0, 968.0, world_x))
+	var edge_z := smoothstep(-390.0, -345.0, world_z) \
+			* (1.0 - smoothstep(345.0, 390.0, world_z))
+	var rock_detail := (sin(world_x * 0.052 + world_z * 0.019)
+			+ sin(world_z * 0.067) * 0.55) * 5.0 * clampf(height / 80.0, 0.0, 1.0)
+	return maxf(0.0, (height + rock_detail) * edge_x * edge_z)
+
+
+func _mountain_peak(world_x: float, world_z: float, centre_x: float,
+		centre_z: float, radius_x: float, radius_z: float,
+		height: float) -> float:
+	var dx := (world_x - centre_x) / radius_x
+	var dz := (world_z - centre_z) / radius_z
+	var distance := sqrt(dx * dx + dz * dz)
+	var profile := clampf(1.0 - distance, 0.0, 1.0)
+	return pow(profile, 1.55) * height
 
 
 func _build_mountain_switchback() -> void:
 	## Wide ramp segments provide a reliable car route while the surrounding
 	## terrain remains freely climbable on foot.
-	var points: Array[Vector3] = [Vector3(620, 0.4, 205),
-			Vector3(700, 17, 205), Vector3(700, 34, 95),
-			Vector3(770, 51, 95), Vector3(770, 68, -35),
-			Vector3(835, 85, -35), Vector3(835, 102, -155),
-			Vector3(900, 119, -155), Vector3(930, 142, -70)]
+	var points: Array[Vector3] = [Vector3(590, 0, 300), Vector3(680, 0, 300),
+			Vector3(720, 0, 210), Vector3(675, 0, 120),
+			Vector3(755, 0, 55), Vector3(720, 0, -40),
+			Vector3(800, 0, -105), Vector3(770, 0, -200),
+			Vector3(850, 0, -145), Vector3(845, 0, -55)]
+	for index in points.size():
+		points[index].y = _mountain_height(points[index].x, points[index].z) + 0.45
 	for index in points.size() - 1:
-		_build_road_ramp(points[index], points[index + 1])
+		# Subdivision keeps the paved route pressed against curved terrain.
+		var start := points[index]
+		var finish := points[index + 1]
+		for section in 8:
+			var from_ratio := float(section) / 8.0
+			var to_ratio := float(section + 1) / 8.0
+			var from := start.lerp(finish, from_ratio)
+			var to := start.lerp(finish, to_ratio)
+			from.y = _mountain_height(from.x, from.z) + 0.45
+			to.y = _mountain_height(to.x, to.z) + 0.45
+			_build_road_ramp(from, to)
 	# A broad overlook gives cars room to turn around at the summit.
-	_box(Vector3(44, 0.45, 34), Vector3(930, 142.0, -70),
+	var summit_y := _mountain_height(845.0, -55.0) + 0.35
+	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
 			_road_mat, true, "concrete")
 
 
