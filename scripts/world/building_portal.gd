@@ -3,12 +3,13 @@ extends Interactable
 ## Invisible interaction volume placed over an asset-authored building door.
 
 var destination: Node3D
+var interaction_size := Vector3(1.8, 2.5, 0.35)
 
 
 func _ready() -> void:
 	var collision := CollisionShape3D.new()
 	var shape := BoxShape3D.new()
-	shape.size = Vector3(1.8, 2.5, 0.35)
+	shape.size = interaction_size
 	collision.shape = shape
 	add_child(collision)
 	super()

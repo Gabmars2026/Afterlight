@@ -272,7 +272,7 @@ func _build_enterable_lot(path: String, pos: Vector3, yaw: float,
 	_box(Vector3(width + 0.35, 0.3, depth + 0.35),
 			Vector3(0, floor_count * FLOOR_HEIGHT, 0),
 			_road_mat, true, "concrete", interior)
-	_add_asset_door_portals(lot, interior, depth)
+	_add_asset_door_portals(lot, interior, width, depth)
 	if path.begins_with(SUBURBAN_ROOT):
 		_add_suburban_garage(lot, interior, width, depth)
 
@@ -367,7 +367,7 @@ func _build_exterior_collision(lot: Node3D, width: float, depth: float,
 
 
 func _add_asset_door_portals(lot: Node3D, interior: Node3D,
-		depth: float) -> void:
+		width: float, depth: float) -> void:
 	var outside_marker := Marker3D.new()
 	outside_marker.position = Vector3(0, 0.3, depth * 0.5 + 1.35)
 	lot.add_child(outside_marker)
@@ -377,6 +377,12 @@ func _add_asset_door_portals(lot: Node3D, interior: Node3D,
 	var enter := BuildingPortal.new()
 	enter.prompt = "Press E to enter"
 	enter.destination = inside_marker
+	# Asset doors are not consistently centered: hospitals, shops, factories,
+	# houses, and towers place them at different points across the façade. A
+	# façade-wide interaction plane ensures the authored entrance is usable on
+	# every generated building while still sending the player to its own rooms.
+	enter.interaction_size = Vector3(maxf(width - 0.7, DOOR_WIDTH),
+			DOOR_HEIGHT, 0.45)
 	enter.position = Vector3(0, DOOR_HEIGHT * 0.5, depth * 0.5 + 0.12)
 	lot.add_child(enter)
 	var exit := BuildingPortal.new()
