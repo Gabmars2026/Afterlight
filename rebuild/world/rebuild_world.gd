@@ -111,12 +111,12 @@ func _build_road_grid() -> void:
 func _build_eastern_mountain() -> void:
 	## A continuous, walkable ridge frames the city like GTA's edge mountains.
 	## It occupies the otherwise empty eastern strip, clear of authored lots.
-	const GRID_X := 41
-	const GRID_Z := 51
-	const MIN_X := 580.0
+	const GRID_X := 49
+	const GRID_Z := 65
+	const MIN_X := 500.0
 	const MAX_X := 968.0
-	const MIN_Z := -390.0
-	const MAX_Z := 390.0
+	const MIN_Z := -540.0
+	const MAX_Z := 540.0
 	var vertices := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -168,19 +168,20 @@ func _build_eastern_mountain() -> void:
 func _mountain_height(world_x: float, world_z: float) -> float:
 	# Several overlapping elliptical peaks form a massive foothill-to-summit
 	# silhouette rather than one symmetric ramp or cone.
-	var main_peak := _mountain_peak(world_x, world_z, 845.0, -45.0,
-			176.0, 235.0, 166.0)
-	var north_peak := _mountain_peak(world_x, world_z, 815.0, 185.0,
-			148.0, 175.0, 128.0)
-	var south_peak := _mountain_peak(world_x, world_z, 875.0, -245.0,
-			132.0, 165.0, 112.0)
-	var foothill := _mountain_peak(world_x, world_z, 690.0, 15.0,
-			100.0, 300.0, 54.0)
+	var main_peak := _mountain_peak(world_x, world_z, 830.0, -45.0,
+			275.0, 390.0, 124.0)
+	var north_peak := _mountain_peak(world_x, world_z, 800.0, 285.0,
+			245.0, 280.0, 88.0)
+	var south_peak := _mountain_peak(world_x, world_z, 850.0, -355.0,
+			230.0, 260.0, 82.0)
+	var foothill := _mountain_peak(world_x, world_z, 625.0, 15.0,
+			155.0, 470.0, 36.0)
 	var height := main_peak + north_peak * 0.68 + south_peak * 0.62 + foothill
-	var edge_x := smoothstep(580.0, 640.0, world_x) \
-			* (1.0 - smoothstep(940.0, 968.0, world_x))
-	var edge_z := smoothstep(-390.0, -345.0, world_z) \
-			* (1.0 - smoothstep(345.0, 390.0, world_z))
+	# Keep the outer eastern face filled with grass all the way to the boundary;
+	# tapering it down over 23 metres created an unwalkable cliff at the edge.
+	var edge_x := smoothstep(500.0, 575.0, world_x)
+	var edge_z := smoothstep(-540.0, -440.0, world_z) \
+			* (1.0 - smoothstep(440.0, 540.0, world_z))
 	var rock_detail := (sin(world_x * 0.052 + world_z * 0.019)
 			+ sin(world_z * 0.067) * 0.55) * 5.0 * clampf(height / 80.0, 0.0, 1.0)
 	return maxf(0.0, (height + rock_detail) * edge_x * edge_z)
@@ -193,7 +194,9 @@ func _mountain_peak(world_x: float, world_z: float, centre_x: float,
 	var dz := (world_z - centre_z) / radius_z
 	var distance := sqrt(dx * dx + dz * dz)
 	var profile := clampf(1.0 - distance, 0.0, 1.0)
-	return pow(profile, 1.55) * height
+	# A softer exponent creates broad grass hills the player can leave the road
+	# and traverse instead of near-vertical pyramid faces.
+	return pow(profile, 2.15) * height
 
 
 func _build_mountain_switchback() -> void:
@@ -210,16 +213,16 @@ func _build_mountain_switchback() -> void:
 		for section in 16:
 			var point := control[index].lerp(control[index + 1],
 					float(section) / 16.0)
-			point.y = _mountain_height(point.x, point.z) + 0.72
+			point.y = _mountain_height(point.x, point.z) + 0.08
 			centreline.append(point)
 	var final_point := control[control.size() - 1]
-	final_point.y = _mountain_height(final_point.x, final_point.z) + 0.72
+	final_point.y = _mountain_height(final_point.x, final_point.z) + 0.08
 	centreline.append(final_point)
 	_build_road_ribbon(centreline)
 	# A broad overlook gives cars room to turn around at the summit.
-	var summit_y := _mountain_height(845.0, -55.0) + 0.5
+	var summit_y := _mountain_height(845.0, -55.0) + 0.08
 	_box(Vector3(44, 0.45, 34), Vector3(845, summit_y, -55),
-			_road_mat, true, "concrete")
+			_road_mat, false, "concrete")
 
 
 func _build_road_ribbon(points: Array[Vector3]) -> void:
@@ -261,12 +264,8 @@ func _build_road_ribbon(points: Array[Vector3]) -> void:
 	road.name = "ContinuousMountainRoad"
 	road.mesh = mesh
 	add_child(road)
-	var body := StaticBody3D.new()
-	body.set_meta("surface", "concrete")
-	var collision := CollisionShape3D.new()
-	collision.shape = mesh.create_trimesh_shape()
-	body.add_child(collision)
-	road.add_child(body)
+	# Do not add a second collision sheet. Cars and players travel on the single
+	# continuous terrain collision immediately beneath this visual road ribbon.
 
 
 func _build_district(root: String, x_positions: Array,
