@@ -58,10 +58,16 @@ func _spawn_player() -> void:
 
 
 func _spawn_vehicle() -> void:
-	var car := CarScript.new()
-	car.position = Vector3(9, 0.2, 24)
-	car.rotation.y = PI * 0.5
-	add_child(car)
+	var parking_spots: Array[Vector3] = [Vector3(9, 0.2, 24), Vector3(-18, 0.2, 24),
+			Vector3(32, 0.2, -18), Vector3(-42, 0.2, -18),
+			Vector3(64, 0.2, 72)]
+	for i in parking_spots.size():
+		var car := CarScript.new()
+		car.visual_kind = i
+		car.position = parking_spots[i]
+		car.rotation.y = PI * 0.5 if i % 2 == 0 else -PI * 0.5
+		car.name = "DrivableCar_%02d" % (i + 1)
+		add_child(car)
 
 
 func _spawn_citizens() -> void:

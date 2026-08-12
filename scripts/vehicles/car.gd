@@ -29,6 +29,15 @@ var _impact_cooldown := 0.0
 var _wheel_spin := 0.0
 var _visual_steer := 0.0
 var _wheel_meshes: Array[Dictionary] = []
+@export_enum("Muscle", "NightSky", "Cleo V8", "GT30", "TGR") var visual_kind := 0
+
+const VISUAL_KINDS: Array[String] = [
+	"res://addons/M.A.V.S/Vehicle/Muscle/Muscle Car.tscn",
+	"res://addons/M.A.V.S/Vehicle/NightSky/NightSky_Body.tscn",
+	"res://addons/M.A.V.S/Vehicle/Cleo V8/CleoV8.tscn",
+	"res://addons/M.A.V.S/Vehicle/GT30/GT30.tscn",
+	"res://addons/M.A.V.S/Vehicle/TGR/TRG.tscn",
+]
 
 
 func _ready() -> void:
@@ -70,9 +79,8 @@ func _build_mesh() -> void:
 
 
 func _build_visual() -> void:
-	# The Muscle Car model from the M.A.V.S pack (meshes only)
-	var visual := CarVisual.build(
-			"res://addons/M.A.V.S/Vehicle/Muscle/Muscle Car.tscn")
+	# Selectable models give the clean rebuild a varied drivable vehicle roster.
+	var visual := CarVisual.build(VISUAL_KINDS[visual_kind % VISUAL_KINDS.size()])
 	visual.name = "Visual"
 	visual.position.y = 0.07  # collision box bottom
 	add_child(visual)

@@ -20,8 +20,6 @@ const STAIR_STEPS := 12
 var _ground_mat: StandardMaterial3D
 var _wall_mat: StandardMaterial3D
 var _road_mat: StandardMaterial3D
-var _mountain_mat: StandardMaterial3D
-var _trail_mat: StandardMaterial3D
 var _model_bounds: Dictionary = {}
 
 
@@ -30,26 +28,20 @@ func build() -> void:
 	_build_ground()
 	_build_road_grid()
 	# Building centers are deliberately kept outside the x=0 and horizontal
-	# road corridors. Each row occupies the middle of a city block.
+	# road corridors. Lots now span the enlarged map instead of clustering only
+	# in the original 370 metre centre.
 	_build_district(COMMERCIAL_ROOT,
-			[-28.0, -58.0, -88.0, -118.0, -148.0],
-			[-92.0, -28.0, 40.0, 104.0], 9.0)
+			[-805.0, -565.0, -325.0, -85.0, 155.0],
+			[-685.0, -325.0, 35.0, 395.0], 9.0)
 	_build_district(INDUSTRIAL_ROOT,
-			[28.0, 58.0, 88.0, 118.0, 148.0],
-			[-92.0, -28.0, 40.0, 104.0], 8.0)
+			[-685.0, -445.0, -205.0, 275.0, 515.0],
+			[-565.0, -205.0, 275.0, 635.0], 8.0)
 	_build_district(SUBURBAN_ROOT,
-			[-160.0, -130.0, -100.0, -70.0, -40.0,
-			40.0, 70.0, 100.0, 130.0, 160.0],
-			[-158.0, 148.0, 178.0], 8.0)
+			[-745.0, -505.0, -265.0, -25.0, 215.0,
+			455.0, 695.0, 815.0, 575.0, 335.0],
+			[-745.0, 815.0, 515.0], 8.0)
 	_build_prop_plaza(Vector3(-30, 0.0, 86))
 	_build_street_furniture()
-	# Six driveable mountain destinations ring the enlarged world.
-	_build_mountain_destination(Vector3(300, 0, -100), -PI * 0.5, "East Ridge")
-	_build_mountain_destination(Vector3(-300, 0, 120), PI * 0.5, "West Ridge")
-	_build_mountain_destination(Vector3(90, 0, -300), 0.0, "North Peak")
-	_build_mountain_destination(Vector3(-90, 0, 300), PI, "South Peak")
-	_build_mountain_destination(Vector3(430, 0, 390), PI * 0.75, "Southeast Peak")
-	_build_mountain_destination(Vector3(-430, 0, -390), -PI * 0.25, "Northwest Peak")
 
 
 func _make_materials() -> void:
@@ -69,22 +61,10 @@ func _make_materials() -> void:
 	_road_mat.roughness = 0.96
 	_road_mat.uv1_triplanar = true
 	_road_mat.uv1_world_triplanar = true
-	_mountain_mat = StandardMaterial3D.new()
-	_mountain_mat.albedo_color = Color(0.28, 0.24, 0.19)
-	_mountain_mat.roughness = 1.0
-	_trail_mat = StandardMaterial3D.new()
-	_trail_mat.albedo_color = Color(0.34, 0.29, 0.22)
-	_trail_mat.roughness = 1.0
 
 
 func _build_ground() -> void:
 	_box(Vector3(1950, 2, 1950), Vector3(0, -1, 0), _ground_mat, true, "sand")
-	# Roads are visual overlays on the one continuous ground collider. Separate
-	# raised road colliders created tiny edges that could stop a moving car.
-	_box(Vector3(370, 0.02, 10), Vector3(0, 0.01, 10), _road_mat, false, "concrete")
-	_box(Vector3(10, 0.02, 370), Vector3(0, 0.01, 0), _road_mat, false, "concrete")
-	for z in [-62.0, -122.0, 70.0]:
-		_box(Vector3(370, 0.02, 8), Vector3(0, 0.01, z), _road_mat, false, "concrete")
 	_build_boundary_walls()
 
 
@@ -104,18 +84,13 @@ func _build_boundary_walls() -> void:
 
 
 func _build_road_grid() -> void:
-	# Verified GLB bounds are y=0.00..0.02; at 10x scale that is 0.20 m.
-	# Sink the tile so its top aligns with the 0.02 m road overlay.
-	const ROAD_MODEL_Y := -0.18
-	for x in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, ROAD_MODEL_Y, 10), PI * 0.5, 10.0)
-	for z in range(-18, 19):
-		_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(0, ROAD_MODEL_Y, z * 10.0), 0.0, 10.0)
-	for z in [-60.0, -120.0, 70.0]:
-		for x in range(-18, 19):
-			_place_visual(ROAD_ROOT + "/road-straight.glb", Vector3(x * 10.0, ROAD_MODEL_Y, z), PI * 0.5, 10.0)
-	for z in [-120.0, -60.0, 10.0, 70.0]:
-		_place_visual(ROAD_ROOT + "/road-crossroad.glb", Vector3(0, ROAD_MODEL_Y, z), 0.0, 10.0)
+	# One continuous, flush road grid replaces overlapping GLB road tiles. The
+	# old tiles produced the scattered white lane fragments shown by the user.
+	for coordinate in range(-840, 841, 120):
+		_box(Vector3(1900, 0.012, 18), Vector3(0, 0.006, coordinate),
+				_road_mat, false, "concrete")
+		_box(Vector3(18, 0.012, 1900), Vector3(coordinate, 0.006, 0),
+				_road_mat, false, "concrete")
 
 
 func _build_district(root: String, x_positions: Array,
@@ -531,80 +506,6 @@ func _build_street_furniture() -> void:
 	_place_visual(ROAD_ROOT + "/construction-barrier.glb", Vector3(12, 0.02, 25), 0.0, 4.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-large.glb", Vector3(-12, 0.12, 44), 0.0, 7.0)
 	_place_visual(SUBURBAN_ROOT + "/tree-small.glb", Vector3(-20, 0.12, 48), 0.0, 7.0)
-
-
-func _build_mountain_destination(origin: Vector3, yaw: float,
-		mountain_name: String) -> void:
-	## Reusable GTA-style mountain: a car-width approach, gentle ramp and broad
-	## summit. Rotating the root lets the same reliable route ring the map.
-	const SUMMIT_Z := -150.0
-	const RUN := 150.0
-	const RISE := 32.0
-	var mountain := Node3D.new()
-	mountain.name = mountain_name.validate_node_name()
-	mountain.position = origin
-	mountain.rotation.y = yaw
-	add_child(mountain)
-
-	var mass := MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 16.0
-	cone.bottom_radius = 61.0
-	cone.height = RISE
-	cone.radial_segments = 12
-	cone.rings = 6
-	cone.material = _mountain_mat
-	mass.mesh = cone
-	mass.position = Vector3(0, RISE * 0.5, SUMMIT_Z)
-	mountain.add_child(mass)
-
-	# The flat approach begins 90 metres toward the city.
-	_box(Vector3(12, 0.08, 90), Vector3(0, 0.04, 45),
-			_trail_mat, false, "rock", mountain)
-
-	# Roughly 12 degrees: walkable and gentle enough for the player car.
-	var ramp_root := Node3D.new()
-	ramp_root.position = Vector3(0, RISE * 0.5, SUMMIT_Z * 0.5)
-	ramp_root.rotation.x = asin(RISE / RUN)
-	mountain.add_child(ramp_root)
-	_box(Vector3(12, 0.45, RUN), Vector3.ZERO,
-			_trail_mat, true, "rock", ramp_root)
-	_box(Vector3(0.65, 1.15, RUN), Vector3(-6.3, 0.55, 0),
-			_mountain_mat, true, "rock", ramp_root)
-	_box(Vector3(0.65, 1.15, RUN), Vector3(6.3, 0.55, 0),
-			_mountain_mat, true, "rock", ramp_root)
-
-	_box(Vector3(30, 0.6, 28), Vector3(0, RISE - 0.2, SUMMIT_Z),
-			_trail_mat, true, "rock", mountain)
-	var decorations: Array = [
-		["cliff_large_rock.glb", Vector3(-55, 1.5, -138), 0.3, 11.0],
-		["cliff_cornerLarge_rock.glb", Vector3(-40, 3.0, -185), 1.1, 12.0],
-		["cliff_diagonal_rock.glb", Vector3(42, 2.0, -132), 2.3, 10.0],
-		["cliff_top_rock.glb", Vector3(35, 9.0, -185), 3.2, 11.0],
-		["cliff_steps_rock.glb", Vector3(-23, 7.0, -174), 0.7, 8.0],
-		["rock_largeA.glb", Vector3(-12, RISE, -155), 0.4, 3.2],
-		["rock_largeB.glb", Vector3(12, RISE, -154), 1.8, 3.0],
-		["rock_tallA.glb", Vector3(-8, RISE, -160), 2.4, 2.5],
-		["rock_tallB.glb", Vector3(18, 4.0, -78), 0.8, 5.0],
-	]
-	for data in decorations:
-		_place_mountain_asset(mountain, String(data[0]), Vector3(data[1]),
-				float(data[2]), float(data[3]))
-	PropLib.place(mountain, "Pole", Vector3(0, RISE + 0.3, SUMMIT_Z),
-			0.0, 2.2)
-
-
-func _place_mountain_asset(parent: Node3D, filename: String,
-		pos: Vector3, yaw: float, asset_scale: float) -> void:
-	var packed := load("res://assets/kenney/nature_mountain/" + filename) as PackedScene
-	if packed == null:
-		push_warning("Missing mountain asset: %s" % filename)
-		return
-	var model := packed.instantiate() as Node3D
-	model.position = pos
-	model.rotation.y = yaw
-	model.scale = Vector3.ONE * asset_scale
-	parent.add_child(model)
 
 
 func _place_visual(path: String, pos: Vector3, yaw: float, model_scale: float) -> Node3D:
